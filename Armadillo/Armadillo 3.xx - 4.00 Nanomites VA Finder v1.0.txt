@@ -1,0 +1,141 @@
+Filename: Armadillo 3.xx - 4.00 Nanomites VA Finder v1.0
+Description: 
+Uploader: Nanomite
+Website:
+Date: Monday 25 September 2006 - 20:54:13
+/*
+=====================================================================================
+                             Nanomite's VA Finder 1.0
+                              by [Tk-Bf] Ac. - ltG!!
+    -----------------------------------------------------------------------------
+                   Para Ollydbg 1.10, OllyScript 0.92 y WinXP Pro
+                           Basado en Armadillo 3.x - 4.00
+-------------------------------------------------------------------------------------
+[Notas]
+  - Edita la ruta del archivo resultante en la linea
+      dm sec, secS, "E:\Documents and Settings\tenketsu\Escritorio\AddrDec.bin"
+  - EIP debe de estar dentro del codigo donde estan los nanomites
+  - La VA de la tabla se logeara, por si deseas verla [Ventana Log]
+=====================================================================================
+*/
+
+var sec
+var sec2
+var secS
+var secS2
+var secS3
+var PTab
+
+dbh
+gmi eip, MODULEBASE        //Obtiene a la base del modulo [PE Header]
+mov sec2, $RESULT
+
+textL:
+mov sec, sec2
+find sec, #2E74657874#     //Busca la seccion .text?
+cmp $RESULT, 0
+je textL2
+mov sec, $RESULT
+add sec, 8
+mov sec2, sec
+cmp [sec], 30000           //Comprueba que tenga el tamaño de 30000h bytes
+jne textL
+add sec, 4
+mov secS, [sec]
+find sec, #2E6164617461#   //Busca la seccion .adata?
+cmp $RESULT, 0
+je textL2
+mov sec, $RESULT
+add sec, 8
+cmp [sec], 10000           //Comprueba que tenga el tamaño de 10000h bytes
+jne textL
+add sec, 4
+mov secS2, [sec]
+mov secS3, secS2
+sub secS2, secS
+cmp secS2, 30000           //Comprueba que .adata este junto a .text [secciones contiguas]
+jne textL
+find sec, #2E64617461#     //Busca la seccion .data?
+cmp $RESULT, 0
+je textL2
+mov sec, $RESULT
+add sec, 8
+cmp [sec], 10000           //Comprueba que tenga el tamaño de 10000h bytes
+jne textL
+add sec, 4
+mov secS, [sec]
+sub secS, secS3
+cmp secS, 10000            //Comprueba que .data este junto a .adata [secciones contiguas]
+jne textL
+jmp NextL
+
+textL2:
+gmi eip, MODULEBASE        //Obtiene a la base del modulo [PE Header]
+mov sec2, $RESULT
+
+textL2a:
+mov sec, sec2
+find sec, #2E74657874#     //Busca la seccion .text?
+cmp $RESULT, 0
+je Error
+mov sec, $RESULT
+add sec, 8
+mov sec2, sec
+cmp [sec], 40000           //Comprueba que tenga el tamaño de 40000h bytes
+jne textL2a
+add sec, 4
+mov secS, [sec]
+find sec, #2E6164617461#   //Busca la seccion .adata?
+cmp $RESULT, 0
+je Error
+mov sec, $RESULT
+add sec, 8
+cmp [sec], 10000           //Comprueba que tenga el tamaño de 10000h bytes
+jne textL2a
+add sec, 4
+mov secS2, [sec]
+mov secS3, secS2
+sub secS2, secS
+cmp secS2, 40000           //Comprueba que .adata este junto a .text [secciones contiguas]
+jne textL2a
+find sec, #2E64617461#     //Busca la seccion .data?
+cmp $RESULT, 0
+je Error
+mov sec, $RESULT
+add sec, 8
+cmp [sec], 20000           //Comprueba que tenga el tamaño de 20000h bytes
+jne textL2a
+add sec, 4
+mov secS, [sec]
+sub secS, secS3
+cmp secS, 10000            //Comprueba que .data este junto a .adata [secciones contiguas]
+jne textL2a
+
+NextL:
+mov sec, [sec]
+add sec, 400000            //Obtine el VA Base donde se guardara la tabla [dentro de .data]
+log sec
+mov secS, 0                //Pone el contador a 0
+mov sec2, 401000           //Comienzo de la seccion actual [zona de nanomites]
+
+Loop:
+find sec2, #CC#            //Busca el Byte CC [Nanomite]
+cmp $RESULT, 0
+je Dmp                     //Si ya no hay, dumpea
+mov sec2, $RESULT
+inc sec2                   //Incrementa en 1 la direccion del Nanomite
+mov PTab, secS
+shl PTab, 2                //Multiplica el contador por 4 [DWORD]
+add PTab, sec              //Le suma el VA Base de la tabla
+mov [PTab], sec2
+inc secS                   //Incrementa el contador
+jmp Loop
+
+Dmp:
+shl secS, 2
+dm sec, secS, "E:\Documents and Settings\tenketsu\Escritorio\AddrDec.bin"
+ret
+
+Error:
+msg "Las secciones del codigo no concuerdan, el Script no puede continuar."
+ret

@@ -1,0 +1,705 @@
+Filename: Armadillo 3.7x - 8.xx Unpacker (Standard + Debug-Blocker) v0.1
+Description: Armadillo v3.7x - v8.xx Debug Blocker / Standard / Minimum unpacking script. This script unpacks almost every version of Armadillo, it also unpacks UPX if it's detected.
+Uploader: Mr. eXoDia
+Website: http://forum.tuts4you.com/forum/71-scripts-and-scripting/
+Date: Monday 25 September 2006 - 20:52:55
+
+
+//Armadillo v3.7X - v8.XX Debug Blocker / Standard / Minimum script
+//This script unpacks almost every version of Armadillo!
+//It also unpacks UPX if it's detected...
+
+//Created by Mr. eXoDia // T.P.o.D.T 2011.26.04
+
+//FOR USE OF RESEARCH ONLY!
+
+//Tested on the following versions (not all with UPX):
+//3.05
+//3.10.???? (Custom Build!) (OEP-finder ONLY!)
+//3.70a
+//3.72
+//3.77.0021 (Custom Build!) (OEP-finder ONLY!)
+//3.78.0194 (Custom Build!) (OEP-finder ONLY!)
+//4.00.0230 (Custom Build!)
+//4.00.0053 (Custom Build!)
+//4.10
+//4.30a
+//4.40
+//4.42
+//4.44
+//4.62
+//4.66
+//5.00
+//5.02
+//5.40Beta
+//5.40
+//5.42
+//6.05Alpha1
+//6.40.0329 (Custom Build!)
+//6.60.0140 (Custom Build!)
+//6.62
+//7.00Beta3
+//7.00.0081 (Custom Build!)
+//7.05Alpha6b
+//7.20
+//7.25Alpha9
+//7.40
+//8.00
+//8.20
+//8.40Beta1
+//8.40
+//8.60
+
+Armadillo byte signatures used:
+//#6800010000# = push 100
+//#E8????????# = call XXXXXXXX
+//#5?# = push ?
+//#FFD?# = call [register]
+//#5F5253# = "_RS"
+//#3A53494D554C41544545585049524544# = ":SIMULATEEXPIRED"
+
+
+//--------------------------------------------------------------------------//
+
+
+
+//Armadillo v4.xx - v8.xx CopyMem2 + IAT Elimination by:
+
+//Mr. eXoDia // T.P.o.D.T 2011
+//mr.exodia.tpodt@gmail.com
+//http://www.tpodt.tk
+
+//Thanks to Ghandi for his posts on tuts4you.com. I just combined his info
+//to a script...
+
+//FAQ:
+//Q: What to do when the script asks me to enter 'the start of junk code'?
+//A: Search down untill you see the code going from clear disassembly to
+//   crap. Enter the address under the last 'normal' jump. This can't be
+//   done withour user input because you'll need the 'junk marker' for
+//   each specific version of Armadillo (the markers even change in betas
+//   I thought)
+//Q: What to do when the script asks me if I want the fast or the slow way
+//   for restoring imports?
+//A: Always use the fast way exept if your target imports the file
+//   "ArmAccess.dll". The slow function is not properly tested! It may fail
+//   on versions 4.xx, 5.xx and 6.xx (I tested this script on Armadillo 8.4)
+//Q: I dont understand what happens here, HELP!
+//A: Read tutorials on Armadillo & ODbgScript. Remember: This script only
+//   automates an unpacking procedure. You wont learn unpacking from it!!
+
+//Used byte signatures:
+//#5F5253# = ASCII "_RS"
+//#75??# = JE SHORT ????????
+//#0F84????????# = JE LONG ????????
+//#6A00# = PUSH 0
+//#6A01# = PUSH 1
+//#6800010000# = PUSH 100
+//#E8????????# = CALL ????????
+//#83C?04# = ADD [register],4
+//#33??E9????????# = XOR [register],[register], JMP LONG ????????
+
+//--------------------------------------------------------------------------//
+
+
+
+msgyn "YES for CopyMem2, NO for Standard (+ Debug Blocker)"
+cmp $RESULT, 0
+je standardprotection
+
+
+MSGYN "YES for CodePage, NO for imports"
+CMP $RESULT, 0
+JE imports
+
+bc //Remove all breakpoins
+bphwc //Remove all HW breakpoins
+lclr //Clear the script log
+
+//BP Variables:
+var OpenMutexA
+var GetEnvironmentVariableA
+var VirtualProtect
+var LoadLibraryA
+var CreateThread
+
+//Normal variables:
+var ImageBase
+var EnvironmentVariableName
+var junk_finder
+var junk1
+var junk2
+var je1
+var je2
+var EncryptDecrypt
+var no_iat_elimination
+var iat_elimination
+var method2
+var addr_jnz
+var code_size
+var end_txt
+var temp
+
+//Get ImageBase:
+pusha
+exec
+push 0
+call GetModuleHandleA
+ende
+mov ImageBase, eax
+popa
+
+//Set the breakpoint variables:
+gpa "OpenMutexA", "kernel32.dll"
+mov OpenMutexA, $RESULT
+
+gpa "GetEnvironmentVariableA", "kernel32.dll"
+mov GetEnvironmentVariableA, $RESULT
+
+gpa "VirtualProtect", "kernel32.dll"
+mov VirtualProtect, $RESULT
+
+gpa "LoadLibraryA", "kernel32.dll"
+mov LoadLibraryA, $RESULT
+
+gpa "CreateThread", "kernel32.dll"
+mov CreateThread, $RESULT
+
+//Fool the Debug-Blocker:
+bp OpenMutexA
+erun
+bc
+estep
+bp OpenMutexA
+erun
+bc
+rtr
+mov eax,1
+log "Debug-Blocker fooled!"
+
+//Skip the famous CopyMem2 crash:
+loop1:
+bp GetEnvironmentVariableA
+erun
+bc
+mov EnvironmentVariableName, [esp+4]
+estep
+cmp [EnvironmentVariableName], #5F5253# //Compare the variable name with "_RS"
+jne loop1
+eval "Environment Variable '_RS' Found at 0x{EnvironmentVariableName}!"
+log $RESULT
+rtr
+esti
+find eip, #0F84????????# //Look for JE LONG
+cmp 0, $RESULT
+je error
+bp $RESULT
+erun
+bc
+xor !ZF, !ZF //Flip the Z-flag if needed
+
+log "CopyMem2 Crash fixed!"
+
+//Get near the license checking
+bp OpenMutexA
+erun
+bc
+
+//To get near import-scrambling
+bp VirtualProtect
+erun
+bc
+
+//Get near the "magic jump"
+bp LoadLibraryA
+erun
+bc
+
+//Get in the imort-destruction code
+mov junk_finder, ebp
+add junk_finder, 4
+log junk_finder
+bp [junk_finder]
+erun
+bc
+
+//Because we don't know all the markers we ask the user to search... :)
+ask "Search down for junk code and enter the start address here (use PageDown to scroll):"
+mov junk1, $RESULT
+bphws junk1, "x"
+
+restored:
+erun
+bphwc
+
+ask "Search down for junk code again and enter the start address here (use PageDown to scroll):"
+mov junk2, $RESULT
+bphws $RESULT, "x"
+erun
+bphwc
+
+find eip,#33??E9????????# //XOR [register], [register], JMP LONG
+find $RESULT, #0F84????????# //Look for the 1st JE LONG after that
+mov je1, $RESULT //Move the result in a variable
+inc $RESULT //increase the result for next search
+find $RESULT, #0F84????????# //Look for JE LONG
+mov je2, $RESULT //move the result in a variable
+
+//run till the 1st JE LONG:
+bp je1
+erun
+bc
+mov iat_elimination, !ZF
+
+//Get some info about it:
+gci eip, DESTINATION
+mov no_iat_elimination, $RESULT
+xor !ZF, !ZF //Flip flag (for non-IAT Elimination targets)
+
+//run till the 2nd JE LONG:
+bp je2
+erun
+bc
+
+xor !ZF, !ZF //Flip z-flag
+
+find eip,#6A00# //Look for PUSH 0
+find $RESULT, #E8????????# //Look for the 1st call after that
+mov EncryptDecrypt, $RESULT //Move the result in a variable
+
+//Decrypt the Code Page!
+bp EncryptDecrypt
+erun
+bc
+estep
+
+log "Code blocks decrypted"
+
+cmp 0, iat_elimination
+je done1
+mov eip, no_iat_elimination
+jmp done2
+
+error:
+msg "Error, maybe unsupported version"
+
+done1:
+find eip, #6A01#
+bphws $RESULT, "x"
+erun
+find eip, #E8????????#
+add $RESULT, 5
+mov eip, $RESULT
+
+done2:
+bphwc
+
+bphws CreateThread, "x"
+
+loop2:
+erun
+rtr
+esti
+find eip, #5?#
+cmp $RESULT, eip
+jne loop2
+
+rtr
+esti
+find eip, #FFD?#
+inc $RESULT
+find $RESULT, #FFD?#
+
+bphws $RESULT, "x"
+erun
+esti
+
+mov OEP, eip
+mov OEP_rva, eip
+sub OEP_rva, ImageBase
+
+bphwc
+bc
+
+jmp end_final
+
+no_code:
+erun
+jmp end_final2
+
+
+end_final:
+
+eval "OEP: {OEP}, ({OEP_rva}). {end_txt} You may also need to the the Access of the code section to 'Full Access' if you want to dump the target..."
+msg $RESULT
+log $RESULT, ""
+
+
+JMP end 
+
+imports:
+
+bc //Remove all breakpoins
+bphwc //Remove all HW breakpoins
+lclr //Clear the script log
+
+//BP Variables:
+var OpenMutexA
+var GetEnvironmentVariableA
+var VirtualProtect
+var LoadLibraryA
+var CreateThread
+
+//Normal variables:
+var EnvironmentVariableName
+var je1
+var je2
+
+var method2
+var addr_jnz
+var end_txt
+var temp
+
+//Get ImageBase:
+pusha
+exec
+push 0
+call GetModuleHandleA
+ende
+mov ImageBase, eax
+popa
+
+//Set the breakpoint variables:
+gpa "OpenMutexA", "kernel32.dll"
+mov OpenMutexA, $RESULT
+
+gpa "GetEnvironmentVariableA", "kernel32.dll"
+mov GetEnvironmentVariableA, $RESULT
+
+gpa "VirtualProtect", "kernel32.dll"
+mov VirtualProtect, $RESULT
+
+gpa "LoadLibraryA", "kernel32.dll"
+mov LoadLibraryA, $RESULT
+
+gpa "CreateThread", "kernel32.dll"
+mov CreateThread, $RESULT
+
+//Fool the Debug-Blocker:
+bp OpenMutexA
+erun
+bc
+estep
+bp OpenMutexA
+erun
+bc
+rtr
+mov eax,1
+log "Debug-Blocker fooled!"
+
+//Skip the famous CopyMem2 crash:
+loop1_i:
+bp GetEnvironmentVariableA
+erun
+bc
+mov EnvironmentVariableName, [esp+4]
+estep
+cmp [EnvironmentVariableName], #5F5253# //Compare the variable name with "_RS"
+jne loop1_i
+eval "Environment Variable '_RS' Found at 0x{EnvironmentVariableName}!"
+log $RESULT
+rtr
+esti
+find eip, #0F84????????# //Look for JE LONG
+cmp 0, $RESULT
+je error_i
+bp $RESULT
+erun
+bc
+xor !ZF, !ZF //Flip the Z-flag if needed
+
+log "CopyMem2 Crash fixed!"
+
+//Get near the license checking
+bp OpenMutexA
+erun
+bc
+
+//To get near import-scrambling
+bp VirtualProtect
+erun
+bc
+
+//Get near the "magic jump"
+bp LoadLibraryA
+erun
+bc
+
+//Get in the imort-destruction code
+mov junk_finder, ebp
+add junk_finder, 4
+log junk_finder
+bp [junk_finder]
+erun
+bc
+
+msgyn "Click YES for the fast way of restoring imports. Click NO if the target calls the internal ArmAccess.dll"
+cmp $RESULT, 1
+jne method2_i
+find eip, #6800010000# //Find PUSH 100
+find $RESULT, #E8????????# //Find the 1st call after PUSH 100
+gci $RESULT, DESTINATION //Get the destination of the call
+asm $RESULT, "retn"
+jmp restored2_i
+
+method2_i:
+find eip, #6800010000# //Look for push 100
+find $RESULT, #E8????????# //Look for the 1st call after push 100
+find $RESULT, #6800010000# //Look for the 1st PUSH 100 after that
+find $RESULT, #83C?04# //Look for ADD [register],4
+find $RESULT, #75??# //Look for the 1st JNZ SHORT after that
+mov addr_jnz, $RESULT //Move the result in a variable
+bphws addr_jnz, "x" //Set a BP on that variable
+
+//Flip flags manually because of the CRC check (can take some time)
+imports_loop_i:
+erun
+cmp eip, addr_jnz
+jne restored2_i
+mov !ZF, 1
+jmp imports_loop_i
+
+restored2_i:
+bc
+bphwc
+erun
+
+msg "Import table restored!"
+jmp end
+
+standardprotection:
+
+dbh
+bc
+bphwc
+
+var OpenMutexA
+var CreateMutexA
+var mutex_name
+var GetEnvironmentVariableA
+var VirtualProtect
+var LoadLibraryA
+var CreateThread
+var compare
+var ImageBase
+var junk_finder
+
+pusha
+exec
+push 0
+call GetModuleHandleA
+ende
+mov ImageBase, eax
+popa
+
+gpa "OpenMutexA", "kernel32.dll"
+mov OpenMutexA, $RESULT
+
+gpa "GetEnvironmentVariableA", "kernel32.dll"
+mov GetEnvironmentVariableA, $RESULT
+
+gpa "VirtualProtect", "kernel32.dll"
+mov VirtualProtect, $RESULT
+
+gpa "LoadLibraryA", "kernel32.dll"
+mov LoadLibraryA, $RESULT
+
+gpa "CreateThread", "kernel32.dll"
+mov CreateThread, $RESULT
+
+gpa "CreateMutexA", "kernel32.dll"
+mov CreateMutexA, $RESULT
+
+msgyn "Is the target using Debug-Blocker?"
+cmp $RESULT, 0
+je standard_protection_s
+
+bp OpenMutexA
+erun
+bc
+
+mov mutex_name,[esp+0C]
+
+exec
+pushad
+pushfd
+push {mutex_name}
+push 0
+push 0
+call CreateMutexA
+popfd
+popad
+ende
+
+//bp OpenMutexA
+//erun
+//bc
+//estep
+//bp OpenMutexA
+//erun
+//bc
+//rtr
+//mov eax,1
+
+standard_protection_s:
+
+msgyn "Armadillo NAG? (Click No if you are unsure)"
+cmp $RESULT, 1
+je arm_nag_s
+
+loop0_s:
+bp GetEnvironmentVariableA
+erun
+bc
+mov compare, [esp+4]
+cmp [compare], #5F5253#
+estep
+jne loop0_s
+
+loop1_s:
+bp OpenMutexA
+erun
+bc
+mov compare, [esp+C]
+add compare, 8
+cmp [compare], #3A53494D554C41544545585049524544#
+estep
+jne loop1_s
+
+bp VirtualProtect
+erun
+bc
+jmp no_nag_s
+
+arm_nag_s:
+msg "Click the pause (F12) button if NAG is loaded. Click OK to continue..."
+erun
+
+no_nag_s:
+bp LoadLibraryA
+erun
+bc
+mov junk_finder, ebp
+add junk_finder, 4
+
+bphws [junk_finder], "x"
+erun
+bphwc
+
+msgyn "Click YES for the fast way of restoring imports. Click NO if the target calls the internal ArmAccess.dll"
+cmp $RESULT, 1
+jne method3_i
+find eip, #6800010000# //Find push 100
+find $RESULT, #E8????????# //Find the 1st call after PUSH 100
+gci $RESULT, DESTINATION //Get the destination of the call
+asm $RESULT, "retn"
+jmp loop2_s
+
+method3_i:
+bp CreateThread
+find eip, #6800010000# //Look for push 100
+find $RESULT, #E8????????# //Look for the 1st call after push 100
+find $RESULT, #6800010000# //Look for the 1st PUSH 100 after that
+find $RESULT, #83C?04# //Look for ADD [register],4
+find $RESULT, #75??# //Look for the 1st JNZ SHORT after that
+mov addr_jnz, $RESULT //Move the result in a variable
+bphws addr_jnz, "x" //Set a BP on that variable
+
+//Flip flags manually because of the CRC check (can take some time)
+imports_loop2_i:
+erun
+cmp eip, addr_jnz
+jne loop2_s2
+mov !ZF, 1
+jmp imports_loop2_i
+
+restored3_i:
+bc
+bphwc
+
+loop2_s:
+bp CreateThread
+erun
+loop2_s2:
+bc
+rtr
+esti
+find eip, #5?#
+cmp eip, $RESULT
+jne loop2_s
+
+bc
+rtr
+esti
+find eip, #FFD?#
+inc $RESULT
+find $RESULT, #FFD?#
+
+bp $RESULT
+erun
+bc
+esti
+
+find eip, #60#
+cmp eip, $RESULT
+jne done_s
+
+msgyn "Do you want me to unpack the detected UPX protection?"
+cmp $RESULT, 0
+je done_s
+
+//My UPX Script:
+find eip, #61#
+cmp $RESULT, 0
+je fail_s
+
+bp $RESULT
+erun
+bc $RESULT
+find eip, #E9????????#
+cmp $RESULT, 0
+jne normal_s
+
+find eip, #C3#
+cmp $RESULT, 0
+jne normal_s
+
+find eip, #E8????????#
+cmp $RESULT, 0
+jne normal_s
+
+jmp fail_s
+
+normal_s:
+bp $RESULT
+erun
+bc $RESULT
+esti
+jmp done_s
+
+fail_s:
+msg "Fail with unpacking UPX, do this manually..."
+
+done_s:
+mov OEP, eip
+mov OEP_rva, eip
+sub OEP_rva, ImageBase
+
+bc
+dbs //Unhide from IsDebuggerPresent
+eval "OEP: {OEP}, ({OEP_rva}), Imports Fixed: Yes!"
+msg $RESULT
+
+
+end:
+LOG "Done!"

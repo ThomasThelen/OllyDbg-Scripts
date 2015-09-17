@@ -1,0 +1,342 @@
+Filename: ROR Packer 0.3 Decrypt v0.1
+Description: 
+Uploader: AbsolutZero
+Website: 
+Date: Tuesday 13 April 2010 - 07:09:05
+
+var base
+VAR base1
+VAR adr
+VAR dest
+VAR dest1
+VAR start
+VAR end
+VAR ep
+VAR x
+VAR seek
+VAR op
+VAR patch
+
+encryption:
+GMEMI eip,MEMORYBASE
+MOV base,$RESULT
+MOV base1,base
+
+MOV ep,eip
+mov adr,base
+add adr,1c9e
+repl adr,#89462c#,#eb1590#,3   //no SEH instalation
+MOV dest,1c34
+ADD dest,base   //encryption call destination
+MOV dest1,2045
+ADD dest1,base  // decryption call destination
+
+start_:
+find base,#68????000068????????e8# //start of encryption routine
+MOV base,$RESULT
+CMP $RESULT,0
+JE finish
+MOV adr,[$RESULT+b]
+ADD adr,$RESULT+0F
+CMP adr,dest
+JNE  start
+MOV start,base
+MOV eip,base
+STI           //run encryption
+STI
+STI
+RTR
+STI
+POP x
+POP x
+MOV seek,eip
+
+find eip,#68????000068????????e8# //end of encryption routine
+MOV end,$RESULT
+MOV base,$RESULT
+CALL deemulate
+REPL start, #68????????68????????e8????????#,#e90a000000e9fbffffff9090909090#,0f
+REPL end, #68????????68????????e8????????#,#e90a000000e9fbffffff9090909090#,0f
+INC base
+JMP start_
+finish:
+
+MOV eip,ep
+RET
+
+///////////////////////////////////////////////////////////////////////////////
+deemulate:
+
+start:
+CMP seek,end
+JE  end
+MOV op,[seek],1
+CMP op,ef
+JNE short
+  MOV op,[seek+1],1
+  CMP op,e4  
+  JE findefe4  //jz long
+  CMP op,e3  
+  JE findefe3  //jnz long     
+  CMP op,e6  
+  JE findefe6  //jb long  
+  CMP op,e1  
+  JE findefe1  //ja long 
+  CMP op,e5  
+  JE findefe5  //jae long  
+  CMP op,e2 
+  JE findefe2  //jbe long    
+  CMP op,e0  
+  JE findefe0  //jl long    
+  CMP op,df  
+  JE findefdf  //jge long  
+  CMP op,de  
+  JE findefde  //jle long  
+  CMP op,dd  
+  JE findefdd  //jg long
+
+short:
+MOV op,[seek],1
+CMP op,6f
+JE find6f  //call
+CMP op,ed  
+JE finded  //jz
+CMP op,ec
+JE findec  //jmp short
+CMP op,6c
+JE find6c  //jnz
+CMP op,cf
+JE findcf  //ja
+CMP op,e6
+JE finde6   //jb
+CMP op,6e
+JE find6e  //jmp long
+CMP op,f1
+JE findf1  //jle
+CMP op,fb
+JE findfb  //jae
+CMP op,6d
+JE find6d  //jbe
+CMP op,e4
+JE finde4  //jl
+CMP op,f4
+JE findf4  //jge
+CMP op,e7
+JE finde7  //jg
+
+next:
+OPCODE seek
+ADD seek,$RESULT_2  //address of next instruction
+JMP start
+
+end:
+RET
+
+///////////////////////////////////////////////////////////////////////////////
+
+finde6:           //jb
+mov x,[seek+1],1
+sub x,0e6
+sub x,0
+MOV [seek],72,1
+mov [seek+1],x,1
+ADD seek,2
+JMP start
+
+findfb:           //jae
+mov x,[seek+1],1
+sub x,0fb
+sub x,1
+MOV [seek],74,1
+mov [seek+1],x,1
+ADD seek,2
+JMP start
+
+finded:           //jz
+mov x,[seek+1],1
+sub x,0ed
+sub x,2
+MOV [seek],74,1
+mov [seek+1],x,1
+ADD seek,2
+JMP start
+
+find6c:           //jnz
+mov x,[seek+1],1
+sub x,06c
+sub x,3
+MOV [seek],75,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+find6d:           //jbe
+mov x,[seek+1],1
+sub x,06d
+sub x,4
+MOV [seek],76,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+findcf:            //ja
+mov x,[seek+1],1
+sub x,0cf
+sub x,5
+MOV [seek],77,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+finde4:            //jl
+mov x,[seek+1],1
+sub x,0e4
+sub x,6
+MOV [seek],7c,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+findf4:             //jge
+mov x,[seek+1],1
+sub x,0f4
+sub x,7
+MOV [seek],7d,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+findf1:            //jle
+mov x,[seek+1],1
+sub x,0f1
+sub x,8
+MOV [seek],7e,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+finde7:           //jg
+mov x,[seek+1],1
+sub x,0e7
+sub x,9
+MOV [seek],7f,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+findec:           //jmp short
+mov x,[seek+1],1
+sub x,0ec
+sub x,0a
+MOV [seek],0eb,1
+mov [seek+1],x,1
+ADD seek,2
+jmp start
+
+find6f:          //call
+MOV x,[seek+1]
+sub x,6f
+sub x,0b
+mov [seek],0e8
+mov [seek+1],x
+ADD seek,5
+JMP start
+
+find6e:            //jmp long
+MOV x,[seek+1]
+sub x,6e
+sub x,0c
+mov [seek],0e9
+mov [seek+1],x
+ADD seek,5
+JMP start
+
+findefe6:         //jb long
+MOV x,[seek+2]
+sub x,0e6
+sub x,8
+mov [seek],820f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefe5:        //jae long
+MOV x,[seek+2]
+sub x,0e5
+sub x,9
+mov [seek],830f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefe4:        //jz long
+MOV x,[seek+2]
+sub x,0e4
+sub x,0a
+mov [seek],840f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefe3:        //jnz long 
+MOV x,[seek+2]
+sub x,0e3
+sub x,0b
+mov [seek],850f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefe2:        //jbe long
+MOV x,[seek+2]
+sub x,0e2
+sub x,c
+mov [seek],860f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefe1:        //ja long 
+MOV x,[seek+2]
+sub x,0e1
+sub x,d
+mov [seek],870f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefe0:       //jl long
+MOV x,[seek+2]
+sub x,0e0
+sub x,e
+mov [seek],8c0f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefdf:        //jge long
+MOV x,[seek+2]
+sub x,0df
+sub x,f
+mov [seek],8d0f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefde:       //jle long
+MOV x,[seek+2]
+sub x,0de
+sub x,10
+mov [seek],8e0f
+mov [seek+2],x
+ADD seek,6
+JMP start
+
+findefdd:       //jg long
+MOV x,[seek+2]
+sub x,0dd
+sub x,11
+mov [seek],8f0f
+mov [seek+2],x
+ADD seek,6
+JMP start

@@ -1,0 +1,65 @@
+Filename: Armadillo 3.78 - 4.xx + UPX OEP Finder
+Description: 
+Uploader: PiONEER
+Website:
+Date: Friday 30 March 2007 - 17:12:48
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//  OEP Find Script for Armadillo 3.78 - 4.xx + UPX
+//  Coded by: PiONEER {RES}
+//  TEAM: TEAM RESURRECTiON
+//  Greetz to: {RES},ICU,ARTeam,SnD,CiM,RLD,AGN,trainer-paradies.de,XeonByte,Anorganix
+//  starzboy,Till.CH,oxy87,Orthodox,ALiEN,cyclops,l0calh0st/ICU,sEby,zyzygy,dR.oLLe 
+//  Data: 13:19 30.03.2007
+//  Environment :  WinXP SP1,OllyDbg V1.10,ODbgScript V1.48
+//  Contact: http://www.appzclub.tk - or - admin@appzclub.tk
+//////////////////////////////////////////////////////////////////////////////////////////
+
+start:
+#log
+find eip, #60E8#
+cmp $RESULT,0
+je _error
+gpa "CreateThread", "kernel32.dll"
+bp $RESULT
+esto
+bc $RESULT
+find eip, #C2??00#
+bp $RESULT
+run
+bc $RESULT
+sto
+find eip, #C3#
+bp $RESULT
+run
+bc $RESULT
+sto
+find eip, #EB??#
+bp $RESULT
+run
+bc $RESULT
+sto
+find eip, #75??#
+bp $RESULT
+run
+bc $RESULT
+sto
+find eip, #FFD1#
+bp $RESULT
+run
+bc $RESULT
+sti
+find eip, #E97856A6FF#
+bp $RESULT
+run
+bp $RESULT
+sto
+cmt eip, "This is the OEP! Found by PiONEER/TEAM {RES}"
+msg "Dumped and fix IAT now! Thanx for using my Script...!"
+ret
+
+
+_error:
+msg "error!"
+ret
+end:
