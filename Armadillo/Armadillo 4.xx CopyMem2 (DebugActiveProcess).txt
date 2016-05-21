@@ -1,0 +1,67 @@
+//////////////////////////////////////////////////////////
+// FileName    :  DebugActiveProcess.osc
+// Comment     :  Armadillo V4.X CopyMem-II DebugActiveProcess
+// Environment :  WinXP SP2,OllyDbg V1.10,OllyScript V0.92
+// Author      :  fly
+// WebSite     :  http://www.unpack.cn
+// Date        :  2005-11-03 11:30
+//////////////////////////////////////////////////////////
+#inc "Get.eXe.PE.Information.osc"
+#log
+dbh
+
+
+MSGYN "Plz Clear All BreakPoints  And  Set Debugging Option Ignore All Excepions Options  !"
+cmp $RESULT, 0
+je TryAgain
+
+
+/*
+0012DB94   007590FC  /CALL DebugActiveProcess From 007590F6
+0012DB98   00000BD0  \ProcessId = BD
+*/
+
+var temp
+var DebugActiveProcess
+
+
+gpa "DebugActiveProcess", "KERNEL32.dll"
+cmp $RESULT, 0
+je Only Win2K/XP
+mov DebugActiveProcess, $RESULT
+
+eob DebugActiveProcess
+bp DebugActiveProcess
+esto
+GoOn0:
+esto
+
+DebugActiveProcess:
+cmp eip,DebugActiveProcess
+jne GoOn0
+bc DebugActiveProcess
+mov temp,esp
+add temp,4
+mov temp,[temp]
+
+log EP
+mov EP,[EP]
+//and EP,FFFF
+log EP
+
+
+eval " Plz Run OllyDBG Attach [ProcessId= {temp}] Child Process  And  Run Armadillo.fiXed.IT.osc  And  Modified EP Code={EP}  !   "
+MSG $RESULT
+ret
+
+
+//GameOver！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+
+Only Win2K/XP:
+MSG "Error! This Script only Run on the Win2K/WinXP !   "
+ret
+
+TryAgain:
+MSG " Plz  Try  Again   !   "
+ret

@@ -1,0 +1,132 @@
+/*
+Script written by VolX
+purpose : This script will make Olly to break on the OEP of your target or on the first 
+          command of the stolen code if it exist
+Test Environment : OllyDbg 1.1
+                   ODBGScript 1.47 under WINXP
+Thanks : Oleh Yuschuk - author of OllyDbg
+         SHaG - author of OllyScript
+         Epsylon3 - author of ODbgScript
+*/
+//support Asprotect 1.32, 1.33, ,1.35, 1.4, 2.0, 2.1, 2.11, 2.2beta, 2.2, 2.3
+
+var tmp1
+var tmp2
+var imgbase
+var 1stsecbase
+var 1stsecsize
+var dllimgbase
+
+dbh                           //hide debugger
+BPHWCALL                //clear hardware breakpoint
+GMI eip, MODULEBASE     //get imagebase
+mov imgbase, $RESULT
+log imgbase
+mov tmp1, imgbase
+add tmp1, 3C              //40003C
+mov tmp1, [tmp1]
+add tmp1, imgbase     //tmp1=signature VA
+add tmp1, f8              //1st section
+add tmp1, 8
+mov 1stsecsize, [tmp1]
+add tmp1, 4
+mov 1stsecbase, [tmp1]
+add 1stsecbase, imgbase
+gpa "GetSystemTime", "kernel32.dll"
+bp $RESULT
+esto
+bc eip
+rtr
+sti
+GMEMI eip, MEMORYOWNER
+mov dllimgbase, $RESULT
+cmp dllimgbase, 0
+je error
+log dllimgbase
+find dllimgbase, #C6463401#    //search "mov byte[esi+34], 1"
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+find tmp2, #68????????68????????68#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+log tmp1
+bp tmp1
+eob lab1
+eoe lab1
+esto
+
+lab1:
+cmp eip, tmp1
+je lab2
+esto
+
+lab2:
+bc tmp1
+find dllimgbase, #3130330D0A#     //search ASCII"103"
+mov tmp2, $RESULT
+log tmp2
+cmp tmp2, 0
+je wrongver
+find tmp2, #8D00C3#        //search "lea eax,[eax]" "ret"
+mov tmp1, $RESULT
+log tmp1
+cmp tmp1, 0
+je wrongver
+bphws tmp1, "x"
+eob lab3
+eoe lab3
+esto
+
+lab3:
+cmp eip, tmp1
+je lab4
+esto
+
+lab4:
+bphwc tmp1
+cob
+coe
+mov tmp1, [esp+8]
+cmp tmp1, 0
+log tmp1
+jne lab5
+mov tmp1, [esp+C]
+cmp tmp1, 0
+je lab6
+jmp lab7
+
+lab5:
+mov tmp1, [esp+10]
+cmp tmp1, 0
+jne lab7
+
+//No stolen code at the OEP
+lab6: 
+bprm 1stsecbase, 1stsecsize
+esto
+bpmc
+msg "OEP found, no stolen code at the OEP!"
+jmp end
+
+//There are stolen code at the OEP
+lab7:
+bp tmp1
+esto
+bc tmp1
+msg "Stolen code start!"
+jmp end
+
+error:
+msg "Error!"
+pause
+jmp end
+
+wrongver:
+msg "Unsupported Aspr version or it is not packed with Aspr?"
+pause
+jmp end
+
+end:
+ret

@@ -1,0 +1,78 @@
+// Скрипт исправляет все джампы, ведущие в скрамблерный код
+var scan_start
+var scan_end
+
+var RegionVM_Start  
+var RegionVM_End    
+var RegionMain_Start
+
+var OEP
+var Info
+var Counter
+var temp
+
+mov Counter,0
+//////////////////////////////[ INIT ]////////////////////////////////////////
+mov RegionVM_Start	,00E30000 // начало региона VM
+mov RegionVM_End	,00E35000 // конец региона VM
+mov RegionMain_Start	,00697000 // начало новой секции с VM (сдампленой)+ImageBase
+//////////////////////////////////////////////////////////////////////////////
+
+mov OEP,eip
+
+mov temp,eip
+mov scan_start,[eip] 
+mov [eip],#6A00#
+sto
+add temp,4
+mov scan_end,[temp]
+asm eip,"call GetModuleHandleA"
+sto
+mov eip,OEP
+mov [eip],scan_start
+mov [temp],scan_end
+add eax,1000
+mov scan_start,eax
+mov scan_end,eax
+gmi scan_start,CODESIZE
+add scan_end,$RESULT
+
+log "___________________________________________"
+log ""
+log "Start Virtual Machine jamp redirector..."
+log "___________________________________________"
+eval "Scan range [{scan_start}..{scan_end}] ..."
+mov Info,$RESULT
+log Info
+
+
+mov eip,scan_start
+sub eip,200
+mov [eip],#60413BCA73238039E975F6418B0103C183C0043BC672EA3BC773E62BC603C32BC183E804890145EBD861#
+sto
+mov ecx,scan_start
+dec ecx
+mov edx,scan_end
+mov ebx,RegionMain_Start
+mov ebp,0
+mov esi,RegionVM_Start
+mov edi,RegionVM_End
+add eip,28
+bp eip
+sub eip,28
+run
+bc eip
+mov Counter,ebp
+sto
+sub eip,2A
+fill eip,30,00
+mov eip,OEP
+bp eip
+ai
+bc eip
+
+eval "Finish! Total {Counter} jamps redirected!"
+msg $RESULT
+pause
+ret
+  

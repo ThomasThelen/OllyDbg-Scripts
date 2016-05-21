@@ -1,0 +1,175 @@
+/*
+
+  ASProtect 2.0x script
+
+  Before: CALL 00C70000
+   After: CALL DWORD PTR DS:[addr in IAT]
+
+  written by Tim
+  e-mail: timqwerty@yandex.ru
+
+*/
+
+
+var _eax
+var _ecx
+var _edx
+var _ebx
+var _esp
+var _ebp
+var _esi
+var _edi
+var _eip
+
+var addr
+var addr2
+var iat
+var iat_temp
+
+var CODE_begin
+var CODE_end
+var IAT_begin
+var IAT_end
+var Alloc_begin
+var Alloc_end
+var ASPr_func
+
+
+// скрипт нужно выполнять стоя на OEP
+// все переменные задавайте тоже стоя на OEP
+// если найденной API нет в IAT, то она будет добавлена
+// поэтому нужно очень точно задать конец IAT
+//
+// сейчас скрипт настроен для распаковки Awave Audio v9.2
+
+
+mov CODE_begin,  00401000  // адрес первого байта секции кода
+mov CODE_end,    00473FFF  // адрес последнего байта секции кода
+mov IAT_begin,   00474000  // адрес первого DWORD'а IAT (начало IAT)
+mov IAT_end,     004743EC  // адрес последнего DWORD'а IAT
+
+// следующие два параметра можно не задавать - они нужны только для того,
+// чтобы искать прыжки, ведущие в выделенную область памяти (JMP 00CD0000)
+// смотрите Log, если вам нужно искать такие прыжки
+mov Alloc_begin, 00520000  // адрес первого байта выделенной памяти
+mov Alloc_end,   01191FFF  // адрес последнего байта выделенной памяти
+
+mov ASPr_func,   00C70000  // адрес функции-переходника ASPr'а
+
+
+gpa "VirtualAlloc", "kernel32.dll"
+findop $RESULT, #C21000#
+bp $RESULT
+
+
+mov _eip,  eip
+mov addr,  CODE_begin
+mov addr2, CODE_begin
+mov iat,   IAT_end
+
+call_loop:
+find addr, #E8#
+mov addr, $RESULT
+mov _eax, CODE_end
+sub _eax, 5
+cmp addr, 0
+je jmp_loop
+cmp addr, _eax
+ja jmp_loop
+
+  mov _eax, addr
+  inc _eax
+  mov _ebx, [_eax]
+  add _ebx, addr
+  add _ebx, 5
+  cmp _ebx, ASPr_func
+  jne call_loop_end
+
+    mov eip, addr
+    bphws addr, "x"
+    esto
+    esto
+    mov _eax, esp
+    add _eax, 40
+    mov _ebx, [_eax]
+    esto
+    esto
+    bphwc addr
+
+      mov iat_temp, IAT_begin
+
+      find_iat:
+      cmp [iat_temp], _ebx
+      je iat_found
+      add iat_temp, 4
+      cmp iat_temp, iat
+      jbe find_iat
+      jmp iat_not_found
+
+      iat_found:
+      mov _eax, addr
+      mov [_eax], #FF15#
+      add _eax, 2
+      mov [_eax], iat_temp
+      add addr, 5
+      jmp call_loop_end
+
+      iat_not_found:
+      add iat, 4
+      mov [iat], 00000000
+      add iat, 4
+      mov [iat], _ebx
+      mov _eax, addr
+      mov [_eax], #FF15#
+      add _eax, 2
+      mov [_eax], iat
+      add addr, 5
+      jmp call_loop_end
+
+call_loop_end:
+inc addr
+jmp call_loop
+
+
+jmp_loop:
+find addr2, #19E9#
+mov addr2, $RESULT
+mov _eax, CODE_end
+sub _eax, 5
+cmp addr2, 0
+je finish
+cmp addr2, _eax
+ja finish
+
+  inc addr2
+  mov _eax, addr2
+  inc _eax
+  mov _ebx, [_eax]
+  add _ebx, addr2
+  add _ebx, 5
+  cmp _ebx, Alloc_begin
+  jb jmp_loop_end
+  cmp _ebx, Alloc_end
+  ja jmp_loop_end
+
+    bp addr2
+    eval "{addr2} JMP {_ebx}"
+    log $RESULT
+
+jmp_loop_end:
+inc addr2
+jmp jmp_loop
+
+
+finish:
+mov eip, _eip
+mov _eax, iat
+add _eax, 4
+sub _eax, IAT_begin
+eval "New IAT size: {_eax}"
+cmt eip, $RESULT
+
+bphws eip, "x"
+esto
+bphwc eip
+ret

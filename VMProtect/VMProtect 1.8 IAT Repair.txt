@@ -1,0 +1,75 @@
+//fuck vmp iat by nooby
+//run this script at tls entry/ep
+
+var vmpbase
+var vmpsize
+var magic
+var isfirst
+var first
+var dllname
+var funcname
+var sFile
+mov sFile, "iat_log.txt"
+mov isfirst, 0
+
+//the checkapi function entry
+mov magic, 111
+
+//when shall we stop logging the crap
+mov first, 222           
+
+
+//vmp code base = va of the second last vmp section
+mov vmpbase, 333
+
+//vmp code size = size of the second last vmp section
+mov vmpsize, 444
+
+bc
+bphwc
+
+gpa "ZwSetInformationThread", "ntdll.dll"
+bp $RESULT
+bphws first, "x"
+bphws magic, "x"
+esto
+
+looper:
+esto
+cmp eip, first
+je end
+cmp eip, magic
+je setbp
+jmp looper
+
+setbp:
+cmp isfirst, 0
+jne logger
+inc isfirst
+bpwm vmpbase, vmpsize
+wrt sFile, "Fuck VMP IAT\r\n"
+wrta sFile, "VA, KEY, DLL.FUNCTION\r\n"
+
+logger:
+mov tmp, eax
+len [esi]
+readstr [esi], $RESULT
+mov dllname, $RESULT
+len [edi]
+readstr [edi], $RESULT
+mov funcname, $RESULT
+esto
+sub tmp, edx
+wrta sFile, eax
+wrta sFile, ", "
+wrta sFile, tmp
+wrta sFile, ", "
+wrta sFile, dllname
+wrta sFile, "."
+wrta sFile, funcname
+wrta sFile, "\r\n"
+
+jmp looper
+
+end:
+ret

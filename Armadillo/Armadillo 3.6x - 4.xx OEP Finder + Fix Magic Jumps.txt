@@ -1,149 +1,144 @@
-Filename: Armadillo 3.6x - 4.xx OEP Finder + Fix Magic Jumps
-Description: 
-Uploader: hnhuqiong
-Website: 
-Date: Monday 25 September 2006 - 20:51:58
-
-///////////////////////////////////////////////////////////
-//
-//Arrives oep place, only tests in the arma 3.6-4.05 shells editions double thread regulation pattern
-//Elects to neglect all exceptionally, carries out the script then
-//  
-//2005-8-20 14:04 by hnhuqiong
-//
-///////////////////////////////////////////////////////////
-
-var tmp
-var cm
-var om
-var gmh
-var tadr
-var neweip
-var retascii
-var lib
-var magicjmp
-var magicadr
-var gct
-
-gpa “CreateMutexA”, “kernel32.dll”
-mov cm, $RESULT
-gpa “OpenMutexA”, “kernel32.dll”
-mov om, $RESULT
-gpa “GetModuleHandleA”, “kernel32.dll”
-mov gmh, $RESULT
-gpa “LoadLibraryA”, “kernel32.dll”
-mov lib, $RESULT
-gpa “GetCurrentThreadId”, “kernel32.dll”
-mov gct, $RESULT
-
-
-start:                                 //Merge double thread regulation
-bp om
-esto
-
-asm 401000, “pushad”
-asm 401001, “pushfd”
- mov tmp, esp
- add tmp, c
- mov tadr, [tmp]
- eval “push {tadr}”
-asm 401002, $RESULT
-asm 401007, “xor eax, eax”
-asm 401009, “push eax”
-asm 40100a, “push eax”
- eval “call {cm}”
-asm 40100b, $RESULT
-asm 401010, “popfd”
-asm 401011, “popad”
- eval “jmp {om}”
-asm 401012, $RESULT
-
-mov eip, 401000
-esto 
-fill 401000,20,00
-bc om
-
-gmhadr:                                      //Avoids the IAT encryption
-BPHWS gmh, “x”
-esto
-
-find_ret:
-mov tmp, esp
-add tmp, 8
-mov tmp, [tmp]
-add tmp, 7
-mov retascii, [tmp]
-mov tmp, 65657246
-cmp retascii, tmp
-je find_ret_ok
-jmp goonfind
-
-goonfind:
-esto
-jmp find_ret
-
-find_ret_ok:
-esto
-BPHWC gmh
-rtu
-find eip, # ff15 #
-mov tmp, $RESULT
-add tmp, 2
-mov tmp, [tmp]
-mov tmp, [tmp]
-cmp lib, tmp
-je magic_jmp_ok
-jmp magic_jmp_no
-
-magic_jmp_ok:
-find eip, # 0f84 #
-bp $RESULT
-run
-
-
-
-
-magic_jmp:
-
-bc $RESULT
-mov tmp, $RESULT
-mov magicjmp, tmp
-add tmp, 2
-mov tmp, [tmp]
-add tmp, 1
-mov magicadr, tmp
-mov [magicjmp], e9
-add magicjmp, 1
-mov [magicjmp], magicadr
-bp gct
-
-tmpoep:                                           //goto OEP
-esto
-cmp [esp], 01000000
-jb find_oep
-jmp tmpoep
-
-find_oep:
-bc gct
-rtu
-find eip, # ffd7 #
-bp $RESULT
-esto
-bc $RESULT
-sti
-jmp end
-
-
-
-
-magic_jmp_no:
-msg “seeks the MAGIC_JMP defeat, please relate hnhuqiong@163.com”
-jmp end
-
-
-
-
-end:
-cmt eip, “OEP arrives, might DUMP”
-ret
-
+
+///////////////////////////////////////////////////////////
+//
+//Arrives oep place, only tests in the arma 3.6-4.05 shells editions double thread regulation pattern
+//Elects to neglect all exceptionally, carries out the script then
+//  
+//2005-8-20 14:04 by hnhuqiong
+//
+///////////////////////////////////////////////////////////
+
+var tmp
+var cm
+var om
+var gmh
+var tadr
+var neweip
+var retascii
+var lib
+var magicjmp
+var magicadr
+var gct
+
+gpa “CreateMutexA”, “kernel32.dll”
+mov cm, $RESULT
+gpa “OpenMutexA”, “kernel32.dll”
+mov om, $RESULT
+gpa “GetModuleHandleA”, “kernel32.dll”
+mov gmh, $RESULT
+gpa “LoadLibraryA”, “kernel32.dll”
+mov lib, $RESULT
+gpa “GetCurrentThreadId”, “kernel32.dll”
+mov gct, $RESULT
+
+
+start:                                 //Merge double thread regulation
+bp om
+esto
+
+asm 401000, “pushad”
+asm 401001, “pushfd”
+ mov tmp, esp
+ add tmp, c
+ mov tadr, [tmp]
+ eval “push {tadr}”
+asm 401002, $RESULT
+asm 401007, “xor eax, eax”
+asm 401009, “push eax”
+asm 40100a, “push eax”
+ eval “call {cm}”
+asm 40100b, $RESULT
+asm 401010, “popfd”
+asm 401011, “popad”
+ eval “jmp {om}”
+asm 401012, $RESULT
+
+mov eip, 401000
+esto 
+fill 401000,20,00
+bc om
+
+gmhadr:                                      //Avoids the IAT encryption
+BPHWS gmh, “x”
+esto
+
+find_ret:
+mov tmp, esp
+add tmp, 8
+mov tmp, [tmp]
+add tmp, 7
+mov retascii, [tmp]
+mov tmp, 65657246
+cmp retascii, tmp
+je find_ret_ok
+jmp goonfind
+
+goonfind:
+esto
+jmp find_ret
+
+find_ret_ok:
+esto
+BPHWC gmh
+rtu
+find eip, # ff15 #
+mov tmp, $RESULT
+add tmp, 2
+mov tmp, [tmp]
+mov tmp, [tmp]
+cmp lib, tmp
+je magic_jmp_ok
+jmp magic_jmp_no
+
+magic_jmp_ok:
+find eip, # 0f84 #
+bp $RESULT
+run
+
+
+
+
+magic_jmp:
+
+bc $RESULT
+mov tmp, $RESULT
+mov magicjmp, tmp
+add tmp, 2
+mov tmp, [tmp]
+add tmp, 1
+mov magicadr, tmp
+mov [magicjmp], e9
+add magicjmp, 1
+mov [magicjmp], magicadr
+bp gct
+
+tmpoep:                                           //goto OEP
+esto
+cmp [esp], 01000000
+jb find_oep
+jmp tmpoep
+
+find_oep:
+bc gct
+rtu
+find eip, # ffd7 #
+bp $RESULT
+esto
+bc $RESULT
+sti
+jmp end
+
+
+
+
+magic_jmp_no:
+msg “seeks the MAGIC_JMP defeat, please relate hnhuqiong@163.com”
+jmp end
+
+
+
+
+end:
+cmt eip, “OEP arrives, might DUMP”
+ret
+

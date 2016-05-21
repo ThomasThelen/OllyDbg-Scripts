@@ -1,0 +1,25 @@
+/*
+	============================
+	                .:[OllyScript Editor v2.0]:.
+	      Author: Dexter
+	      Packer: Asprotect 2.0x
+	      Script for: Asprotect 2.0x
+	      Level: Hard
+	      Date: Saturday, 7 January 2006
+                  
+Please ensure that only all exceptions are ignored except INT3 and CUSTOM.
+	 ============================
+						*/
+var $codebase
+var $codesize
+
+GMI eip,CODEBASE
+mov $codebase,$RESULT
+GMI eip,CODESIZE
+mov $codesize,$RESULT
+esto
+esto
+bprm $codebase,$codesize
+esto
+msg "OEP"
+bpmc

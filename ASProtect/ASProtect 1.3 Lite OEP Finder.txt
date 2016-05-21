@@ -1,0 +1,33 @@
+var cbase
+gmi eip, CODEBASE
+mov cbase, $RESULT
+log cbase
+var csize
+gmi eip, CODESIZE
+mov csize, $RESULT
+log csize
+
+var k
+var l
+eoe lab1               
+eob lab1               
+run
+
+lab1:                  
+mov k,esp           
+add k,40             
+mov l,[k]               
+cmp l,400000      
+je lab2                
+esto                    
+
+lab2:
+bprm cbase, csize 
+eob end
+eoe end
+esto
+
+end:
+cmt eip,"OEP or tempOEP"
+bpmc
+ret

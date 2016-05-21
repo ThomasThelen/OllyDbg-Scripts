@@ -1,0 +1,239 @@
+/*------------------------------------------------------------------------------------------*\
+* OllyScript by n0p-6o-n0p (n0p-6o-n0p@mail.ru) *
+* *
+* for: Armadillo 4 with standard-protection and optional: *
+* - Debug-Blocker *
+* - Code-Splicing *
+* *
+* date: 5th August '06 *
+* *
+* tested on Win XP SP1 *
+* with packed notepad.exe (standard protection + debug-blocker + spliced code) *
+* with packed notepad.exe (standard protection + debug-blocker) *
+* *
+* - you need the OdbgScript-PlugIn v1.5 to run the script: *
+* http://www.tuts4you.com/index/index.php?dir=Olly%20Plugins/ *
+* *
+* - you also need the OllyAdvanced Plugin (v1.26 beta 6) coded by Markus *
+* http://web6.h7786.serverkompetenz.net/liberty/thread.php?threadid=1305 *
+* - check Flexible Breakpoints in Additional Options *
+* - i also checked all Bugfixes  *
+\*------------------------------------------------------------------------------------------*/
+
+var CondJump
+var Counter_OpenMutexA
+var SaveEaxRegister
+var SaveEbxRegister
+var SaveEdxRegister
+var CallAddr
+var Size
+var VirtualAlloc
+
+//--------------------------------------------------------------------------------------------
+//##### DEBUG-BLOCKER - START ################################################################
+//--------------------------------------------------------------------------------------------
+
+MSGYN "Does this Target use Debug-Blocker?"
+cmp $RESULT, 0
+JE no_DebugBlocker
+
+GPA "OpenMutexA", "kernel32.dll" //Get Address of OpenMutexA-API
+CMP $RESULT, 0
+JE exit
+
+BP $RESULT //Set BP on OpenMutexA
+
+mov Counter_OpenMutexA, 0
+Fix_DebugBlocker:
+ESTO //Shift+F9
+RTU //Return to user code
+STI //F7 -> jne or je
+
+MOV SaveEaxRegister, eax //save eax register
+MOV eax, [eip] //copy DWORD at eip to eax
+
+CMP ah, 84 //2nd Byte @ eip = 84? (JE: 0F84????????)
+JNE second_je_check //no: goto Check for JE (74??)
+MOV ah, 85, 1 
+MOV [eip], eax //yes: patch JE -> JNE
+JMP cond_jump_fixed
+
+second_je_check:
+CMP al, 74 //1st Byte @ eip = 74? (JE: 74??)
+JNE is_not_je //no: goto Check for JNE (0F85????????)
+MOV al, 75
+MOV [eip], eax //yes: patch JE -> JNE
+JMP cond_jump_fixed
+
+is_not_je:
+CMP ah, 85 //2nd Byte @ eip = 85? (JNE: 0F85????????)
+JNE second_jne_check //no: goto Check for JNE (75??)
+MOV ah, 84, 1
+MOV [eip], eax //yes: patch JNE -> JE
+JMP cond_jump_fixed
+
+second_jne_check:
+CMP al, 75 //1st Byte @ eip = 75? (JNE: 75??)
+JNE is_no_jump //no: neither JNE nor JE found!
+MOV al, 74, 1 
+MOV [eip], eax //yes: patch JNE -> JE
+JMP cond_jump_fixed
+
+is_no_jump:
+MOV eax, SaveEaxRegister //Restore eax Register
+MSG "Neither JNE nor JE was found! Sure this Target uses Debug-Blocker?"
+JMP exit
+
+cond_jump_fixed:
+MOV eax, SaveEaxRegister //Restore eax Register
+ADD Counter_OpenMutexA, 1
+CMP Counter_OpenMutexA, 2 //Fix Jump 2 times
+JNE Fix_DebugBlocker
+BC $RESULT //Delete BP on OpenMutexA
+//--------------------------------------------------------------------------------------------
+//##### DEBUG-BLOCKER - END ##################################################################
+//--------------------------------------------------------------------------------------------
+
+
+no_DebugBlocker:
+//--------------------------------------------------------------------------------------------
+//##### CODE-SPLICING - START ################################################################
+//--------------------------------------------------------------------------------------------
+
+MSGYN "Does this Target use Code-Splicing?"
+cmp $RESULT, 0
+JE no_CodeSplicing
+
+GPA "VirtualAlloc", "kernel32.dll" //Get Address of VirtualAlloc-API
+MOV VirtualAlloc, $RESULT
+CMP VirtualAlloc, 0
+JE exit
+
+BP VirtualAlloc //Set BP on VirtualAlloc
+
+SearchCodeSplicing:
+ESTO //Shift+F9
+
+CMP [esp+0C], 1000
+JB SearchCodeSplicing
+
+CMP [esp+10],40
+JNE SearchCodeSplicing //trace until right VirtualAlloc Call reached
+
+RTR //Run to return
+STI //F7
+
+ASK "Enter the Section Address for the fixed spliced code, which is big enough (adata or pdata):"
+cmp $RESULT, 0
+JE exit
+
+mov eax, $RESULT //modify eax
+ESTO //Shift+F9
+RTR //Run to return
+STI //F7
+mov eax, $RESULT //modify eax
+
+BC VirtualAlloc //Delete BP
+
+//--------------------------------------------------------------------------------------------
+//##### CODE-SPLICING - END ##################################################################
+//--------------------------------------------------------------------------------------------
+
+
+
+no_CodeSplicing:
+//--------------------------------------------------------------------------------------------
+//##### SIMPLE IAT REDIRECTION - START #######################################################
+//--------------------------------------------------------------------------------------------
+
+GPA "VirtualProtect", "kernel32.dll" //Get Address of VirtualProtect-API
+CMP $RESULT, 0
+JE exit
+
+BP $RESULT //Set BP on VirtualProtect
+
+SearchIatRedirection:
+ESTO //Shift+F9
+
+CMP [esp+8], 1000 //size of VirtualProtect Call < 1000?
+JB FoundIatRedirection
+JMP SearchIatRedirection
+
+
+FoundIatRedirection:
+BC $RESULT //Delete BP on VirtualProtect
+
+RTU //Return to user code
+
+FINDOP eip, #6800010000# //Search for "PUSH 100"
+CMP $RESULT, 0
+JE IAT_Error //If not found: Error
+
+FINDOP $RESULT, #E8????????# //Search for next Call
+CMP $RESULT, 0
+JE IAT_Error //If not found: Error
+
+MOV CallAddr, $RESULT
+ADD CallAddr, [$RESULT + 1]
+ADD CallAddr, 5 //Calculated Call-Address
+
+MOV SaveEaxRegister, eax //save eax register
+MOV eax, [CallAddr] //copy DWORD @ Call to eax
+MOV al, C3
+MOV [CallAddr], eax //Patch Call (-> RET)
+MOV eax, SaveEaxRegister //Restore eax Register
+
+JMP FixedIAT
+
+IAT_Error:
+MSG "Cannot fix IAT Redirection, sry :X"
+JMP exit
+
+//--------------------------------------------------------------------------------------------
+//##### SIMPLE IAT REDIRECTION - END #########################################################
+//--------------------------------------------------------------------------------------------
+
+FixedIAT:
+//--------------------------------------------------------------------------------------------
+//##### FIND OEP - START #####################################################################
+//--------------------------------------------------------------------------------------------
+
+//Get OEP
+GPA "CreateThread", "kernel32.dll" //Get Address of CreateThread-API
+CMP $RESULT, 0
+JE exit
+
+BP $RESULT //Set BP on CreateThread
+
+ESTO //Shift+F9
+RTU //Return to user code
+RTR //Run to return
+STI //F7
+
+TraceToOepCall:
+MOV SaveEaxRegister, eax //save eax register
+MOV eax, [eip] //copy DWORD @ Call to eax
+
+MOV ax, D1FF //Call ecx
+CMP [eip], eax
+JE FoundOepCall
+
+MOV ax, D7FF //Call edi
+CMP [eip], eax
+JE FoundOepCall
+
+MOV eax, SaveEaxRegister //Restore eax Register
+STO //F8
+JMP TraceToOepCall
+
+FoundOepCall:
+MOV eax, SaveEaxRegister //Restore eax Register
+STI //F7 = Jump to OEP
+MSG "You are now at the OEP. Dump the File with LordPE and fix the IAT with Imprec."
+
+//--------------------------------------------------------------------------------------------
+//##### FIND OEP - END #######################################################################
+//--------------------------------------------------------------------------------------------
+
+exit:
+RET

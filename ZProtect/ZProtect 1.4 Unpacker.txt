@@ -1,0 +1,504 @@
+var bp1
+var ip1
+var mem
+var flag
+var pcreatefile
+var pvirtualalloc
+var pgetmodulehandle
+var mempt
+var tmp
+var cbase
+var csize
+var cend
+var iats
+var iate
+var oep
+var ptcode
+var ptiat
+var dire  //CALL ADDRESS IN CODE
+var aux
+var parche_15ff
+var parche_25ff
+var one
+var dlls
+var dlle
+var len
+var dllb
+var tmpvar
+var section
+var first
+
+bphwcall
+bpmc
+gmi eip,CODEBASE
+mov cbase,$RESULT
+gmi eip,CODESIZE
+mov csize,$RESULT
+mov cend, cbase
+add cend, csize
+mov flag, 0
+mov first, 0
+alloc 1000
+mov mem, $RESULT
+mov mempt, mem
+start:
+sti
+mov ip1, eip
+mov ip1, [ip1]
+and ip1, 0ff
+cmp ip1, 60
+jnz start
+
+sto
+mov bp1, esp
+bphws bp1, "r"
+gpa "CreateFileA", "kernel32.dll"
+mov pcreatefile, $RESULT
+bphws pcreatefile, "x"
+gpa "VirtualAlloc", "kernel32.dll"
+mov pvirtualalloc, $RESULT
+bphws pvirtualalloc, "x"
+gpa "GetModuleHandleA", "kernel32.dll"
+mov pgetmodulehandle, $RESULT
+eob stop
+run
+
+stop:
+cmp eip, pcreatefile
+je createfile
+cmp eip, pvirtualalloc
+je virtualalloc
+bphwcall
+bpmc
+mov bp1, [esp]
+bphws bp1, "x"
+eob oep
+run
+
+createfile:
+mov flag, 1
+eob stop
+run
+
+virtualalloc:
+cmp flag, 0
+je goon
+mov tmp, esp
+add tmp, 8
+mov tmp, [tmp]
+mov [mempt], tmp
+add mempt, 4
+mov tmp, esp
+add tmp, 0e0
+mov tmp, [tmp]
+mov [mempt], tmp
+add mempt, 4
+rtu
+mov tmp, eax
+mov [mempt], tmp
+add mempt, 4
+mov flag, 0
+eob stop
+run
+
+goon:
+cmp first, 0
+jnz aaa
+rtu
+mov section, eax
+mov first, 1
+aaa:
+eob stop
+run
+
+oep:
+bphwcall
+bpmc
+cmt eip,"<---OEP"
+MSGYN "OEP has been found, fix the IAT?"
+cmp $RESULT, 0
+jnz fix
+free mem
+ret
+
+fix:
+ask "put in the start of iat" 
+mov iats, $RESULT
+ask "put in the end of iat"
+mov iate, $RESULT
+mov oep, eip
+mov parche_15ff, 15ff
+mov parche_25ff, 25ff
+
+mov ptcode, cbase
+mov ptiat, iats
+
+ff15:
+cmp ptcode, cend
+jz find2
+find ptcode, #FF15??????00#
+cmp $RESULT,0
+jz find2
+mov dire, $RESULT //CALL ADDRESS ON CODE
+mov aux, dire
+add aux,2
+//add dire,[aux]
+mov dire, [aux]
+cmp iats, dire
+ja next15
+cmp iate, dire
+jb next15
+mov one, [dire]
+jmp step1
+
+next15:
+mov ptcode, aux
+jmp ff15
+
+find2:
+mov ptcode, cbase
+ff25:
+cmp ptcode, cend
+jz step1
+find ptcode, #FF25??????00#
+cmp $RESULT,0
+jz step1
+mov dire, $RESULT //CALL ADDRESS ON CODE
+mov aux, dire
+add aux,2
+//add dire,[aux]
+mov dire, [aux]
+cmp iats, dire
+ja next25
+cmp iate, dire
+jb next25
+mov one, [dire]
+jmp step1
+
+next25:
+mov ptcode, aux
+jmp ff25
+
+
+step1:
+mov ptcode, cbase
+mov ptiat, iats
+
+loop1:
+cmp ptcode, cend
+jz step2
+find ptcode, #E8????0?0090#
+cmp $RESULT,0
+jz step2
+
+mov dire, $RESULT //CALL ADDRESS ON CODE
+mov aux, dire
+add aux,1
+add dire,[aux]
+add dire,5 //CALCULATE WHERE CALL GOES
+//log dire
+
+busco:
+cmp ptiat, iate
+je finiat
+cmp [ptiat],dire
+je parcheo
+add ptiat,4
+jmp busco
+
+parcheo:
+sub aux,1
+mov [aux], parche_15ff
+add aux, 2
+mov [aux], ptiat
+mov ptiat, iats
+mov ptcode, aux
+jmp loop1
+
+
+finiat:
+log dire
+mov ptiat, iats
+inc aux
+mov ptcode, aux
+jmp loop1
+
+step2:
+mov eip, oep
+mov ptcode, cbase
+mov ptiat, iats
+
+loop2:
+cmp ptcode, cend
+jz step3
+find ptcode, #E9????0?0090#
+cmp $RESULT,0
+jz step3
+
+mov dire, $RESULT //CALL ADDRESS ON CODE
+mov aux, dire
+add aux,1
+add dire,[aux]
+add dire,5 //CALCULATE WHERE CALL GOES
+//log dire
+
+busco2:
+cmp ptiat, iate
+je finiat2
+cmp [ptiat],dire
+je parcheo2
+add ptiat,4
+jmp busco2
+
+parcheo2:
+sub aux,1
+mov [aux], parche_25ff
+add aux, 2
+mov [aux], ptiat
+mov ptiat, iats
+mov ptcode, aux
+jmp loop2
+
+
+finiat2:
+log dire
+mov ptiat, iats
+inc aux
+mov ptcode, aux
+jmp loop2
+
+
+step3:
+mov eip, oep
+mov ptcode, cbase
+mov ptiat, iats
+find section, #81f988130000#
+mov section, $RESULT
+add section, 2
+mov [section], 7fffffff
+
+loop3:
+cmp ptiat, iate
+je fin
+cmp [ptiat], one //SKIP THIS ENTRY TO REPAIR MANUALLY
+je fixone
+cmp [ptiat],0
+je pasamos
+mov eip, [ptiat]
+find60:
+sti
+mov ip1, eip
+mov ip1, [ip1]
+and ip1, 0ff
+cmp ip1, 60
+jnz find60
+sti
+mov tmp, esp
+bphws tmp, "r"
+eob corre
+run
+
+corre:
+bphwc tmp
+mov vartmp, [esp]
+mov mempt, mem
+
+loop4:
+cmp [mempt], 0
+jz loop3
+mov tmp, mempt
+add tmp, 4
+mov dllb, [tmp]
+add tmp, 4
+mov len, [mempt]
+mov dlls, [tmp]
+mov dlle, dlls
+add dlle, len
+cmp dlls, vartmp
+ja out
+cmp dlle, vartmp
+jb out
+sub vartmp, dlls
+add vartmp, dllb
+mov [ptiat], vartmp
+add esp, 4
+add ptiat,4
+jmp loop3
+
+out:
+add mempt, 0c
+jmp loop4
+
+pasamos:
+add ptiat,4
+jmp loop3
+
+fixone:
+mov [ptiat], pgetmodulehandle
+add ptiat,4
+jmp loop3
+
+fin:
+mov eip,oep
+mov ptcode, cbase
+mov ptiat, iats
+
+step4:
+cmp ptcode, cend
+je fin2
+
+find ptcode, #E8????0?0090#
+cmp $RESULT,0
+je fin2
+
+mov dire, $RESULT
+mov aux, dire
+mov eip, aux
+find60_2:
+sti
+mov ip1, eip
+mov ip1, [ip1]
+and ip1, 0ff
+cmp ip1, 60
+jnz find60_2
+sti
+mov tmp, esp
+bphws tmp, "r"
+eob corre22
+run
+
+corre22:
+bphwc tmp
+mov vartmp, [esp]
+mov mempt, mem
+
+loop5:
+cmp [mempt], 0
+jz finiat2
+mov tmp, mempt
+add tmp, 4
+mov dllb, [tmp]
+add tmp, 4
+mov len, [mempt]
+mov dlls, [tmp]
+mov dlle, dlls
+add dlle, len
+cmp dlls, vartmp
+ja out2
+cmp dlle, vartmp
+jb out2
+sub vartmp, dlls
+add vartmp, dllb
+mov ptiat, iats
+jmp busco22
+
+out2:
+add mempt, 0c
+jmp loop5
+
+busco22:
+cmp ptiat, iate
+je finiat2
+cmp [ptiat], vartmp
+je parcheo22
+add ptiat,4
+jmp busco22
+
+parcheo22:
+
+mov [aux], parche_15ff
+add aux, 2
+mov [aux], ptiat
+mov ptiat, iats
+add aux,1
+
+finiat2:
+mov ptcode, aux
+add esp, 4
+add ptcode, 1
+jmp step4
+
+fin2:
+mov eip,oep
+mov ptcode, cbase
+mov ptiat, iats
+
+step5:
+cmp ptcode, cend
+je nomascall22
+
+find ptcode, #E9????0?0090#
+cmp $RESULT,0
+je nomascall22
+
+mov dire, $RESULT
+mov aux, dire
+mov eip, aux
+find60_22:
+sti
+mov ip1, eip
+mov ip1, [ip1]
+and ip1, 0ff
+cmp ip1, 60
+jnz find60_22
+sti
+mov tmp, esp
+bphws tmp, "r"
+eob corre222
+run
+
+corre222:
+bphwc tmp
+mov vartmp, [esp]
+mov mempt, mem
+
+loop6:
+cmp [mempt], 0
+jz finiat3
+mov tmp, mempt
+add tmp, 4
+mov dllb, [tmp]
+add tmp, 4
+mov len, [mempt]
+mov dlls, [tmp]
+mov dlle, dlls
+add dlle, len
+cmp dlls, vartmp
+ja out3
+cmp dlle, vartmp
+jb out3
+sub vartmp, dlls
+add vartmp, dllb
+mov ptiat, iats
+jmp busco222
+
+out3:
+add mempt, 0c
+jmp loop6
+
+busco222:
+cmp ptiat, iate
+je finiat2
+cmp [ptiat], vartmp
+je parcheo222
+add ptiat,4
+jmp busco222
+
+parcheo222:
+
+mov [aux], parche_25ff
+add aux, 2
+mov [aux], ptiat
+mov ptiat, iats
+add aux,1
+
+finiat3:
+mov ptcode, aux
+add esp, 4
+add ptcode, 1
+jmp step5
+
+nomascall22:
+mov eip,oep
+free mem
+ret

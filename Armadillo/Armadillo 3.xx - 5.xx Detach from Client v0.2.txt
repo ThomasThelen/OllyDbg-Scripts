@@ -1,0 +1,207 @@
+/*
+
+Detach Father from Child+Patch Crypto Process+CopyMem2
+Credits go to Ricardo, Hippu, Tenketsu and VolX for thier scripts and ideas.
+
+*/
+
+//Variable Declarations
+
+var WaitForDebugEvent
+var WriteProcessMemory
+var DebugActiveProcessStop
+var PEHeaderBase
+var ImageBase
+var CodeBegin
+var DataBegin
+var ProcessDebugEvent
+var ProcessBuffer
+var ChildProcessID
+var ChildOEP
+var OEPBytes
+var OEPOffset1
+var OEPOffset2
+var OEPOffset3
+var CryptoProcess
+var Address
+var Buffer
+var Patch1
+var Patch2
+var temp1
+
+//Setup
+
+dbh
+
+msg "Clear all breakpoints, and Set Ollydbg to pass all exceptions,\r\nand add custom exceptions C0000005, C000001D, C000001E and C0000096, press OK to continue."
+
+gpa "WaitForDebugEvent", "kernel32.dll"
+mov WaitForDebugEvent, $RESULT
+gpa "WriteProcessMemory", "kernel32.dll"
+mov WriteProcessMemory, $RESULT
+gpa "DebugActiveProcessStop", "kernel32.dll"
+mov DebugActiveProcessStop, $RESULT
+
+//Get Section Bases
+
+gmi eip, MODULEBASE
+mov ImageBase, $RESULT
+mov PEHeaderBase, ImageBase
+add PEHeaderBase, 3C                                     // Offset to PE signature
+mov PEHeaderBase, [PEHeaderBase]
+add PEHeaderBase, ImageBase
+
+mov CodeBegin, PEHeaderBase
+add CodeBegin, 104                                       // Offset to 1st Section Virtual Address
+mov CodeBegin, [CodeBegin]
+add CodeBegin, ImageBase
+
+mov DataBegin, PEHeaderBase                              // Offset to 2nd Section Virtual Address
+add DataBegin, 12C
+mov DataBegin, [DataBegin]
+add DataBegin, ImageBase
+
+log CodeBegin
+log DataBegin
+
+// Begin Unpacking
+
+bphws WriteProcessMemory, "x"
+erun
+
+bphwc WriteProcessMemory
+bphws WaitForDebugEvent, "x"
+erun
+
+// Get Information at WaitForDebugEvent
+
+bphwc WaitForDebugEvent
+mov ProcessDebugEvent, esp
+add ProcessDebugEvent, 04
+mov ProcessDebugEvent, [ProcessDebugEvent]
+mov OEPOffset1, ProcessDebugEvent
+add OEPOffset1, 18
+mov OEPOffset2, ProcessDebugEvent
+add OEPOffset2, 24
+mov OEPOffset3, ProcessDebugEvent
+add OEPOffset3, 28
+log ProcessDebugEvent
+log OEPOffset1
+log OEPOffset2
+log OEPOffset3
+
+// Get Child Process ID and Child OEP
+
+bphws WriteProcessMemory, "x"
+erun
+
+bphwc WriteProcessMemory
+mov ChildProcessID, ProcessDebugEvent
+add ChildProcessID, 04
+mov ChildProcessID, [ChildProcessID]
+mov ChildOEP, [OEPOffset1]
+
+// Get Stack Info
+
+mov Address, esp
+add Address, 08
+mov Address, [Address]
+log Address
+
+mov Buffer, esp
+add Buffer, 0C
+mov Buffer, [Buffer]
+log Buffer
+
+// Patch OEP of Child
+
+mov temp1, ChildOEP
+sub temp1, Address
+add temp1, Buffer
+mov OEPBytes, [temp1]
+log "OEP of Child Process was patched to EBFE"
+log ChildOEP
+log ChildProcessID
+mov [temp1], #EBFE#
+
+// Find and patch Crypto Proc
+
+rtr
+sti
+gmemi eip, MEMORYBASE
+mov CryptoProcess, $RESULT
+find CryptoProcess, #8B048A50E8????????83C40C#           // "mov eax, dword ptr ds:[edx+ecx*4]" "push eax" "call XXXXXXXX" "add esp,0c"
+cmp $RESULT, 0
+je Error1
+mov CryptoProcess, $RESULT
+add CryptoProcess, 04
+mov [CryptoProcess], #9090909090#
+log CryptoProcess
+log "Crypto Process was nopped."
+
+eval "Successfully Patched OEP = {ChildOEP} of Child Process (PID= {ChildProcessID}) from {OEPBytes} (Inverted) to EBFE.\r\n\r\nCheck log for more info. Press OK to continue." 
+msg $RESULT
+
+// Patch CopyMemII and WaitForDebugEvent
+
+bphws WaitForDebugEvent, "x"
+erun
+
+bphwc WaitForDebugEvent
+
+mov Patch1, [esp]
+sub Patch1, 12
+log Patch1
+mov [Patch1], #909090909090909090909090909090909090#
+add Patch1, 14
+eval "jmp {CodeBegin}"
+asm Patch1, $RESULT
+add Patch1, 05
+eval "nop"
+asm Patch1, $RESULT
+
+mov Patch2, CodeBegin
+eval "add dword [{OEPOffset1}],1000"
+asm Patch2, $RESULT
+add Patch2, 0A
+eval "add dword [{OEPOffset2}],1000"
+asm Patch2, $RESULT
+add Patch2, 0A
+eval "add dword [{OEPOffset3}],1000"
+asm Patch2, $RESULT
+add Patch2, 0A
+eval "cmp dword [{OEPOffset3}],{DataBegin}"
+asm Patch2, $RESULT
+add Patch2, 0A
+eval "jnz {Patch1}"
+asm Patch2, $RESULT
+add Patch2, 06
+eval "push {ChildProcessID}"
+asm Patch2, $RESULT
+add Patch2, 05
+eval "call {DebugActiveProcessStop}"
+asm Patch2, $RESULT
+add Patch2, 05
+eval "nop"
+asm Patch2, $RESULT
+
+sub CodeBegin, 1000
+mov [OEPOffset1], CodeBegin
+mov [OEPOffset2], CodeBegin
+mov [OEPOffset3], CodeBegin
+
+//go [esp]
+
+mov eip, [esp]
+bphws Patch2, "x"
+erun
+
+bphwc Patch2
+msg "Script Completed Successfully! More Info in Log. Have fun!"
+jmp End
+
+Error1:
+msg "Can't find Crypto Process call!"
+
+End:
+ret

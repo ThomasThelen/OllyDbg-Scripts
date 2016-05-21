@@ -1,0 +1,14 @@
+//////////////////Aspack 1.08.02////////////////// 
+// This script easely finds OEP for Aspack 1.08.02 
+// Made by Sebby
+sto
+sto
+sto
+findop eip,#61#
+bp $RESULT
+run
+sto
+sto
+sto
+MSG "All done.Just dump the proces or press Ctrl+A to analyze the code."
+ret

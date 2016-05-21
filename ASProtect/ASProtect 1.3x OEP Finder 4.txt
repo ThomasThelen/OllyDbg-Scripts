@@ -1,0 +1,87 @@
+// ASProtect 1.32 and greater (except ASProtect 2.0 alpha) OEP finder by sanniassin::REVENGE Crew
+// Ignore all exceptions
+// Clear all breakpoints
+// Tested on WinXP only
+
+var x
+var y
+var is_DLL
+
+mov x,esp 
+sub x,48
+bphws x,"r"
+mov y,[eip]
+and y,000000FF
+cmp y,60
+jne zzz
+mov is_DLL,1
+
+zzz:
+run
+mov y,[eip]
+cmp y,01B80875
+jne zzz
+bphwc x
+find edi,#83C404010424C3#
+mov x,$RESULT
+add x,6
+bp x
+run
+bc x
+sto
+mov x,eip
+
+findcall:
+dec x
+mov y,[x]
+cmp y,5B5E5F5D
+jne findcall
+sub x,8
+go x
+sti
+rtr
+sto
+mov x,eip
+and x,0000FFFF
+cmp x,0
+je no_VM_on_OEP
+
+VM_on_OEP:
+msg "OEP found! OEP stolen."
+jmp pause
+
+no_VM_on_OEP:
+mov x,esp
+cmp is_DLL,1
+jne is_exe
+add x,10
+jmp label_9
+is_exe:
+add x,8
+label_9:
+bphws x,"r"
+run
+mov y,eip
+dec y
+mov y,[y]
+and y,000000FF
+cmp y,5C
+jne label_9
+bphwc x
+cmp is_DLL,1
+jne is_exe2
+find eip,#8944241C61FFE0#
+add $RESULT,5
+bp $RESULT
+run
+bc $RESULT
+sto
+jmp msg
+is_exe2:
+mov x,eax
+go x
+msg:
+msg "OEP found! OEP not stolen."
+
+pause:
+pause

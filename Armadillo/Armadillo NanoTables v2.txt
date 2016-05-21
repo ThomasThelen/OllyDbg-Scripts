@@ -1,0 +1,268 @@
+var TabNum
+var TypeDW
+var Count
+var Count2
+var ActEip
+var ActPunt
+var VACTab
+var VATab
+var VATab1        //nano_addr.hex
+var VATab2        //nano_type.hex
+var VATab3        //nano_size.hex
+var VATab4        //nano_dest.hex
+var EipBytes
+
+dbh
+mov TypeDW, 0
+eoe LABEL
+eob BABEL
+run
+
+BABEL:
+cob
+bphwc eip
+ask "VA base?"
+cmp $RESULT, 0
+je NoVA
+mov VATab, $RESULT
+ask "Numero de pedazos? [HEX]"
+cmp $RESULT, 0
+je NoTabNum
+mov TabNum, $RESULT
+shl TabNum, 2
+msgyn "Nanotyes DWORD = SI  ||  Nanotypes BYTE = NO"
+cmp $RESULT, 0
+je NanTypB
+mov TypeDW, 1
+
+NanTypB:
+sub eip, 20
+mov ActEip, eip
+mov EipBytes, [eip]
+add eip, 20
+exec
+pushad
+pushfd
+push {ActEip}
+push 40
+push 40000
+push {VATab}
+call VirtualProtect
+popfd
+popad
+ende
+mov [ActEip], EipBytes
+
+mov VACTab, VATab
+add VATab, TabNum
+add VATab, TabNum
+mov VATab1, VATab
+eval "VA de nano_addr.hex = {VATab1}"
+log $RESULT
+mov Count, 0
+mov ActEip, eip
+add ActEip, 3
+mov ActEip, [ActEip]
+
+Tab0:
+mov ActPunt, ActEip
+add ActPunt, Count
+mov ActPunt, [ActPunt]
+
+InTab1:
+mov EipBytes, [ActPunt]
+cmp EipBytes, ABABABAB
+je FinTab1
+cmp EipBytes, BAADF00D
+je FinTab1
+mov [VATab1], EipBytes
+add ActPunt, 4
+add VATab1, 4
+inc [VACTab]
+jmp InTab1
+
+FinTab1:
+add VACTab, 4
+add Count, 4
+cmp Count, TabNum
+jne Tab0
+
+mov VATab2, VATab1
+sub VATab1, VATab
+dm VATab, VATab1, "C:\Documents and Settings\tenketsu\Escritorio\nano_addr.hex"
+sub VACTab, TabNum
+eob BABEL2
+run
+jmp BABEL
+
+
+BABEL2:
+cob
+bphwc eip
+
+add VATab2, 40
+eval "VA de nano_type.hex = {VATab2}"
+log $RESULT
+mov VATab, VATab2
+mov Count, 0
+mov ActEip, eip
+add ActEip, 3
+mov ActEip, [ActEip]
+cmp TypeDW, 0
+je Tab0_2B
+
+Tab0_2DW:
+mov Count2, 0
+mov ActPunt, ActEip
+add ActPunt, Count
+mov ActPunt, [ActPunt]
+
+InTab2DW:
+mov EipBytes, [ActPunt]
+mov [VATab2], EipBytes
+add ActPunt, 4
+add VATab2, 4
+inc Count2
+cmp [VACTab], Count2
+je FinTab2DW
+jmp InTab2DW
+
+FinTab2DW:
+add VACTab, 4
+add Count, 4
+cmp Count, TabNum
+jne Tab0_2DW
+jmp Tab2Fin
+
+Tab0_2B:
+mov Count2, 0
+mov ActPunt, ActEip
+add ActPunt, Count
+mov ActPunt, [ActPunt]
+
+InTab2B:
+mov EipBytes, [ActPunt]
+shl EipBytes, 18
+shr EipBytes, 18
+mov [VATab2], EipBytes
+add ActPunt, 1
+add VATab2, 1
+inc Count2
+cmp [VACTab], Count2
+je FinTab2B
+jmp InTab2B
+
+FinTab2B:
+add VACTab, 4
+add Count, 4
+cmp Count, TabNum
+jne Tab0_2B
+
+Tab2Fin:
+mov VATab3, VATab2
+sub VATab2, VATab
+dm VATab, VATab2, "C:\Documents and Settings\tenketsu\Escritorio\nano_type.hex"
+sub VACTab, TabNum
+eob BABEL3
+run
+jmp BABEL2
+
+
+BABEL3:
+cob
+bphwc eip
+
+add VATab3, 40
+eval "VA de nano_dest.hex = {VATab3}"
+log $RESULT
+mov VATab, VATab3
+mov Count, 0
+mov ActEip, eip
+add ActEip, 3
+mov ActEip, [ActEip]
+
+Tab0_3:
+mov Count2, 0
+mov ActPunt, ActEip
+add ActPunt, Count
+mov ActPunt, [ActPunt]
+
+InTab3:
+mov EipBytes, [ActPunt]
+mov [VATab3], EipBytes
+add ActPunt, 4
+add VATab3, 4
+inc Count2
+cmp [VACTab], Count2
+je FinTab3
+jmp InTab3
+
+FinTab3:
+add VACTab, 4
+add Count, 4
+cmp Count, TabNum
+jne Tab0_3
+
+mov VATab4, VATab3
+sub VATab3, VATab
+dm VATab, VATab3, "C:\Documents and Settings\tenketsu\Escritorio\nano_dest.hex"
+sub VACTab, TabNum
+eob BABEL4
+run
+jmp BABEL3
+
+
+BABEL4:
+cob
+bphwc eip
+
+add VATab4, 40
+eval "VA de nano_size.hex = {VATab4}"
+log $RESULT
+mov VATab, VATab4
+mov Count, 0
+mov ActEip, eip
+add ActEip, 3
+mov ActEip, [ActEip]
+
+Tab0_4:
+mov Count2, 0
+mov ActPunt, ActEip
+add ActPunt, Count
+mov ActPunt, [ActPunt]
+
+InTab4:
+mov EipBytes, [ActPunt]
+shl EipBytes, 18
+shr EipBytes, 18
+mov [VATab4], EipBytes
+add ActPunt, 1
+add VATab4, 1
+inc Count2
+cmp [VACTab], Count2
+je FinTab4
+jmp InTab4
+
+FinTab4:
+add VACTab, 4
+add Count, 4
+cmp Count, TabNum
+jne Tab0_4
+
+sub VATab4, VATab
+dm VATab, VATab4, "C:\Documents and Settings\tenketsu\Escritorio\nano_size.hex"
+msg "El dumpeo de las tablas ha terminado."
+ret
+
+
+LABEL:
+esto
+jmp LABEL
+
+NoVA:
+msg "No se ha especificado una VA base para las tablas, script terminado."
+ret
+
+NoTabNum:
+msg "No se ha especificado un numero de pedazos, script terminado."
+ret

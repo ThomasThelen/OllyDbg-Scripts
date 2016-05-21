@@ -1,0 +1,74 @@
+/*
+Armadillo 4.20 public builds OEP finder by KaGra,use it only if target has CopyMEM2+DebugBlocker (both)
+May works in all 4.xx versionz,test it
+*/
+
+var writeproc
+var waitfordbg
+var oeploc
+var findbp
+
+
+
+
+gpa "WriteProcessMemory", "kernel32.dll"
+mov writeproc, $RESULT
+
+jmp here
+again:
+inc writeproc
+here:
+find writeproc,#55??????#
+cmp writeproc,$RESULT
+jne again
+
+
+add writeproc,3
+
+
+gpa "WaitForDebugEvent", "kernel32.dll"
+mov waitfordbg, $RESULT
+
+jmp there
+
+again2:
+inc waitfordbg
+there:
+find waitfordbg,#55??????#
+cmp waitfordbg,$RESULT
+jne again2
+
+
+
+add waitfordbg,3
+
+
+
+bp writeproc
+
+esto
+esto
+
+bp waitfordbg
+esto
+
+add esp,8
+mov oeploc,[esp]
+sub esp,8 //SOS
+
+
+bc waitfordbg
+esto
+
+bc writeproc
+
+add oeploc,54
+
+mov eax,[oeploc]
+
+msg "EAX has the OEP :),script made by KaGra"
+
+
+
+
+

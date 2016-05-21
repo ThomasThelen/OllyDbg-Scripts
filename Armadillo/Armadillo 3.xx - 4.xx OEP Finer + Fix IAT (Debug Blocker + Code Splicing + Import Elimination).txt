@@ -1,435 +1,429 @@
-Filename: Armadillo 3.xx - 4.xx OEP Finer + Fix IAT (Debug Blocker + Code Splicing + Import Elimination)
-Description: 
-Uploader: Unknown
-Website:
-Date: Tuesday 23 January 2007 - 16:52:45
-
-/*
-Script for OdbgScript Engine (tested with 1.48 - 1.51)
-
-  Armadillo 3.x-4.x with:
-
-  IAT Redirection
-  DebugBlocker
-  Codesplicing
-  Import Elimination
-  Find OEP
- -----------
-  Patches OutputDebugStringA
-  Fixes PEHeader before dumping
-
-For apps with Import Elimination:
-When rebuilding imports with ImpRec, change your settings thus:
-
-Check    'Rebuild Original FT' (not necessary though)
-Check    'Create New IAT'      (most important ! imperative !)
-Uncheck  'Fix EP to OEP'       (if you enter RVA/Size of IAT manually)
-
-Besides, you must not cut any thunks !
-*/
-
-// ------------
-
-gpa "OutputDebugStringA", "kernel32.dll"
-ASM $RESULT, "RETN 4"
-gpa "OpenMutexA", "kernel32.dll"
-mov opmx, $RESULT+5
-gpa "GetModuleHandleA", "kernel32.dll"
-mov gmha, $RESULT+5
-gpa "VirtualAlloc", "kernel32.dll"
-mov vtal, $RESULT+5
-gpa "CreateThread", "kernel32.dll"
-mov crth, $RESULT+5
-
-// ------------
-
-var mgcjmp
-var finjmp
-
-var old
-var addr
-var iat
-var curr
-
-gmi eip, MODULEBASE
-mov mbase, $RESULT
-gmi eip, MODULESIZE
-mov msize, $RESULT
-mov marea, mbase
-add marea, msize
-var cbase
-var counter
-var msg_str
-var dmp_nm
-var temp
-
-findmem #2E6164617461#      // .adata
-add $RESULT, 8
-mov adatasize, [$RESULT]
-add $RESULT, 4
-mov adata, [$RESULT]
-add adata, mbase
-
-findmem #2E6461746131#      // .data1
-add $RESULT, 8
-mov data1size, [$RESULT]
-add $RESULT, 4
-mov data1, [$RESULT]
-add data1, mbase
-
-findmem #2E7465787431#      // .text1
-add $RESULT, 8
-mov text1size, [$RESULT]
-add $RESULT, 4
-mov text1, [$RESULT]
-add text1, mbase
-
-// ------------
-
-dbh
-
-dm mbase, 400, "c:\delete-me.bin"     // save PEHeader
-
-// ------------
-// DEBUGBLOCKER
-// ------------
-
-//msgyn "Fix Debug Blocker ?"
-//cmp $RESULT,1
-opcode eip
-cmp $RESULT_1, "PUSHAD"
-jne IATRedirection
-
-bp opmx
-FixCondJumps:
-esto
-rtu
-sto
-xor !ZF, 1                     // JE -> JNE & other way round
-inc counter
-cmp counter, 2
-jne FixCondJumps
-bc opmx
-
-// ------------
-// IAT Redirection
-// ------------
-
-IATRedirection:
-msgyn "Fix IAT Redirection (Magicjump) ?"
-cmp $RESULT,1
-jne FinishMagicJump
-bp gmha
-
-FindMagicjump:
-esto
-cmp [eax], "kernel32.dll"
-jne FindMagicjump
-bc gmha
-rtu
-findop eip, #0F84????????#     // Find first JE -> Magic Jump
-preop $RESULT
-mov mgcjmp, $RESULT
-bp mgcjmp
-
-esto
-sto
-mov !ZF, 1
-sto
-
-mov finjmp, eip-1
-FindFinJump:
-findop finjmp+1, #E9????????#  // Find first long jump
-cmp $RESULT-eip, 20            // max 20h distance
-jb FoundFinJump
-findop finjmp+1, #EB??#        // no long jump -> short jump
-cmp $RESULT-eip, 20
-ja FindFinJump
-
-FoundFinJump:
-mov finjmp, $RESULT
-preop finjmp
-mov temp, $RESULT
-findop temp-1, #0F85????#      // JNZ right before the JMP
-cmp $RESULT, temp
-jne FindFinJump
-bp finjmp
-
-FixMagicJump:
-esto
-cmp eip, mgcjmp             // Magicjump ?
-jne FinishMagicJump
-sto
-mov !ZF, 1                  // Set ZeroFlag -> Magic Jump will always jump
-jmp FixMagicJump
-
-FinishMagicJump:
-bc mgcjmp
-bc finjmp
-
-// ------------
-// STRATEGIC CODE SPLICING
-// ------------
-
-msgyn "Fix Codesplicing ?"
-cmp $RESULT,1
-jne FindOEP
-
-bp vtal
-
-FindCodeSplicing:
-fill adata, adatasize, 00   // Fill section with ZERO
-esto
-rtu
-cmp eax, marea
-jb FindCodeSplicing         // EAX must be above the the module's area
-mov eax, adata
-inc counter
-cmp counter, 2
-jne FindCodeSplicing
-bc vtal
-
-msg "Codesplices have been redirected to .adata,\r\nremember not to erase this section when cleaning dump !"
-
-// ------------
-// OEP
-// ------------
-
-FindOEP:
-bp crth
-esto
-bc crth
-rtu
-rtr
-sto
-
-findop eip, #FFD1#          // Call ECX
-findop $RESULT, #FFD1#      // second one == Call OEP
-mov temp, $RESULT
-sub temp, eip
-cmp temp, 200
-ja Arma3
-bp $RESULT
-jmp OEP
-Arma3:
-findop eip, #FFD7#          // Call EDI
-bp $RESULT
-
-OEP:
-esto
-sti
-cmt eip, "- Entrypoint -"
-bc $RESULT
-
-lm mbase, 400, "c:\delete-me.bin"   // restore PEHeader
-
-dbs
-
-// ------------
-// IMPORT ELIMINATION
-// ------------
-
-FixImportElimination:
-msgyn "Fix Import Elimination ?"
-cmp $RESULT, 1
-jne Done
-
-gmemi eip, MEMORYBASE
-mov cbase, $RESULT
-mov curr, cbase
-
-cmp data1size, text1size
-jb data1
-mov iat, text1
-mov temp, text1
-fill text1, text1size, 00   // Fill section with ZERO
-jmp SearchCall
-data1:
-mov iat, data1
-mov temp, data1
-fill data1, data1size, 00   // ...
-
-msg "This will take some time, maybe even minutes. Stay calm, relax and don't touch Olly in the meantime to prevent any crash."
-
-SearchCall:
-inc curr
-findop curr, #FF15????????#    // Call DWORDS
-cmp $RESULT, 0
-je SearchJmp1
-mov curr, $RESULT
-add $RESULT, 2
-cmp [$RESULT], marea
-jb SearchCall
-
-cmp [$RESULT], old
-jne PatchEntry1
-mov [$RESULT], iat-4
-jmp SearchCall
-
-PatchEntry1:
-mov old, [$RESULT]
-mov addr, [old]
-mov [iat], addr
-mov [$RESULT], iat
-add iat, 4
-jmp SearchCall
-
-SearchJmp1:
-msg "Calls patched"
-mov curr, cbase
-
-SearchJmp2:
-inc curr
-findop curr, #FF25????????#    // Jmp DWORDS
-cmp $RESULT, 0
-je SearchMov1
-mov curr, $RESULT
-add $RESULT, 2
-cmp [$RESULT], marea
-jb SearchJmp2
-
-cmp [$RESULT], old
-jne PatchEntry2
-mov [$RESULT], iat-4
-jmp SearchJmp2
-
-PatchEntry2:
-mov old, [$RESULT]
-mov addr, [old]
-mov [iat], addr
-mov [$RESULT], iat
-add iat, 4
-jmp SearchJmp2
-
-SearchMov1:
-msg "Jumps patched"
-mov curr, cbase
-
-SearchMov2:
-inc curr
-findop curr, #8B35????????#    // Mov ESI
-cmp $RESULT, 0
-je SearchMov3
-mov curr, $RESULT
-add $RESULT, 2
-cmp [$RESULT], marea
-jb SearchMov2
-
-cmp [$RESULT], old
-jne PatchEntry3
-mov [$RESULT], iat-4
-jmp SearchMov2
-
-PatchEntry3:
-mov old, [$RESULT]
-mov addr, [old]
-mov [iat], addr
-mov [$RESULT], iat
-add iat, 4
-jmp SearchMov2
-
-SearchMov3:
-msg "Mov ESIs patched"
-mov curr, cbase
-
-SearchMov4:
-inc curr
-findop curr, #8B3D????????#    // Mov EDI
-cmp $RESULT, 0
-je SearchMov5
-mov curr, $RESULT
-add $RESULT, 2
-cmp [$RESULT], marea
-jb SearchMov4
-
-cmp [$RESULT], old
-jne PatchEntry4
-mov [$RESULT], iat-4
-jmp SearchMov4
-
-PatchEntry4:
-mov old, [$RESULT]
-mov addr, [old]
-mov [iat], addr
-mov [$RESULT], iat
-add iat, 4
-jmp SearchMov4
-
-SearchMov5:
-msg "Mov EDIs patched"
-mov curr, cbase
-
-SearchMov6:
-inc curr
-findop curr, #8B2D????????#    // Mov EBP
-cmp $RESULT, 0
-je SearchMov7
-mov curr, $RESULT
-add $RESULT, 2
-cmp [$RESULT], marea
-jb SearchMov6
-
-cmp [$RESULT], old
-jne PatchEntry5
-mov [$RESULT], iat-4
-jmp SearchMov6
-
-PatchEntry5:
-mov old, [$RESULT]
-mov addr, [old]
-mov [iat], addr
-mov [$RESULT], iat
-add iat, 4
-jmp SearchMov6
-
-SearchMov7:
-msg "Mov EBPs patched"
-mov curr, cbase
-
-SearchMov8:
-inc curr
-findop curr, #8B1D????????#    // Mov EBX
-cmp $RESULT, 0
-je Finished
-mov curr, $RESULT
-add $RESULT, 2
-cmp [$RESULT], marea
-jb SearchMov8
-
-cmp [$RESULT], old
-jne PatchEntry6
-mov [$RESULT], iat-4
-jmp SearchMov8
-
-PatchEntry6:
-mov old, [$RESULT]
-mov addr, [old]
-mov [iat], addr
-mov [$RESULT], iat
-add iat, 4
-jmp SearchMov8
-
-Finished:
-mov len, iat
-sub len, temp
-sub temp, mbase
-
-eval "Done !\r\n\r\nRVA of IAT     :   {temp}\r\nLength of IAT :  {len}\r\n\r\nDon't forget to check\r\n'Create New IAT' in ImpRec's\r\nsettings dialog !\r\nAnd do not cut or delete any thunks, important !"
-mov msg_str, $RESULT
-msg msg_str
-
-Done:
-msgyn "PEHeader is already fixed.\r\nDo you want to dump the executable right now ?"
-cmp $RESULT, 1
-je Dump
-ret
-
-Dump:
-ask "Please enter a name for the dump"
-mov dmp_nm, $RESULT
-dpe dmp_nm, eip
-eval "Program has been dumped to {dmp_nm}. You'll have to fix imports with ImpRec now."
-mov msg_str, $RESULT
-msg msg_str
-ret
-
+/*
+Script for OdbgScript Engine (tested with 1.48 - 1.51)
+
+  Armadillo 3.x-4.x with:
+
+  IAT Redirection
+  DebugBlocker
+  Codesplicing
+  Import Elimination
+  Find OEP
+ -----------
+  Patches OutputDebugStringA
+  Fixes PEHeader before dumping
+
+For apps with Import Elimination:
+When rebuilding imports with ImpRec, change your settings thus:
+
+Check    'Rebuild Original FT' (not necessary though)
+Check    'Create New IAT'      (most important ! imperative !)
+Uncheck  'Fix EP to OEP'       (if you enter RVA/Size of IAT manually)
+
+Besides, you must not cut any thunks !
+*/
+
+// ------------
+
+gpa "OutputDebugStringA", "kernel32.dll"
+ASM $RESULT, "RETN 4"
+gpa "OpenMutexA", "kernel32.dll"
+mov opmx, $RESULT+5
+gpa "GetModuleHandleA", "kernel32.dll"
+mov gmha, $RESULT+5
+gpa "VirtualAlloc", "kernel32.dll"
+mov vtal, $RESULT+5
+gpa "CreateThread", "kernel32.dll"
+mov crth, $RESULT+5
+
+// ------------
+
+var mgcjmp
+var finjmp
+
+var old
+var addr
+var iat
+var curr
+
+gmi eip, MODULEBASE
+mov mbase, $RESULT
+gmi eip, MODULESIZE
+mov msize, $RESULT
+mov marea, mbase
+add marea, msize
+var cbase
+var counter
+var msg_str
+var dmp_nm
+var temp
+
+findmem #2E6164617461#      // .adata
+add $RESULT, 8
+mov adatasize, [$RESULT]
+add $RESULT, 4
+mov adata, [$RESULT]
+add adata, mbase
+
+findmem #2E6461746131#      // .data1
+add $RESULT, 8
+mov data1size, [$RESULT]
+add $RESULT, 4
+mov data1, [$RESULT]
+add data1, mbase
+
+findmem #2E7465787431#      // .text1
+add $RESULT, 8
+mov text1size, [$RESULT]
+add $RESULT, 4
+mov text1, [$RESULT]
+add text1, mbase
+
+// ------------
+
+dbh
+
+dm mbase, 400, "c:\delete-me.bin"     // save PEHeader
+
+// ------------
+// DEBUGBLOCKER
+// ------------
+
+//msgyn "Fix Debug Blocker ?"
+//cmp $RESULT,1
+opcode eip
+cmp $RESULT_1, "PUSHAD"
+jne IATRedirection
+
+bp opmx
+FixCondJumps:
+esto
+rtu
+sto
+xor !ZF, 1                     // JE -> JNE & other way round
+inc counter
+cmp counter, 2
+jne FixCondJumps
+bc opmx
+
+// ------------
+// IAT Redirection
+// ------------
+
+IATRedirection:
+msgyn "Fix IAT Redirection (Magicjump) ?"
+cmp $RESULT,1
+jne FinishMagicJump
+bp gmha
+
+FindMagicjump:
+esto
+cmp [eax], "kernel32.dll"
+jne FindMagicjump
+bc gmha
+rtu
+findop eip, #0F84????????#     // Find first JE -> Magic Jump
+preop $RESULT
+mov mgcjmp, $RESULT
+bp mgcjmp
+
+esto
+sto
+mov !ZF, 1
+sto
+
+mov finjmp, eip-1
+FindFinJump:
+findop finjmp+1, #E9????????#  // Find first long jump
+cmp $RESULT-eip, 20            // max 20h distance
+jb FoundFinJump
+findop finjmp+1, #EB??#        // no long jump -> short jump
+cmp $RESULT-eip, 20
+ja FindFinJump
+
+FoundFinJump:
+mov finjmp, $RESULT
+preop finjmp
+mov temp, $RESULT
+findop temp-1, #0F85????#      // JNZ right before the JMP
+cmp $RESULT, temp
+jne FindFinJump
+bp finjmp
+
+FixMagicJump:
+esto
+cmp eip, mgcjmp             // Magicjump ?
+jne FinishMagicJump
+sto
+mov !ZF, 1                  // Set ZeroFlag -> Magic Jump will always jump
+jmp FixMagicJump
+
+FinishMagicJump:
+bc mgcjmp
+bc finjmp
+
+// ------------
+// STRATEGIC CODE SPLICING
+// ------------
+
+msgyn "Fix Codesplicing ?"
+cmp $RESULT,1
+jne FindOEP
+
+bp vtal
+
+FindCodeSplicing:
+fill adata, adatasize, 00   // Fill section with ZERO
+esto
+rtu
+cmp eax, marea
+jb FindCodeSplicing         // EAX must be above the the module's area
+mov eax, adata
+inc counter
+cmp counter, 2
+jne FindCodeSplicing
+bc vtal
+
+msg "Codesplices have been redirected to .adata,\r\nremember not to erase this section when cleaning dump !"
+
+// ------------
+// OEP
+// ------------
+
+FindOEP:
+bp crth
+esto
+bc crth
+rtu
+rtr
+sto
+
+findop eip, #FFD1#          // Call ECX
+findop $RESULT, #FFD1#      // second one == Call OEP
+mov temp, $RESULT
+sub temp, eip
+cmp temp, 200
+ja Arma3
+bp $RESULT
+jmp OEP
+Arma3:
+findop eip, #FFD7#          // Call EDI
+bp $RESULT
+
+OEP:
+esto
+sti
+cmt eip, "- Entrypoint -"
+bc $RESULT
+
+lm mbase, 400, "c:\delete-me.bin"   // restore PEHeader
+
+dbs
+
+// ------------
+// IMPORT ELIMINATION
+// ------------
+
+FixImportElimination:
+msgyn "Fix Import Elimination ?"
+cmp $RESULT, 1
+jne Done
+
+gmemi eip, MEMORYBASE
+mov cbase, $RESULT
+mov curr, cbase
+
+cmp data1size, text1size
+jb data1
+mov iat, text1
+mov temp, text1
+fill text1, text1size, 00   // Fill section with ZERO
+jmp SearchCall
+data1:
+mov iat, data1
+mov temp, data1
+fill data1, data1size, 00   // ...
+
+msg "This will take some time, maybe even minutes. Stay calm, relax and don't touch Olly in the meantime to prevent any crash."
+
+SearchCall:
+inc curr
+findop curr, #FF15????????#    // Call DWORDS
+cmp $RESULT, 0
+je SearchJmp1
+mov curr, $RESULT
+add $RESULT, 2
+cmp [$RESULT], marea
+jb SearchCall
+
+cmp [$RESULT], old
+jne PatchEntry1
+mov [$RESULT], iat-4
+jmp SearchCall
+
+PatchEntry1:
+mov old, [$RESULT]
+mov addr, [old]
+mov [iat], addr
+mov [$RESULT], iat
+add iat, 4
+jmp SearchCall
+
+SearchJmp1:
+msg "Calls patched"
+mov curr, cbase
+
+SearchJmp2:
+inc curr
+findop curr, #FF25????????#    // Jmp DWORDS
+cmp $RESULT, 0
+je SearchMov1
+mov curr, $RESULT
+add $RESULT, 2
+cmp [$RESULT], marea
+jb SearchJmp2
+
+cmp [$RESULT], old
+jne PatchEntry2
+mov [$RESULT], iat-4
+jmp SearchJmp2
+
+PatchEntry2:
+mov old, [$RESULT]
+mov addr, [old]
+mov [iat], addr
+mov [$RESULT], iat
+add iat, 4
+jmp SearchJmp2
+
+SearchMov1:
+msg "Jumps patched"
+mov curr, cbase
+
+SearchMov2:
+inc curr
+findop curr, #8B35????????#    // Mov ESI
+cmp $RESULT, 0
+je SearchMov3
+mov curr, $RESULT
+add $RESULT, 2
+cmp [$RESULT], marea
+jb SearchMov2
+
+cmp [$RESULT], old
+jne PatchEntry3
+mov [$RESULT], iat-4
+jmp SearchMov2
+
+PatchEntry3:
+mov old, [$RESULT]
+mov addr, [old]
+mov [iat], addr
+mov [$RESULT], iat
+add iat, 4
+jmp SearchMov2
+
+SearchMov3:
+msg "Mov ESIs patched"
+mov curr, cbase
+
+SearchMov4:
+inc curr
+findop curr, #8B3D????????#    // Mov EDI
+cmp $RESULT, 0
+je SearchMov5
+mov curr, $RESULT
+add $RESULT, 2
+cmp [$RESULT], marea
+jb SearchMov4
+
+cmp [$RESULT], old
+jne PatchEntry4
+mov [$RESULT], iat-4
+jmp SearchMov4
+
+PatchEntry4:
+mov old, [$RESULT]
+mov addr, [old]
+mov [iat], addr
+mov [$RESULT], iat
+add iat, 4
+jmp SearchMov4
+
+SearchMov5:
+msg "Mov EDIs patched"
+mov curr, cbase
+
+SearchMov6:
+inc curr
+findop curr, #8B2D????????#    // Mov EBP
+cmp $RESULT, 0
+je SearchMov7
+mov curr, $RESULT
+add $RESULT, 2
+cmp [$RESULT], marea
+jb SearchMov6
+
+cmp [$RESULT], old
+jne PatchEntry5
+mov [$RESULT], iat-4
+jmp SearchMov6
+
+PatchEntry5:
+mov old, [$RESULT]
+mov addr, [old]
+mov [iat], addr
+mov [$RESULT], iat
+add iat, 4
+jmp SearchMov6
+
+SearchMov7:
+msg "Mov EBPs patched"
+mov curr, cbase
+
+SearchMov8:
+inc curr
+findop curr, #8B1D????????#    // Mov EBX
+cmp $RESULT, 0
+je Finished
+mov curr, $RESULT
+add $RESULT, 2
+cmp [$RESULT], marea
+jb SearchMov8
+
+cmp [$RESULT], old
+jne PatchEntry6
+mov [$RESULT], iat-4
+jmp SearchMov8
+
+PatchEntry6:
+mov old, [$RESULT]
+mov addr, [old]
+mov [iat], addr
+mov [$RESULT], iat
+add iat, 4
+jmp SearchMov8
+
+Finished:
+mov len, iat
+sub len, temp
+sub temp, mbase
+
+eval "Done !\r\n\r\nRVA of IAT     :   {temp}\r\nLength of IAT :  {len}\r\n\r\nDon't forget to check\r\n'Create New IAT' in ImpRec's\r\nsettings dialog !\r\nAnd do not cut or delete any thunks, important !"
+mov msg_str, $RESULT
+msg msg_str
+
+Done:
+msgyn "PEHeader is already fixed.\r\nDo you want to dump the executable right now ?"
+cmp $RESULT, 1
+je Dump
+ret
+
+Dump:
+ask "Please enter a name for the dump"
+mov dmp_nm, $RESULT
+dpe dmp_nm, eip
+eval "Program has been dumped to {dmp_nm}. You'll have to fix imports with ImpRec now."
+mov msg_str, $RESULT
+msg msg_str
+ret
+

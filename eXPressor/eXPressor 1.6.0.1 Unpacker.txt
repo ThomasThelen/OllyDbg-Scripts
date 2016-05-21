@@ -1,0 +1,95 @@
+var oep
+var mh
+var cb
+var csz
+var mbase
+var em
+var iat
+var E8
+var func
+var iat_start
+mov iat_start,00460818
+
+GMI eip,CODEBASE
+mov cb,$RESULT
+GMI eip,CODESIZE
+mov csz,$RESULT
+GMI eip,ENTRY
+mov oep,$RESULT
+BC oep
+
+gpa "GetProcAddress","kernel32.dll"
+find $RESULT,#5F5BC9C2#
+bp $RESULT+3
+erun
+erun
+bc eip
+rtu
+find eip,#595985C0#
+cmp $RESULT,0
+je quit
+mov [$RESULT+4],#9090# 
+run
+mov [eip],#cc# 
+mov mh,[esp+8]
+bp mh
+run
+bc eip
+add mh,10
+bp mh
+run
+bc eip
+add eip,7
+rtr
+sti
+find eip,#586A01585E5B5FC9C3#
+
+cmp $RESULT,0
+je quit
+mov oep,$RESULT+8
+bp oep
+GMEMI eip, MEMORYBASE
+mov mbase,$RESULT
+find mbase,#8945D4837DD400750733C0#
+mov em,$RESULT
+bp em
+find em,#C600E88B45E?#
+mov E8,$RESULT
+bp E8
+mov mbase,E8+2C
+bp mbase
+loop:
+erun
+cmp eip,em
+jne oepfind
+mov iat,eax
+find iat_start,iat
+mov func,$RESULT
+erun
+sti
+mov [eax],#FF15#
+erun
+inc eax
+add eip,2
+mov [eax],func
+
+jmp loop
+
+oepfind:
+bc eip
+sti
+BPRM cb, csz
+run
+BPMC
+bc E8
+bc em
+bc mbase
+CMT eip,"OEP"
+mov iat_start,40008C
+mov [iat_start],60000
+dpe "dump.exe", eip
+msg " File Unpacked"
+ret
+
+quit:
+ret

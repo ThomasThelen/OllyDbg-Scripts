@@ -1,0 +1,28 @@
+/*
+//////////////////////////////////////////////////////////////////////////////////////////////
+// ASPack 2.12 
+// Author : Ashraf Cracker                               
+// Email : AshraCracker@hotmail.com
+// OS : WinXP Pro, OllyDbg 1.10 Final, OllyScript 0.92
+// Check ALL Debugging Exceptions
+/////////////////////////////////////////////////////////////////////////////////////////////
+*/
+cmp $VERSION, "1.47"
+jb odbgver
+sto
+BPHWS esp,"r"
+run
+BPHWC esp
+sto
+sto
+sto
+an eip
+dpe "Dumped.exe",eip
+msg "This is the OEP!  Found By Ashraf Cracker"
+msg "The File was dumped successfully don't close OllyDbg and try now to Fix IAT with ImportREC"
+cmt eip, "<== Original Entry Point"
+ret
+
+odbgver:
+msg "This script work with ODbgscript 1.47 or above"
+ret

@@ -1,0 +1,169 @@
+/////////////////////////////////////////////////////////////
+// this script does a cruicial job, it finds all the correct API's corresponding 
+// to the HIGHMEM calls. like i said before, the log-HIGHMEM-calls-BIN.txt 
+// file will contain all the highmem call address ready to be BINARY-PASTED 
+// in olly (just a little fix needed as mentioned above) 
+//
+// to use this script what you need to do is to know 
+//
+// 1. where to binary paste all the values from log-HIGHMEM-calls-BIN.txt 
+// 2. the address where the script should put hardware bp and log the eax values 
+//
+// the first job is easy, normaly with the targets i worked ADATA section 
+// contained all places you need , filled up all with zero. but u can chose any 
+// non-destructive place to put them, as u want. just set the address to 
+// the variable binary_paste in the script 
+//
+// the second job is a little tough, u gotta find the right addr where to set the 
+// hardware bp ... okey, follow the instructions 
+//
+// load the app 
+// F9 once ... now you r in ASPR code 
+//
+// binary search for binary search of : 8945FCA1??????008B008B15??????008B1233028B15??????002B02 
+// you will land in some place like this : 
+//
+// D73409 MOV DWORD PTR SS:[EBP-4],EAX 
+// D7340C MOV EAX,DWORD PTR DS:[D77824] 
+// D73411 MOV EAX,DWORD PTR DS:[EAX] 
+// D73413 MOV EDX,DWORD PTR DS:[D77824] 
+// D73419 MOV EDX,DWORD PTR DS:[EDX] 
+// D7341B XOR EAX,DWORD PTR DS:[EDX] 
+// D7341D MOV EDX,DWORD PTR DS:[D77680] 
+// D73423 SUB EAX,DWORD PTR DS:[EDX] 
+//
+// so, D73409 will be addr_hwbp in the script 
+/////////////////////////////////////////////////////////////
+/*
+********************
+     nick_name
+ TEAM RESSURRECTiON
+********************
+*/
+
+
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+
+DEFINE_BEFORE_EXECUTION:
+
+//mov addr_hwbp,00D950A7
+//mov addr_hwbp,00EF4376
+mov binary_paste,491000
+mov addr_hwbp,00A850A7
+												
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+
+SCRIPT_START:
+
+mov path1,".\log-RESOLVE calls.txt"
+mov path2,".\log-RESOLVE calls-BIN.txt"
+
+
+mov manual,0
+
+msgyn "MANUAL process ??"
+cmp $RESULT,1
+jne ANALYZE_CALLS
+mov manual,1
+
+ANALYZE_CALLS:
+	
+		lc
+		bphws addr_hwbp,"x"
+
+
+LOOP:
+
+		exec
+			pushad
+			pushfd
+		ende
+		
+		mov save_ebp,ebp
+		mov save_esp,esp
+
+		cmp manual,1
+		je LBL
+		mov eip,[binary_paste]	
+		mov call_addr,[binary_paste]
+		jmp COMMON
+
+
+//.......................................[MANUAL PROCESS]		
+
+LBL:
+		ask "set EIP :-"
+		cmp $RESULT,"`"
+		je END
+		cmp $RESULT,0
+		jbe LBL
+
+		mov eip, $RESULT
+		mov call_addr,$RESULT
+
+//.......................................
+
+COMMON:
+		run
+		cmp eip,addr_hwbp
+		je LOG
+		jmp ERR
+
+LOG:
+		mov tmp, esp
+		add tmp,20
+		mov tmp2,[tmp]
+		gn eax
+		eval "{tmp2} :: {eax}={$RESULT}"
+		log $RESULT, ""
+		wrta path1, $RESULT
+		wrta path1, "\r\n"
+
+		rev tmp2
+		
+		wrta path2, $RESULT
+		wrta path2, " "
+
+		mov tmp_eax, eax
+		rev tmp_eax
+		
+		wrta path2, $RESULT
+		wrta path2, "\r\n"
+		
+		add binary_paste,4
+		
+		mov ebp,save_ebp
+		mov esp,save_esp
+		
+		exec
+			popfd
+			popad
+		ende
+
+		cmp manual,1
+		je LOOP	//................................jump back for another input [MANUAL]
+				
+		cmp [binary_paste],00000000
+		jne LOOP //...............................jump when 481000 place dont have anymore inputs [AUTOMATIC]
+		
+		jmp END
+
+ERR:
+		mov tempo,[binary_paste]
+		log tempo
+		eval "{tempo} : EIP does'nt match with HWBP-EIP"
+		msg $RESULT
+		
+		mov ebp, save_ebp
+		mov esp, save_esp
+		exec
+			popfd
+			popad
+		ende
+
+END:
+		bphwc addr_hwbp
+		ret
+

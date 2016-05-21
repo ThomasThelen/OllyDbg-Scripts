@@ -1,0 +1,117 @@
+//vmp 1.7 iat repair
+//run the script at oep
+//vmp code base = va of .vmp0
+//vmp code end  = va of .vmp1
+//if the program crashes, check log and make sure "mov reg32, [iat]" references are correctly fixed!
+
+var codebase
+var refaddr
+var vmpbase
+var vmpend
+var ptr
+var tmpesp
+var oep
+var tmp
+var codesize
+var isfirst
+var phase
+mov oep, eip
+GMI eip, CODEBASE
+mov codebase, $RESULT
+mov ptr, codebase
+GMI eip, CODESIZE
+mov codesize, $RESULT
+Ask  "vmp code base"
+mov vmpbase, $RESULT
+Ask  "vmp code end"
+mov vmpend, $RESULT
+mov tmpesp, esp
+next:
+mov esp, tmpesp
+cmp phase, 0
+jne findcall
+find ptr, #E9??????00#
+jmp check
+findcall:
+find ptr, #E8??????0090#
+check:
+cmp $RESULT,0
+je done
+cmp $RESULT, vmpbase
+ja done
+mov ptr, $RESULT
+mov eip, ptr
+inc ptr
+mov  tmp, [ptr]
+add tmp, eip
+cmp tmp, vmpbase
+jb next
+cmp tmp, vmpend
+ja next
+mov refaddr, ptr
+cmp isfirst, 0
+jne ****
+first****:
+sti
+find eip,#c2#,1
+cmp $RESULT,0
+je first****
+bphws eip, "x"
+inc isfirst
+jmp fix
+****:
+run
+
+fix:
+mov eip, refaddr
+mov tmp, eip
+add tmp, 5
+find tmp, #ffd6#, 12
+cmp $RESULT,0
+je fix1
+dec eip
+eval "mov esi, {eax}"
+asm eip, $RESULT
+log eip
+add ptr, 6
+jmp next
+
+fix1:
+find tmp, #ffd7#, 12
+cmp $RESULT,0
+je fix2
+dec eip
+eval "mov edi, {eax}"
+asm eip, $RESULT
+log eip
+add ptr, 6
+jmp next
+
+fix2:
+find tmp, #ffd3#, 12
+cmp $RESULT,0
+je normalfix
+dec eip
+eval "mov ebx, {eax}"
+asm eip, $RESULT
+log eip
+add ptr, 6
+jmp next
+
+
+normalfix:
+sub eax, refaddr
+sub eax, 4
+mov [refaddr], eax, 4
+add ptr, 5
+log eip
+jmp next
+done:
+cmp phase, 0
+jne exit
+inc phase
+mov ptr, codebase
+jmp next
+exit:
+mov eip, oep
+ret

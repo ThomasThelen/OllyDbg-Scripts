@@ -1,0 +1,1711 @@
+////////////////////////Château-Saint-Martin////////////////////////////////////////////////////////////////
+//                                                                      ///////////////////////////////////
+//  FileName    :  VMProtect 1.7 - 1.8 OEP & Unpack Helper 1.0          //////////////////////////////////
+//  Features    :                                                       /////////////////////////////////
+//                 Use this script to find the OEP and fix the APIs     ////////////////////////////////
+//                 on the special way.Some untouched APIs you have      ///////////////////////////////
+//                 to fix manually.All Infos will logged for you!       //////////////////////////////
+//                 Script writes a IAT_INLINE Section for you target.   /////////////////////////////
+//                 For 1.7 in the unpack session / realtime             ////////////////////////////
+//                 For 1.8 not in realtime / just for dumped files.     ///////////////////////////
+//                                                                      //////////////////////////
+//                  *************************************************** /////////////////////////
+//               ( 1.) OEP Finder                                     * ////////////////////////
+//                                                                    * ///////////////////////
+//               ( 2.) API Place Finder Break & LOG                   * //////////////////////
+//                                                                    * /////////////////////
+//               ( 3.) Creating IATPATCH.txt & IAT_INLINE Section M|2 * ////////////////////
+//                                                                    * ///////////////////
+//               ( 4.) Creating Session Info File                     * //////////////////
+//                                                                    * /////////////////
+//               ( 4.) Creating Extra APIs For Some Cases             * ////////////////
+//                                                                    * ///////////////
+//                 How to Use Information`s | Step List Choice        * //////////////
+//                  *************************************************** /////////////
+//                  You have 3 methods | Follow this | *2=1 *2=2 *3=3 * ////////////
+//                                                                    * ///////////
+//                  *2 <- Search the API Holder Address           [1] * //////////
+//                  *1 <- Search the OEP / SubRoutine Address     [2] * /////////
+//                  *3 <- Write IATPATCH.txt File                 [3] * ////////
+//                  *************************************************** ///////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript v1.76.3,Nooby.dll     //////
+//                 Import Adder Tool like CFF Explorer 7,StrongOD       /////
+//  Author      :  LCF-AT                                               ////
+//  Date        :  2009-06-11 | November                                ///
+//                                                                      //
+//                                                                     // 
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!////////////////////
+pause
+LC
+LCLR
+BC
+BPMC
+BPHWC
+dbh
+//////////////////////////////
+call VAR
+pause
+//////////////////////////////
+GPI EXEFILENAME
+mov EXEFILENAME, $RESULT
+len EXEFILENAME
+mov EXEFILENAME_COUNT, $RESULT
+sub EXEFILENAME_COUNT, 03
+alloc 1000
+mov testsec, $RESULT
+mov [testsec], EXEFILENAME
+add testsec, EXEFILENAME_COUNT
+scmpi [testsec], "exe"
+je FOUNDEND
+scmpi [testsec], "EXE"
+je FOUNDEND
+scmpi [testsec], "dll"
+je FOUNDEND
+scmpi [testsec], "DLL"
+je FOUNDEND
+msg "Your loaded file is no DLL or Exe so fix this and try it again!" 
+pause
+ret
+//////////////////////////////
+FOUNDEND:
+mov CHAR, [testsec], 2.5
+str CHAR
+mov CHAR, CHAR
+sub testsec, EXEFILENAME_COUNT
+free testsec
+GPI CURRENTDIR
+mov CURRENTDIR, $RESULT
+GPI PROCESSNAME
+mov PROCESSNAME, $RESULT
+mov PROCESSNAME_2, $RESULT
+len PROCESSNAME
+mov PROCESSNAME_COUNT, $RESULT
+buf PROCESSNAME_COUNT
+alloc 1000
+mov PROCESSNAME_FREE_SPACE, $RESULT
+mov PROCESSNAME_FREE_SPACE_2, $RESULT
+mov EIP_STORE, eip
+mov eip, PROCESSNAME_FREE_SPACE
+mov [PROCESSNAME_FREE_SPACE], PROCESSNAME
+//////////////////////////////
+PROCESSNAME_CHECK:
+cmp [PROCESSNAME_FREE_SPACE],00
+je PROCESSNAME_CHECK_02
+cmp [PROCESSNAME_FREE_SPACE],#20#, 01
+je PROCESSNAME_CHECK_01
+cmp [PROCESSNAME_FREE_SPACE],#2E#, 01
+je PROCESSNAME_CHECK_01
+inc PROCESSNAME_FREE_SPACE
+jmp PROCESSNAME_CHECK
+//////////////////////////////
+PROCESSNAME_CHECK_01:
+mov [PROCESSNAME_FREE_SPACE], #5F#, 01
+jmp PROCESSNAME_CHECK
+//////////////////////////////
+PROCESSNAME_CHECK_02:
+readstr [PROCESSNAME_FREE_SPACE_2], 08
+mov PROCESSNAME, $RESULT
+str PROCESSNAME
+mov eip, EIP_STORE
+free PROCESSNAME_FREE_SPACE
+GMA PROCESSNAME, MODULEBASE
+cmp $RESULT, 0
+jne MODULEBASE
+pause
+pause
+//////////////////////////////
+MODULEBASE:
+mov MODULEBASE, $RESULT
+mov PE_HEADER, $RESULT
+gmemi PE_HEADER, MEMORYSIZE
+mov PE_HEADER_SIZE, $RESULT
+add CODESECTION, MODULEBASE
+add CODESECTION, PE_HEADER_SIZE
+GMI MODULEBASE, MODULESIZE
+mov MODULESIZE, $RESULT
+add MODULEBASE_and_MODULESIZE, MODULEBASE
+add MODULEBASE_and_MODULESIZE, MODULESIZE
+gmemi CODESECTION, MEMORYSIZE
+mov CODESECTION_SIZE, $RESULT
+add PE_HEADER, 03C
+mov PE_SIGNATURE, PE_HEADER
+sub PE_HEADER, 03C
+mov PE_SIZE, [PE_SIGNATURE]
+add PE_INFO_START, PE_HEADER
+add PE_INFO_START, PE_SIZE
+mov PE_TEMP, PE_INFO_START
+mov SECTIONS, [PE_TEMP+06], 01
+mov ENTRYPOINT, [PE_TEMP+028]
+add ENTRYPOINT, MODULEBASE
+mov BASE_OF_CODE, [PE_TEMP+02C]
+mov IMAGEBASE, [PE_TEMP+034]
+mov SIZE_OF_IMAGE, [PE_TEMP+050]
+mov TLS_TABLE_ADDRESS, [PE_TEMP+0C0]
+mov TLS_TABLE_SIZE, [PE_TEMP+0C4]
+mov IMPORT_TABLE_ADDRESS, [PE_TEMP+080]
+mov IMPORT_TABLE_SIZE, [PE_TEMP+084]
+mov IMPORT_ADDRESS_TABLE, [PE_TEMP+0D8]
+mov TLSTABLE, [PE_TEMP+0C0]
+add TLSTABLE, MODULEBASE
+mov TLSTABLE, [TLSTABLE+0C]
+mov TLSTABLE, [TLSTABLE]
+cmp TLSTABLE, 0
+jne ZELO
+log "NO TLS CALLBACK PRESENT!"
+//////////////////////////////
+ZELO:
+mov SECTIONS, [PE_TEMP+06], 01
+add CSS, [PE_TEMP+104]
+add CSS, MODULEBASE
+mov CSS_V_SIZE, [PE_TEMP+100]
+sub CSS_V_SIZE, 04
+cmt CSS_V_SIZE, "End of virtual / writeable size!"
+sub CSS_V_SIZE, 03C
+mov ANTISEC, [PE_TEMP+154]
+add ANTISEC, MODULEBASE
+mov ANTISEC_SIZE, [PE_TEMP+150]
+// add ANTISEC, 100
+add ANTISEC, ANTISEC_SIZE
+sub ANTISEC, 40
+mov TLSCALLBACK, [PE_TEMP+0C0]
+add TLSCALLBACK, MODULEBASE
+mov IMAGESIZE, [PE_TEMP+050]
+sub IMAGESIZE, PE_HEADER_SIZE
+add END_APP, IMAGESIZE
+add END_APP, MODULEBASE
+mov COMPILERVERSION, [PE_TEMP+01A],  01
+mov COMPILERVERSION_2, [PE_TEMP+01B],  01
+cmp COMPILERVERSION, 06
+jne STARTNOW
+cmp COMPILERVERSION_2, 00
+jne STARTNOW
+log "The target seems to be a VB app!"
+mov VB_TARGET, 01
+//  msg "The target seems to be a VB app!"
+//////////////////////////////
+STARTNOW:
+gpa "GetLocalTime", "kernel32.dll"
+mov GetLocalTime, $RESULT
+alloc 1000
+mov DATE_TIME, $RESULT
+mov EIP_STORE, eip
+mov eip, DATE_TIME
+asm DATE_TIME, "pushad"
+add DATE_TIME, 50
+eval "push {DATE_TIME}"
+sub DATE_TIME, 50
+asm DATE_TIME+01, $RESULT
+eval "call GetLocalTime"
+asm DATE_TIME+06, $RESULT
+asm DATE_TIME+0B, "popad"
+asm DATE_TIME+0C, "nop"
+bp DATE_TIME+0C
+esto
+bc
+add DATE_TIME, 50
+mov Year, [DATE_TIME], 02
+itoa Year, 10.
+mov Year, $RESULT
+add DATE_TIME, 02
+mov Month, [DATE_TIME], 01
+itoa Month, 10.
+mov Month, $RESULT
+add DATE_TIME, 04
+mov Day, [DATE_TIME], 01
+itoa Day, 10.
+mov Day, $RESULT
+add DATE_TIME, 02
+mov Hour, [DATE_TIME], 01
+itoa Hour, 10.
+mov Hour, $RESULT
+add DATE_TIME, 02
+mov Minute, [DATE_TIME], 01
+itoa Minute, 10.
+mov Minute, $RESULT
+add DATE_TIME, 02
+mov Second, [DATE_TIME], 01
+itoa Second, 10.
+mov Second, $RESULT
+mov eip, EIP_STORE
+sub DATE_TIME, 5C
+free DATE_TIME
+eval "{Hour}.{Minute}.{Second}_{Day}.{Month}.{Year}"
+mov FULLDATE, $RESULT
+log $RESULT, "DATE_TIME_IS:  "
+//////////////////////////////
+START:
+msgyn "Press YES if you want let create a new IAT_InlinePatch section >>> just <<< \r\n\r\n for alraedy dumped >>> VMProtect 1.8 <<< targets + iatpatch.txt file!"
+cmp $RESULT, 01
+je VMPROTECT_1.8
+cmp eip, TLSTABLE
+je START_2
+cmp eip, ENTRYPOINT
+jne START_2
+eval "Your are not at the "System Break Point or TLS >> {TLSTABLE} << 0 = No Callback Present! \r\n\r\nSet your Olly or Plugin right and restart your target."
+msg $RESULT
+log $RESULT, ""
+pause
+ret
+//////////////////////////////
+START_2:
+gpa "VirtualAlloc", "kernel32.dll"
+mov VirtualAlloc, $RESULT
+find VirtualAlloc, #C21000#
+mov VirtualAlloc, $RESULT
+gpa "ThunRTMain","MSVBVM60.dll"
+mov ThunRTMain, $RESULT
+inc ThunRTMain
+gpa "DbgBreakPoint","Ntdll.dll"
+mov DbgBreakPoint, $RESULT
+gpa "VirtualProtect","kernel32.dll"
+mov VirtualProtect, $RESULT
+add VirtualProtect, 01
+gpa "LoadLibraryA", "kernel32.dll"
+mov LoadLibraryA, $RESULT
+find LoadLibraryA, #C20400#
+mov LoadLibraryA, $RESULT
+cmp CODESECTION_SIZE, 10000
+jb CODE_LOW_READ
+mov CODESECTION_SIZE_TRIAL, 10000
+readstr [CODESECTION], CODESECTION_SIZE_TRIAL
+mov CODESECTION_STORE, $RESULT
+jmp START_3
+//////////////////////////////
+CODE_LOW_READ:
+mov LOGGA, 01
+readstr [CODESECTION], CODESECTION_SIZE
+mov CODESECTION_STORE, $RESULT
+//////////////////////////////
+START_3:
+Eval "*2 Press >>YES<< for | APIPLACE FIND + LOG \r\n\r\n*1 Press >>NO<< for | find & break at the OEP! \r\n\r\n*3 Press >>Chancel<< if you have the API PLACE ADDRESS \r\n\r\nto write the IATPATCH.txt file"
+msgyn $RESULT
+cmp $RESULT, 00
+je NORMALRUN
+cmp $RESULT, 01
+je APIRUN
+jmp API_WRITER
+//////////////////////////////
+NORMALRUN:
+msgyn "Press YES for soft BP or NO for HWBP!"
+mov DESS, $RESULT
+cmp $RESULT, 0
+je NORMALRUN_HWBP
+cmp $RESULT, 2
+je ENDE
+bp  VirtualProtect
+bp VirtualAlloc
+jmp START_4
+//////////////////////////////
+NORMALRUN_HWBP:
+bphws VirtualProtect, "x"
+bphws VirtualAlloc, "x"
+//////////////////////////////
+START_4:
+cmp VB_TARGET, 01
+jne START_4A
+bphwc VirtualProtect 
+bc VirtualProtect    
+cmp DESS, 02
+je ENDE
+cmp DESS, 01
+je VBSOFT
+//////////////////////////////
+VBHARD:
+bphws ThunRTMain, "x"
+esto
+cmp eip, VirtualAlloc
+jne VBHARD_AS
+call VirtualAlloc
+//////////////////////////////
+VBHARD_AS:
+cmp eip, ThunRTMain
+// bphwc
+jne VBHARD
+jmp VBNEXT
+//////////////////////////////
+VBSOFT:
+bp VirtualAlloc
+bp ThunRTMain
+esto
+bc
+cmp eip, VirtualAlloc
+jne VBSOFT_2A
+call VirtualAlloc
+//////////////////////////////
+VBSOFT_2A:
+cmp eip, ThunRTMain
+jne VBSOFT
+jmp VBNEXT
+//////////////////////////////
+VBNEXT:
+mov eip, [esp+04]
+sub eip, 0A
+jmp CHACK
+//////////////////////////////
+START_4A:
+esto
+cmp eip, VirtualAlloc
+jne START_4A_B
+call VirtualAlloc
+//////////////////////////////
+START_4A_B:
+cmp eip, VirtualProtect
+jne START_4
+cmp [esp+10], 20
+je START_5
+cmp [esp+08], CODESECTION
+jne START_4
+cmp [esp+10], 20
+je START_5
+jmp START_4
+//////////////////////////////
+START_5:
+bc eip
+bphwc
+bp [esp+04]
+esto
+bc eip
+//////////////////////////////
+FFF:
+jmp FFF_2
+ask "Enter OEP if you alraedy know or press just OK!"
+cmp $RESULT, 0
+je FFF_2
+mov OEP, $RESULT
+//////////////////////////////
+NEKKA:
+bphws OEP, "x"
+esto
+cmp eip, OEP
+je SCHWING
+jmp NEKKA
+//////////////////////////////
+SCHWING:
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je CHACK
+bphwc
+bprm CODESECTION, CODESECTION_SIZE
+esto
+//////////////////////////////
+SCHWINGER:
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je CHACK
+bpmc
+bphws OEP, "x"
+esto
+jmp SCHWING
+//////////////////////////////
+FFF_2:
+var MKR
+bprm CODESECTION, CODESECTION_SIZE
+esto
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je CHACK
+inc MKR
+cmp MKR, 05
+je RAP
+jmp FFF_2
+//////////////////////////////
+RAP:
+sti
+cmp [eip], #C2#, 01
+je RAP_2
+cmp [eip], #60#, 01
+je OVER_2
+cmp [eip], #0F85#, 02
+je JNZ_BYPASS_A1
+jmp RAP
+//////////////////////////////
+OVER_2:
+bpmc
+cmp PUSHCOUNTER, 0A
+ja FILLPUSH
+mov EIPCHECK, eip
+sto
+cmp eip, EIPCHECK
+je OVER_2
+inc PUSHCOUNTER
+cmp PUSHCOUNTER, 0A
+je RAP
+bphws esp, "r"
+esto
+bphwc
+jmp RAP
+//////////////////////////////
+JNZ_BYPASS_A1:
+bpmc
+gci eip, SIZE
+bp eip+$RESULT
+//////////////////////////////
+JNZ_BYPASS_2_A1:
+bpmc
+mov EIPCHECK, eip+$RESULT
+esto
+bc
+cmp eip, EIPCHECK
+jne JNZ_BYPASS_2_A1
+cmp [eip], #C2#, 01
+je RAP_2
+jmp RAP
+//////////////////////////////
+FILLPUSH:
+mov PUSHCOUNTER, 00
+jmp OVER_2
+//////////////////////////////
+RAP_2:
+mov JNZ, eip
+log JNZ
+cmp [eip], #C2#, 01
+je RASCHEL
+gci eip, SIZE
+bp eip+$RESULT
+bpmc
+esto
+bc
+//////////////////////////////
+RASCHEL:
+var stopper
+mov stopper, eip
+log stopper
+//////////////////////////////
+RAP_3:
+bprm CODESECTION, CODESECTION_SIZE
+esto
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je CHACK
+cmp [eip], #0FB60A#, 03
+je TELLME
+cmp [eip], #3202#, 02
+jne RAP_4
+//////////////////////////////
+TELLME:
+bpmc
+bp stopper
+esto
+bc
+jmp RAP_3
+//////////////////////////////
+RAP_4:
+bc
+bprm CODESECTION, CODESECTION_SIZE
+esto
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je CHACK
+jmp RAP_4
+//////////////////////////////
+CHACK:
+bpmc
+bphwc
+cmt eip, "OEP or Naer at OEP / subroutine"
+mov OEP, eip
+mov [TLSCALLBACK+0C], 0
+cmp ANTID, 00
+je CHACK_2
+eval "Create Dump file of {PROCESSNAME_2}? \r\n\r\nCheck if you have to rebuild some OEP bytes before \r\n\r\nIf nothing is to rebuild then press YES! \r\n\r\nAntiDump was moved to {ANTISEC}!"
+msgyn $RESULT
+jmp CHACK_2A
+//////////////////////////////
+CHACK_2:
+eval "Create Dump file of {PROCESSNAME_2}? \r\n\r\nCheck if you have to rebuild some OEP bytes before \r\n\r\nIf nothing is to rebuild then press YES!"
+msgyn $RESULT
+//////////////////////////////
+CHACK_2A:
+cmp $RESULT, 01
+je DUMPFILE
+cmp $RESULT, 00
+je DUMPFILE_A1
+cmp $RESULT, 02
+je ENDE
+pause
+//////////////////////////////
+DUMPFILE:
+eval "{CURRENTDIR}{PROCESSNAME_2}_Dump_{FULLDATE}.{CHAR}"
+dpe $RESULT, eip
+cmp EXTRA_ANTI, 01
+jne DUMPFILE_A1
+eval "AntiDumpSec_{ANTISEC}_{ALLOC}_New_VA_{CALCSEC}.mem"
+log $RESULT, ""
+dm ANTISEC, 100, $RESULT
+//////////////////////////////
+DUMPFILE_A1:
+eval "{PROCESSNAME_2}_Session_Infos.txt"
+mov sFile, $RESULT
+eval "OEP or Naer at OEP / subroutine of {PROCESSNAME_2} is {OEP}"
+wrta sFile, $RESULT
+wrta sFile, " "
+cmp ANTID, 00
+je DUMPFILE_2
+eval "AntiDump was moved to {ANTISEC}!"
+wrta sFile, $RESULT
+wrta sFile, " "
+jmp DUMPFILE_3
+//////////////////////////////
+DUMPFILE_2:
+eval "AntiDump not found or not present or its a newer VMProtect version / 1.8+!"
+wrta sFile, $RESULT
+wrta sFile, " "
+//////////////////////////////
+DUMPFILE_3:
+cmp JNZ, 0
+je ENDE
+wrta sFile, " "
+jmp ENDE
+ret
+//////////////////////////////
+GO_ON:
+bpmc
+bphwc
+ret
+pause
+pause
+//////////////////////////////
+APIRUN:
+msgyn "Press YES for soft BP or NO for HWBP!"
+mov DESS, $RESULT
+cmp $RESULT, 0
+je APIRUN_HWBP
+cmp $RESULT, 2
+je ENDE
+jmp APIRUN_BP
+//////////////////////////////
+APIRUN_HWBP:
+bphws VirtualProtect, "x"
+cmp VB_TARGET, 00
+je APIRUNSTARTA
+bphws LoadLibraryA, "x"
+jmp APIRUNSTARTA
+//////////////////////////////
+APIRUN_BP:
+bp VirtualProtect
+cmp VB_TARGET, 00
+je APIRUNSTARTA
+bp LoadLibraryA
+//////////////////////////////
+APIRUNSTARTA:
+esto
+bc
+bphwc
+//////////////////////////////
+APIRUN_2:
+inc LLA
+cmp DESS, 01
+je APIRUN_2_BP
+bphws LoadLibraryA, "x"
+jmp APIRUN_2_HWBP
+//////////////////////////////
+APIRUN_2_BP:
+bp LoadLibraryA
+//////////////////////////////
+APIRUN_2_HWBP:
+cmp LLA, 02
+je FOLLOW
+ja FOLLOW
+cmp eip, LoadLibraryA
+je APIRUN_2_HWBP_R
+//////////////////////////////
+FOLLOW:
+esto
+//////////////////////////////
+APIRUN_2_HWBP_R:
+scmpi [esi], "kernel32.dll" 
+je nextstep
+scmpi [esi], "user32.dll" 
+je nextstep
+scmpi [esi], "comctl32.dll" 
+je nextstep
+scmpi [esi], "msvcrt.dll" 
+je nextstep
+scmpi [esi], "gdi32.dll" 
+je nextstep
+scmpi [esi], "SHELL32.dll"
+je nextstep
+mov JB, 01
+scmpi [esi], "MSVBVM60.DLL"
+je nextstep
+mov JB, 00
+jmp APIRUN_2
+//////////////////////////////
+nextstep:
+bc 
+bphwc
+mov TEST_DLL, eax
+gmemi TEST_DLL, MEMORYSIZE
+cmp $RESULT, 0
+je APIRUN_2
+add TEST_DLL, $RESULT
+gmemi TEST_DLL, MEMORYSIZE
+cmp $RESULT, 0
+je APIRUN_2
+mov TEST_DLL_SIZE, $RESULT
+bprm TEST_DLL, TEST_DLL_SIZE
+esto
+bpmc
+mov OPEL_GM, eip
+gmemi eip, MEMORYBASE
+mov TEST_MEM, $RESULT
+cmp TEST_MEM, MODULEBASE
+jb APIRUN_2
+cmp END_APP, TEST_MEM
+jb APIRUN_2
+//////////////////////////////
+FIND_POINTER:
+cmp LOGCOUNTER, 0A
+jne FIND_POINTER_HOPPA
+call LOGCOUNTER
+//////////////////////////////
+FIND_POINTER_HOPPA:
+sti
+cmp [eip], #C2#, 01
+je FIND_POINTER_2
+mov EIPCHECK, eip
+gn eip
+cmp $RESULT_2, FULLDATE
+je MARKER
+cmp [eip], #0F85#, 02
+je JUMPER_TEST_JUMP
+jmp FIND_POINTER
+//////////////////////////////
+JUMPER_TEST_JUMP:
+mov EIPCHECK, eip
+lbl eip, FULLDATE
+//////////////////////////////
+JUMPER_TEST_JUMP_AA:
+sti
+cmp eip, EIPCHECK
+je JUMPER_TEST_JUMP_AA
+jmp FIND_POINTER
+//////////////////////////////
+MARKER:
+gci eip, SIZE
+bp eip+$RESULT
+esto
+bc
+jmp FIND_POINTER
+//////////////////////////////
+OVER:
+mov EIPCHECK, eip
+gn eip
+cmp $RESULT_2, FULLDATE
+je FIND_POINTER
+lbl eip, FULLDATE
+inc LOGCOUNTER
+//////////////////////////////
+OVER_2:
+sto
+cmp eip, EIPCHECK
+je OVER_2
+bphws esp, "r"
+esto
+bphwc
+jmp TAYLOT
+//////////////////////////////
+JNZ_BYPASS:
+gci eip, SIZE
+bp eip+$RESULT
+//////////////////////////////
+JNZ_BYPASS_2:
+mov EIPCHECK, eip+$RESULT
+esto
+bc
+cmp eip, EIPCHECK
+jne JNZ_BYPASS_2
+cmp [eip], #C2#, 01
+je FIND_POINTER_2
+//////////////////////////////
+TAYLOT:
+cmp [eip], #60#, 01
+je OVER
+cmp [eip], #0F85#, 02
+je JNZ_BYPASS
+cmp [eip], #C2#, 01
+je FIND_POINTER_2
+jmp FIND_POINTER
+cmp JB, 00
+je FER_1
+cmp [eip], #0F82#, 02
+jne FER_1
+cmp !CF, 01
+je FER_1
+gci eip, DESTINATION
+mov APIBREAK_2, $RESULT
+bp $RESULT
+esto
+bc
+mov STRING, esi
+len [esi]
+sub $RESULT, 04
+mov LANG, $RESULT
+add STRING, LANG
+scmpi [STRING], ".dll"
+je FER_1
+mov APIBREAK_2, 0
+//////////////////////////////
+FER_1:
+cmp [eip], #C2#, 01
+je FIND_POINTER_2
+cmp [eip], #0F85#, 02
+jne FIND_POINTER
+gci eip, SIZE
+bp eip+$RESULT
+mov EIPCHECK, eip+$RESULT
+inc JNZ2
+cmp JB, 00
+je REWE
+cmp JNZ2, 02
+jne FIND_POINTER
+//////////////////////////////
+REWE:
+esto
+mov JNZ2, 0
+cmp JB, 00
+je REWE_2
+cmp eip, EIPCHECK
+jne REWE_2
+bc eip
+// esto
+//////////////////////////////
+REWE_2:
+bc
+mov EIPCHECK, 0
+jmp FIND_POINTER
+//////////////////////////////
+FIND_POINTER_2:
+mov CHECK, eip
+//////////////////////////////
+FIND_POINTER_2A:
+//////////////////////////////
+FIND_POINTER_3:
+mov EIPCHECK, eip
+mov CHECK, eip
+mov STRING, esi
+len [esi]
+sub $RESULT, 04
+mov LANG, $RESULT
+add STRING, LANG
+scmpi [STRING], ".dll"
+je MESCH
+lbl eip, FULLDATE
+//////////////////////////////
+SALAT:
+jmp APIRUN_2_BP
+//////////////////////////////
+SALERI:
+jmp FIND_POINTER
+len [esi]
+readstr [esi], $RESULT
+cmp $RESULT, ""
+jne FIND_POINTER_3_R
+lbl eip, FULLDATE
+jmp OVER
+//////////////////////////////
+FIND_POINTER_3_R:
+mov CHECK, eip
+mov STRING, esi
+len [esi]
+sub $RESULT, 04
+mov LANG, $RESULT
+add STRING, LANG
+scmpi [STRING], ".dll"
+je MESCH
+cmt eip, "API PLACE"
+mov CHECK, eip
+len [edi]             
+readstr [edi], $RESULT
+mov funcname, $RESULT
+cmp funcname, ""
+jne MESCH
+cmp APIBREAK_2, 0
+jne SIMAR
+pause
+pause
+pause
+//////////////////////////////
+SIMAR:
+bp APIBREAK_2
+esto
+bc
+//////////////////////////////
+SEIBERL:
+sti
+cmp [eip], #C2#, 01
+jne SEIBERL
+SEIBERL_2:
+sti
+cmp [eip], #68#, 01
+jne SEIBERL_2
+//////////////////////////////
+KECK:
+cmt eip, "API PLACE 2"
+mov APIBREAK_2, eip
+log APIBREAK_2
+//////////////////////////////
+MESCH:
+cmt eip, "API PLACE"
+eval "{PROCESSNAME_2}_Session_Infos.txt"
+mov sFile, $RESULT
+eval "API PLACE ADDRESS IS --- >>> {CHECK}"
+log $RESULT, ""
+msg $RESULT
+wrta sFile, $RESULT
+wrta sFile, " "
+cmp JB, 0
+je ENDE
+cmp APIBREAK_2, 0
+je ENDE
+eval "API PLACE ADDRESS 2 IS --- >>> {APIBREAK_2}"
+log $RESULT, ""
+msg $RESULT
+wrta sFile, $RESULT
+wrta sFile, " "
+pause
+pause
+jmp ENDE
+//////////////////////////////
+API_WRITER:
+ask "Enter address of API PLACE!"
+cmp $RESULT, 0
+je REASK
+mov APIPLACE, $RESULT
+//////////////////////////////
+OEP_LOOP:
+ask "Enter the address of OEP!"
+mov OEP, $RESULT
+cmp OEP, 0
+je OEP_LOOP
+msgyn "YES for Mem_Method 1 <-- Try second \r\n\r\nNO for Hard_Method 2! <-- Try first \r\n\r\nChancel for soft Method 3! | <-- Try third"
+cmp $RESULT, 00
+je API_WRITER_PIN
+cmp $RESULT, 02
+je SOFT
+bprm CODESECTION, CODESECTION_SIZE
+esto
+bpmc
+//////////////////////////////
+API_WRITER_PIN:
+cmp SOFT, 01
+jne API_WRITER_PIN_HARD
+BP APIPLACE
+jmp API_WRITER_PIN_SOFT
+//////////////////////////////
+API_WRITER_PIN_HARD:
+bphws APIPLACE, "x"
+//////////////////////////////
+API_WRITER_PIN_SOFT:
+esto
+cmp eip, APIPLACE
+jne API_WRITER_PIN
+cmp LOGGA, 01
+je CPPR
+readstr [CODESECTION], CODESECTION_SIZE_TRIAL
+cmp $RESULT, CODESECTION_STORE
+je API_WRITER_PIN
+jmp CPPR_2
+//////////////////////////////
+CPPR:
+readstr [CODESECTION], CODESECTION_SIZE
+cmp $RESULT, CODESECTION_STORE
+je API_WRITER_PIN
+//////////////////////////////
+CPPR_2:
+bp APIPLACE
+bphws OEP, "x"
+//////////////////////////////
+API_WRITER_PIN_A1:
+//////////////////////////////
+API_WRITER_PIN_A2:
+//////////////////////////////
+REASK:
+//////////////////////////////
+FAK_1:
+//////////////////////////////
+REASK_A1:
+//////////////////////////////
+REASK_A2:
+//////////////////////////////
+ROUNDER:
+//////////////////////////////
+ROUNDER_A1:
+//////////////////////////////
+ROUNDER_A2:
+//////////////////////////////
+ROUNDER_A3:
+//////////////////////////////
+ROUNDER_A4:
+bphws PE_HEADER, "r"
+//////////////////////////////
+CHECKUP:
+//////////////////////////////
+WRITEFILE:
+eval "{iatpatch}.txt_{PROCESSNAME_2}.txt"
+mov sFile, $RESULT
+wrt sFile, " "
+//////////////////////////////
+WRITEFILE_2:
+//////////////////////////////
+WRITEFILE_2_R:
+mov funcname_test, 0
+mov funcname_test_2, 0
+bpmc
+mov CHECK, eip
+mov STRING, esi
+len [esi]
+sub $RESULT, 04
+mov LANG, $RESULT
+add STRING, LANG
+scmpi [STRING], ".dll"
+je WRITEFILE_2_R_1
+scmpi [STRING], ".drv"
+je WRITEFILE_2_R_1
+cmp APICOUNTER, 0
+je esto
+cmp LSR, 01
+je esto
+msg "Attention! \r\n\r\nIn ESI is no DLL string! \r\n\r\nIn this case you are >>> maybe <<< at the wrong API PLACE address! \r\n\r\nNow let run the script go on!"
+mov LSR, 01
+jmp esto
+//////////////////////////////
+WRITEFILE_2_R_1:
+cmp LOGGA, 01
+je WRITEFILE_2_R_1_AAA
+readstr [CODESECTION], CODESECTION_SIZE_TRIAL
+cmp $RESULT, CODESECTION_STORE
+jne ABER_JETZT
+jmp OEPSA
+//////////////////////////////
+WRITEFILE_2_R_1_AAA:
+readstr [CODESECTION], CODESECTION_SIZE
+cmp $RESULT, CODESECTION_STORE
+jne ABER_JETZT
+//////////////////////////////
+OEPSA:
+cmp [OEP], 0
+je esto
+//////////////////////////////
+ABER_JETZT:
+cmp edi, 0
+je esto
+cmp esi, 0
+je esto
+mov tmp, 0
+mov tmp, eax
+inc APICOUNTER
+len [esi]               // ASCII DLL NAME
+readstr [esi], $RESULT
+mov dllname, $RESULT
+len [edi]              // function ASCII name
+readstr [edi], $RESULT
+mov funcname, $RESULT
+cmp funcname, ""
+jne WRITEFILE_3
+gn eax
+mov funcname, $RESULT_2
+cmp $RESULT_2, 0
+jne WRITEFILE_3
+bpmc
+esto
+jmp WRITEFILE_2
+pause
+pause
+pause
+//////////////////////////////
+WRITEFILE_3:
+bpwm CODESECTION, IMAGESIZE
+esti
+//////////////////////////////
+SCHNOOP:
+cmp funcname_test, ""
+je WRITEFILE_2
+mov funcname_test, 0
+mov funcname_test_2, 0
+len [edi]
+readstr [edi], $RESULT
+mov funcname_test, $RESULT
+esto
+len [edi]
+readstr [edi], $RESULT
+mov funcname_test_2, $RESULT
+cmp funcname_test, funcname_test_2
+je SCHNOOP
+mov funcname_test, 0
+mov funcname_test_2, 0
+//////////////////////////////
+HEFFNER:
+cmp [eip], #AA#, 01
+je MEMWRITE_2A
+cmp eip, OEP
+je DONE
+cmp eip, APIPLACE
+jne MEMWRITE
+je WRITEFILE_2
+pause
+pause
+//////////////////////////////
+MEMWRITE:
+mov APILOG, 0
+mov APILOG, edx
+mov tmp2, tmp
+sub tmp, edx
+cmp tmp, 0
+jne MEMWRITE_2
+eval "{PROCESSNAME_2}_Session_Infos.txt"
+mov sFile2, $RESULT
+log "------------"
+cmp loginfo, 01
+je HESA
+mov loginfo, 01
+eval "This APIs you have to fix manually with CFF Explorer / Watch my tut how!"
+wrta sFile2, $RESULT
+wrta sFile2, "----------------------------------------------------"
+log $RESULT, ""
+wrta sFile2, " "
+//////////////////////////////
+HESA:
+inc HACKA
+eval "{eax} | {tmp} | {dllname} | {funcname} | {APILOG}"
+wrta sFile2, $RESULT
+log $RESULT, ""
+wrta sFile2, " "
+log "------------"
+cmp HACKA, 02
+je SEFFLON
+ja SEFFLON
+eval "{PROCESSNAME_2} - Extra APIs.txt"
+mov sFile3, $RESULT
+wrt sFile3, " "
+wrta sFile3, "PUSHAD"
+//////////////////////////////
+SEFFLON:
+eval "XCHG DWORD PTR DS:[0AAAAAAAA],EAX"
+wrta sFile2, $RESULT
+wrta sFile3, $RESULT
+eval "XCHG DWORD PTR DS:{[}{eax}{]},EAX"
+wrta sFile2, $RESULT
+wrta sFile3, $RESULT
+wrta sFile2, " "
+eval "NEW_WAY_APIs_for_{PROCESSNAME_2}.txt"
+mov sFile4, $RESULT
+wrta sFile4, " "
+eval "mov [{eax}], {tmp2} // {dllname}         | {funcname}"
+wrta sFile4, $RESULT
+eval "In_API_Patch_for_{PROCESSNAME_2}.txt"
+mov sFile5, $RESULT
+wrta sFile5, " "
+call IAT_INLINE
+jmp MEMWRITE_2A
+//////////////////////////////
+MEMWRITE_2:
+eval "{eax},{tmp},{dllname},{funcname}"
+wrta sFile, $RESULT
+log $RESULT, ""
+eval "NEW_WAY_APIs_for_{PROCESSNAME_2}.txt"
+mov sFile4, $RESULT
+wrta sFile4, " "
+eval "mov [{eax}], {tmp2} // {dllname}         | {funcname}"
+wrta sFile4, $RESULT
+eval "In_API_Patch_for_{PROCESSNAME_2}.txt"
+mov sFile5, $RESULT
+wrta sFile5, " "
+call IAT_INLINE
+//////////////////////////////
+MEMWRITE_2A:
+bpmc
+esto
+cmp eip, OEP
+je DONE
+cmp eip, APIPLACE
+je WRITEFILE_2
+cmp eip, PE_HEADER
+je DONE
+GBPR eip
+cmp $RESULT, 40
+je DONE
+jmp HEFFNER
+//////////////////////////////
+ENDE:
+log ""
+cmp IAT_Inline_sec, 01
+jne ENDE_2
+sub NEWINLINE_4, MODULEBASE
+mov CALCSEC, NEWINLINE_4
+add NEWINLINE_4, MODULEBASE
+eval "IAT_INLINE_{NEWINLINE_4}_{ALLOC_2}_New_VA_{CALCSEC}.mem"
+log $RESULT, ""
+dm NEWINLINE_4, ALLOC_2, $RESULT
+//////////////////////////////
+ENDE_2:
+eval "VMProtect 1.7 - 1.8 OEP & Unpack Helper 1.0 \r\n****************************************************** \r\nScript finished & written \r\nby \r\n\r\nLCF-AT"
+msg $RESULT
+log "VMProtect 1.7 - 1.8 OEP & Unpack Helper 1.0"
+log "******************************************************"
+log "Script finished & written"
+log "by"
+log ""
+log "LCF-AT"
+pause
+ret
+//////////////////////////////
+OEPZUFRUEH:
+log ""
+pause
+pause
+jmp ENDE
+//////////////////////////////
+DONE:
+log ""
+bc
+bphwc
+bpmc
+cmp sFile3, 0
+je MANN
+wrta sFile3, "POPAD"
+//////////////////////////////
+MANN:
+wrta sFile, " "
+wrta sFile, " "
+wrta sFile, " "
+jmp ENDE
+//////////////////////////////
+SCHWING2:
+bphwc
+bprm CODESECTION, CODESECTION_SIZE
+esto
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je DONE
+bpmc
+bphws OEP, "x"
+esto
+jmp SCHWING2
+//////////////////////////////
+VirtualAlloc:
+mov ANTID, 00
+cmp [esp+08], 00000034
+jne VirtualAlloc_OUT
+jmp ANTIDUMPFIX
+//////////////////////////////
+OUT_BEFORE:
+bc VirtualAlloc
+bphwc VirtualAlloc
+//////////////////////////////
+VirtualAlloc_OUT:
+ret
+//////////////////////////////
+ANTIDUMPFIX:
+bc VirtualAlloc
+bphwc VirtualAlloc
+mov ANTI_NOW, eax
+cmp ANTI_NOW, MODULEBASE
+jb OVER_APP
+//////////////////////////////
+OVER_APP:
+eval "This target is maybe using AntiDump! \r\n\r\nRedirect AntiDump to main target at {ANTISEC} press YES! (app can crash) \r\n\r\nRedirect into a new fresh section press NO! \r\n\r\nDo not redirect press Cancel!"
+msgyn $RESULT
+log $RESULT, ""
+cmp $RESULT, 01
+je APP_ANTI
+cmp $RESULT, 00
+je NEWSEC_ANTI
+jmp APP_ANTI_NO
+//////////////////////////////
+NEWSEC_ANTI:
+mov ALLOC, 1000
+//////////////////////////////
+NEWSEC_ANTI_1:
+alloc ALLOC
+mov ANTNEWSEC, $RESULT
+cmp ANTNEWSEC, MODULEBASE_and_MODULESIZE
+ja NEWSEC_ANTI_2
+free ANTNEWSEC
+add ALLOC, 1000
+jmp NEWSEC_ANTI_1
+//////////////////////////////
+NEWSEC_ANTI_2:
+mov ANTISEC, ANTNEWSEC
+mov CALCSEC, ANTNEWSEC
+sub CALCSEC, MODULEBASE
+log CALCSEC, "New VA of AntiDumpSection is: "
+mov EXTRA_ANTI, 01
+//////////////////////////////
+APP_ANTI:
+mov eax, ANTISEC
+log ANTISEC
+mov ANTID, 01
+bc VirtualAlloc
+bphwc VirtualAlloc
+ret
+//////////////////////////////
+APP_ANTI_NO:
+bc VirtualAlloc
+bphwc VirtualAlloc
+mov ANTID, 01
+log eax, "Target AntiDump section is: "
+mov ANTISEC, eax
+ret
+//////////////////////////////
+esto:
+esto
+jmp WRITEFILE_2
+//////////////////////////////
+LOGCOUNTER:
+bprm CODESECTION, CODESECTION_SIZE
+bc
+bphwc
+esto
+bphwc
+mov LOGCOUNTER, 0
+ret
+//////////////////////////////
+SOFT:
+mov SOFT, 01
+jmp API_WRITER_PIN
+
+//////////////////////////////
+IAT_INLINE:
+cmp IAT_Inline_sec, 00
+je OHNE
+cmp OHNE, 01
+je IAT_INLINE_2
+mov ALLOC_2, 1000
+//////////////////////////////
+NEWSEC_IAT:
+alloc ALLOC_2
+mov NEWINLINE, $RESULT
+cmp NEWINLINE, MODULEBASE_and_MODULESIZE
+ja NEWSEC_IAT_2
+free NEWINLINE
+add ALLOC_2, 1000
+jmp NEWSEC_IAT
+//////////////////////////////
+NEWSEC_IAT_2:
+mov NEWINLINE, NEWINLINE
+mov OHNE, 01
+msgyn "Press YES to create a NEW IAT_Inline_section or NO!"
+cmp $RESULT, 2
+je ENDE
+mov IAT_Inline_sec, $RESULT
+cmp $RESULT, 01
+je HAUSER
+free NEWINLINE
+jmp OHNE
+//////////////////////////////
+HAUSER:
+mov NEWINLINE_2, NEWINLINE
+mov NEWINLINE_3, NEWINLINE
+mov NEWINLINE_4, NEWINLINE
+log NEWINLINE, "New IAT InLine section is: "
+gmemi NEWINLINE, MEMORYSIZE
+mov NSIZE, $RESULT
+add NEWINLINE_3, NSIZE
+sub NEWINLINE_3, 44
+div NSIZE, 2
+mov NSIZE, NSIZE
+add NEWINLINE_2, NSIZE
+mov NEWINLINE_2, NEWINLINE_2  // mitte 
+mov LLA, NEWINLINE_3
+mov GPA, NEWINLINE_3
+add GPA, 06
+mov OUTPUT, GPA
+add OUTPUT, 06
+eval "jmp dword ptr ds:[{LLA}]"
+asm  LLA, $RESULT
+cmt LLA, "LoadLibraryA API here!"
+eval "jmp dword ptr ds:[{GPA}]"
+asm  GPA, $RESULT
+cmt GPA, "GetProcAddress API here!"
+eval "jmp {OUTPUT}"
+asm OUTPUT, $RESULT
+cmt OUTPUT, "Back to VMP Code!"
+//////////////////////////////
+IAT_INLINE_2:
+eval "cmp eax, {edx}"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 06
+mov [NEWINLINE], 2875
+gci NEWINLINE, COMMAND
+wrta sFile5, $RESULT
+add NEWINLINE, 02
+mov [NEWINLINE], 60
+gci NEWINLINE, COMMAND
+wrta sFile5, $RESULT
+add NEWINLINE, 01
+eval "push {NEWINLINE_2}"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 05
+len dllname
+mov CAUNT, $RESULT
+readstr dllname, $RESULT
+buf $RESULT
+mov DLL, $RESULT
+mov [NEWINLINE_2], DLL
+add NEWINLINE_2, CAUNT
+inc NEWINLINE_2
+eval "call {LLA}"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 05
+eval "push {NEWINLINE_2}"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 05
+len funcname
+mov CAUNT, $RESULT
+readstr funcname, $RESULT
+buf $RESULT
+mov API, $RESULT
+mov [NEWINLINE_2], API
+add NEWINLINE_2, CAUNT
+inc NEWINLINE_2
+asm NEWINLINE, "push eax"
+gci NEWINLINE, COMMAND
+wrta sFile5, $RESULT
+add NEWINLINE, 01
+eval "call {GPA}"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 05
+eval "MOV DWORD PTR DS:[{eax}],EAX"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 06
+mov [NEWINLINE], 61
+gci NEWINLINE, COMMAND
+wrta sFile5, $RESULT
+add NEWINLINE, 01
+eval "MOV EAX,DWORD PTR DS:[{eax}]"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 06
+eval "jmp {OUTPUT}"
+wrta sFile5, $RESULT
+asm NEWINLINE, $RESULT
+add NEWINLINE, 05
+eval "jmp {OUTPUT}"
+asm NEWINLINE, $RESULT
+//////////////////////////////
+OHNE:
+ret
+//////////////////////////////
+VAR:
+VAR NEWINLINE_4
+VAR IAT_Inline_sec
+VAR ALLOC_2
+VAR OHNE
+VAR NSIZE
+VAR NEWINLINE
+VAR NEWINLINE_2
+VAR NEWINLINE_3
+VAR sFile5
+VAR sFile4
+VAR tmp2
+VAR SOFT
+VAR LSR
+VAR LOGGA
+VAR CODESECTION_SIZE_TRIAL
+VAR OPEL_GM
+VAR CALCSEC
+VAR EXTRA_ANTI
+VAR ALLOC
+VAR ANTNEWSEC
+VAR ANTI_NOW
+VAR LOGCOUNTER
+VAR CODESECTION_STORE
+VAR LLA
+VAR ANTID
+VAR VirtualAlloc
+VAR ANTISEC
+VAR CSS
+VAR CSS_V_SIZE
+VAR SECTIONS
+VAR funcname_test
+VAR funcname_test_2
+VAR funcname
+VAR dllname
+VAR tmp
+VAR PUSHCOUNTER
+VAR APIBREAK
+VAR APIBREAK_2
+VAR ThunRTMain
+VAR DESS
+VAR COMPILERVERSION
+VAR COMPILERVERSION_2
+VAR VB_TARGET
+VAR TLSTABLE
+VAR APICOUNTER
+VAR EIPCHECK
+VAR HACKA
+VAR JNZ2
+VAR JB
+VAR loginfo
+VAR APILOG
+VAR sFile3
+VAR sFile2
+VAR JNZ
+VAR sFile
+VAR END_APP
+VAR IMAGESIZE
+VAR TLSCALLBACK
+VAR testsec
+VAR EXEFILENAME
+VAR EXEFILENAME_COUNT
+VAR CHAR
+VAR CURRENTDIR
+VAR GetLocalTime
+VAR DATE_TIME
+VAR Year
+VAR Month
+VAR Day
+VAR Hour
+VAR Minute
+VAR Second
+VAR FULLDATE
+VAR EAX1
+VAR ECX1
+VAR EDX1
+VAR EBX1
+VAR EBP1
+VAR ESI1
+VAR EDI1
+VAR ESP_TEMP
+VAR ESP_STORE
+VAR ESP_SEC
+VAR ESP_SIZE
+VAR STACKSTORE
+VAR SEARCH_START
+VAR API
+VAR STORE
+VAR FULLSIZE
+VAR TEMP
+VAR PROCESSNAME
+VAR PROCESSNAME_2
+VAR PROCESSNAME_COUNT
+VAR PROCESSNAME_FREE_SPACE
+VAR PROCESSNAME_FREE_SPACE_2
+VAR EIP_STORE
+VAR PE_HEADER
+VAR PE_HEADER_SIZE
+VAR CODESECTION
+VAR MODULEBASE
+VAR MODULESIZE
+VAR CODESECTION_SIZE
+VAR PE_SIGNATURE
+VAR PE_SIZE
+VAR PE_INFO_START
+VAR PE_TEMP
+VAR MODULEBASE_and_MODULESIZE
+VAR VirtualProtect
+VAR DbgBreakPoint
+VAR CloseHandle
+VAR OEP
+mov IAT_Inline_sec, 055
+var tmp
+var IATSEC
+var IATSEC1
+var new
+var counter
+var DWORD
+var DWEND
+var DWEND2
+var DLLEND
+var FUNK
+VAR DLL
+var FUNKEND
+var FUNKEND2
+var end
+VAR IATENDSEC
+var IATENDSEC_2
+var alloc3
+var SIZE
+var CAUNT
+var IATENDSEC_3
+VAR NEWBASE
+ret
+//////////////////////////////
+VMPROTECT_1.8:
+//////////////////////////////
+mov alloc3, 2000
+//////////////////////////////
+HENGST:
+alloc alloc3
+mov IATENDSEC, $RESULT
+mov IATENDSEC_2, $RESULT
+mov IATENDSEC_3, $RESULT
+mov NEWBASE, $RESULT
+cmp IATENDSEC, MODULEBASE_and_MODULESIZE
+ja HENGST_2
+free IATENDSEC
+add alloc3, 1000
+jmp HENGST
+//////////////////////////////
+HENGST_2:
+sub NEWBASE, MODULEBASE
+gmemi IATENDSEC, MEMORYSIZE
+mov SIZE, $RESULT
+add IATENDSEC_3, SIZE
+sub IATENDSEC_3, 50
+div SIZE, 2
+mov SIZE, SIZE
+add SIZE, IATENDSEC
+asm IATENDSEC, "pushad"
+inc IATENDSEC
+eval "jmp dword ptr ds:[{IATENDSEC_3}]"
+asm  IATENDSEC_3, $RESULT
+cmt IATENDSEC_3, "LoadLibraryA API here!"
+eval "jmp dword ptr ds:[{IATENDSEC_3}]"
+asm  IATENDSEC_3+06, $RESULT
+cmt IATENDSEC_3+06, "GetProcAddress API here!"
+mov LLA, IATENDSEC_3
+mov GPA, IATENDSEC_3
+add GPA, 06
+//////////////////////////////
+alloc 3000
+mov IATSEC,$RESULT
+lm IATSEC,3000,"iatpatch.txt"
+mov IATSEC1,IATSEC
+//////////////////////////////
+rounder:
+find IATSEC, #0D0A#
+cmp $RESULT, 0
+je AUS
+mov [$RESULT], 00, 02
+mov IATSEC, $RESULT
+jmp rounder
+//////////////////////////////
+AUS:
+mov IATSEC,IATSEC1
+cmp [IATSEC], 20 ,01
+jne AUS2
+mov [IATSEC], 00 ,01
+//////////////////////////////
+AUS2:
+cmp [IATSEC], 00 ,01
+jne next1
+inc IATSEC
+inc end
+cmp end, 08
+je NextStep
+jmp AUS2
+//////////////////////////////
+next1:
+mov end, 0
+//////////////////////////////
+next3:
+cmp counter, 50
+je NextStep
+inc counter
+inc IATSEC
+cmp [IATSEC], #2C#, 01
+jne next3
+sub IATSEC, counter
+readstr [IATSEC], counter
+mov address, $RESULT
+str address
+log address, ""
+add IATSEC, counter
+cmp [IATSEC], #2C#, 01
+jne STOP
+inc IATSEC
+mov counter, 0
+mov DWORD, IATSEC
+//////////////////////////////
+next4:
+find IATSEC, #2C#
+cmp $RESULT, 0
+je STOP
+mov DWEND, $RESULT
+mov DWEND2, $RESULT
+sub DWEND, IATSEC
+readstr [DWORD], DWEND
+mov DWORD, $RESULT
+log DWORD, ""
+//////////////////////////////
+next5:
+inc DWEND2
+mov IATSEC, DWEND2
+find IATSEC, #2C#
+cmp $RESULT, 0
+je STOP
+mov DLLEND, $RESULT
+mov DLLEND2, $RESULT
+sub DLLEND, IATSEC
+readstr [IATSEC], DLLEND
+mov DLL, $RESULT
+log DLL, ""
+//////////////////////////////
+next6:
+inc DLLEND2
+mov IATSEC, DLLEND2
+find IATSEC, #0000#
+cmp $RESULT, 0
+je STOP
+mov FUNKEND, $RESULT
+mov FUNKEND2, $RESULT
+sub FUNKEND, IATSEC
+readstr [IATSEC], FUNKEND
+mov FUNK, $RESULT
+log FUNK, ""
+add IATSEC, FUNKEND
+mov IATSEC1, IATSEC
+//////////////////////////////
+len DLL
+mov CAUNT, $RESULT
+readstr DLL, $RESULT
+buf $RESULT
+mov DLL, $RESULT
+mov [SIZE], DLL
+eval "push {SIZE}"
+asm IATENDSEC, $RESULT
+add IATENDSEC, 05
+add SIZE, CAUNT
+inc SIZE
+//////////////////////////////
+eval "call {LLA}"
+asm IATENDSEC, $RESULT
+add IATENDSEC, 05
+len FUNK
+mov CAUNT, $RESULT
+readstr FUNK, $RESULT
+buf $RESULT
+mov FUNK, $RESULT
+mov [SIZE], FUNK
+eval "push {SIZE}"
+asm IATENDSEC, $RESULT
+add IATENDSEC, 05
+add SIZE, CAUNT
+inc SIZE
+//////////////////////////////
+asm IATENDSEC, "push eax"
+inc IATENDSEC
+eval "call {GPA}"
+asm IATENDSEC, $RESULT
+add IATENDSEC, 05
+//////////////////////////////
+eval "sub eax,{DWORD}"
+asm IATENDSEC, $RESULT
+add IATENDSEC, 06
+eval "MOV DWORD PTR DS:[{address}],EAX"
+asm IATENDSEC, $RESULT
+add IATENDSEC, 06
+jmp AUS2
+//////////////////////////////
+STOP:
+pause
+pause
+//////////////////////////////
+NextStep:
+asm IATENDSEC, "popad"
+inc IATENDSEC
+eval "jmp {ENTRYPOINT}"
+asm IATENDSEC, $RESULT
+free IATSEC
+eval "IAT_INLINE_{IATENDSEC_2}_{alloc3}_New_VA_{NEWBASE}.mem"
+log $RESULT, ""
+dm IATENDSEC_2, alloc3, $RESULT
+log IATENDSEC_2, "IAT_INLINE for VMProtect 1.8 section is: "
+jmp ENDE_2

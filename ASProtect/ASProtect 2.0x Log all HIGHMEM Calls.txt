@@ -1,0 +1,84 @@
+// Script for OllyScript plugin
+/*
+////////////////////////////////////////////////// 
+it's been a hard time finding all the HIGHMEM calls 'n fixing them
+so, i took some time 'n made these scripts. hope it'll be helpfull for
+guys with ASProtect. 
+
+1. scripts are for ODBGScript 1.41 version
+2. at the beginning of the script source, define the values accordingly, before running the scripts
+3. when app is running 'n script has'nt shown SCRIPT FINISHED, abort the script manually
+
+First Script - my_asprotect_HIGHMEM.txt 
+
+this script logs all the highmem calls in log-HIGHMEM-calls.txt
+log-HIGHMEM-calls-BIN.txt contains the BYTES in reverse order
+for binary pasting in olly.
+
+there's a prob here in log-HIGHMEM-calls-BIN.txt
+sometimes addresses like 401204 will get reversed and 
+log-HIGHMEM-calls-BIN.txt file will contain corresponding 
+41240 not 041240 ... so edit the BIN file manually b4 binary
+pasting and put an extra 0 before addresses like 41240
+
+Support with:
+ASProtect 2.0x
+////////////////////////////////////////////////// 
+*/ 
+
+DEFINE_BEFORE_EXECUTION:
+
+mov code_section,401000
+mov code_section_size,33000
+
+
+SCRIPT_START:
+
+mov path1,".\log-HIGHMEM-calls.txt"
+mov path2,".\log-HIGHMEM-calls-BIN.txt"
+
+FIND_HIGHMEM_CALLS:
+lc
+mov counter,0
+run
+
+BINARY_SEARCH:
+find eip,#807B20000F85????00003C01#
+cmp $RESULT,0
+je NOT_FOUND
+mov bp_addr,$RESULT
+bp bp_addr
+L1: 
+eob LOG
+esto
+jmp L1
+
+jmp NOT_FOUND
+
+LOG: 
+
+cmp ebp,code_section
+jb L1
+
+cmp ebp,code_section + code_section_size
+ja L1
+
+add counter,1
+eval "{counter}. {ebp}"
+log $RESULT,""
+
+wrta path1, $RESULT
+wrta path1, "\r\n"
+
+rev ebp
+wrta path2, $RESULT
+wrta path2, "\r\n"
+
+eob LOG
+esto
+jmp L1
+
+
+
+NOT_FOUND:
+ret

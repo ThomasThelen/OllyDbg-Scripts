@@ -1,0 +1,440 @@
+///////////////////////////////////////////////////////////////
+// FileName    :  Armadillo V4.0-V5.X.Standard.Protection.oSc
+// Comment     :  Standard Only + Standard plus Debug Blocker
+// Environment :  WinXP SP2,OllyDbg V1.10,OllyScript V1.65
+// Author      :  fly [CUG]
+// WebSite     :  http://unpack.cn
+// Date        :  2007-09-22 00:00
+///////////////////////////////////////////////////////////////
+#log
+dbh
+
+var T0
+var T1
+var Temp
+var bpcnt
+var MagicJMP
+var JmpAddress
+var fiXedOver
+var OpenMutexA 
+var GetModuleHandleA
+var VirtualProtect
+var CreateFileMappingA
+var CreateThread
+var FindOEP
+
+
+MSGYN "Plz Clear All BreakPoints + Set Debugging Option Ignore All Excepions Options + Add C000001D..C000001E in custom exceptions !"
+cmp $RESULT, 0
+je TryAgain
+
+cmp $VERSION, "1.65" 
+jb CheckODbgScripVersion 
+
+BPHWC
+BC
+
+
+//OutputDebugStringA______________________________________
+
+gpa "OutputDebugStringA", "KERNEL32.dll"
+mov [$RESULT], #C20400#
+
+
+//OpenMutexA______________________________________
+
+gpa "VirtualProtect", "KERNEL32.dll"
+find $RESULT,#5DC21000#
+mov VirtualProtect,$RESULT
+eob VirtualProtect
+bp VirtualProtect
+
+gpa "OpenMutexA", "KERNEL32.dll"
+mov OpenMutexA,$RESULT
+bp OpenMutexA
+
+esto
+
+OpenMutexA:
+eob KillOpenMutexA
+exec
+mov eax,[ESP+0C]
+pushad
+push eax
+push 0
+push 0
+CALL CreateMutexA
+popad
+jmp OpenMutexA
+ende
+
+KillOpenMutexA:
+bc OpenMutexA
+esti
+
+
+//VirtualProtect______________________________________
+
+eob VirtualProtect
+GoOn0:
+esto
+
+VirtualProtect:
+cmp eip,OpenMutexA
+je OpenMutexA
+cmp eip,VirtualProtect
+jne GoOn0
+bc VirtualProtect
+
+
+//CreateFileMappingA______________________________________
+
+gpa "CreateFileMappingA", "KERNEL32.dll"
+find $RESULT,#C9C21800#
+mov CreateFileMappingA,$RESULT
+bp CreateFileMappingA
+eob CreateFileMappingA
+
+esto
+GoOn1:
+esto
+
+CreateFileMappingA:
+cmp eip,CreateFileMappingA
+jne GoOn1
+bc CreateFileMappingA
+
+
+//GetModuleHandleA______________________________________
+
+gpa "GetModuleHandleA", "KERNEL32.dll"
+find $RESULT,#C20400#
+mov GetModuleHandleA,$RESULT
+bp GetModuleHandleA
+eob GetModuleHandleA
+
+esto
+GoOn2:
+esto
+
+GetModuleHandleA:
+cmp eip,GetModuleHandleA
+jne GoOn2
+cmp bpcnt,1
+je  VirtualFree
+cmp bpcnt,2
+je  Third
+
+	
+/*
+00129528   00BE6DF3  RETURN to 00BE6DF3 from kernel32.GetModuleHandleA
+0012952C   00BFBC1C  ASCII "kernel32.dll"
+00129530   00BFCEC4  ASCII "VirtualAlloc"
+*/
+
+VirtualAlloc:	
+mov Temp,esp
+add Temp,4
+log Temp
+mov T0,[Temp]
+cmp [T0],6E72656B
+log [T0]
+jne GoOn2
+add Temp,4
+mov T1,[Temp]
+cmp [T1],74726956
+jne GoOn2
+bc OpenMutexA
+inc bpcnt
+jmp GoOn2
+
+
+/*
+00129528   00BE6E10  RETURN to 00BE6E10 from kernel32.GetModuleHandleA
+0012952C   00BFBC1C  ASCII "kernel32.dll"
+00129530   00BFCEB8  ASCII "VirtualFree"
+*/
+
+VirtualFree:
+mov Temp,esp
+add Temp,4
+mov T1,[Temp]
+cmp [T1],6E72656B
+jne GoOn2
+add Temp,4
+mov T1,[Temp]
+add T1,7
+cmp [T1],65657246
+log [T1]
+jne GoOn2
+inc bpcnt
+jmp GoOn2
+
+
+/*
+0012928C   00BD5CE1  RETURN to 00BD5CE1 from kernel32.GetModuleHandleA
+00129290   001293DC  ASCII "kernel32.dll"
+*/ 	
+
+Third:
+mov Temp,esp
+add Temp,4
+mov T1,[Temp]
+cmp [T1],6E72656B
+jne GoOn2
+bc GetModuleHandleA
+esti
+
+
+//MagicJMP______________________________________
+
+/*
+->Armadillo V4.X
+00BD5CDB     FF15 B860BF00      call dword ptr ds:[BF60B8]       ; kernel32.GetModuleHandleA
+00BD5CE1     8B0D AC40C000      mov ecx,dword ptr ds:[C040AC]
+00BD5CE7     89040E             mov dword ptr ds:[esi+ecx],eax
+00BD5CEA     A1 AC40C000        mov eax,dword ptr ds:[C040AC]
+00BD5CEF     391C06             cmp dword ptr ds:[esi+eax],ebx
+00BD5CF2     75 16              jnz short 00BD5D0A
+00BD5CF4     8D85 B4FEFFFF      lea eax,dword ptr ss:[ebp-14C]
+00BD5CFA     50                 push eax
+00BD5CFB     FF15 BC62BF00      call dword ptr ds:[BF62BC]       ; kernel32.LoadLibraryA
+00BD5D01     8B0D AC40C000      mov ecx,dword ptr ds:[C040AC]
+00BD5D07     89040E             mov dword ptr ds:[esi+ecx],eax
+00BD5D0A     A1 AC40C000        mov eax,dword ptr ds:[C040AC]
+00BD5D0F     391C06             cmp dword ptr ds:[esi+eax],ebx
+00BD5D12     0F84 2F010000      je 00BD5E47
+
+->Armadillo V5.X
+00DE7F4E     FF15 C0E0E200      call dword ptr ds:[E2E0C0] ; kernel32.GetModuleHandleA
+00DE7F54     8B55 F4            mov edx,dword ptr ss:[ebp-C]
+00DE7F57     8B0D 7CDFE300      mov ecx,dword ptr ds:[E3DF7C]
+00DE7F5D     890491             mov dword ptr ds:[ecx+edx*4],eax
+00DE7F60     8B55 F4            mov edx,dword ptr ss:[ebp-C]
+00DE7F63     A1 7CDFE300        mov eax,dword ptr ds:[E3DF7C]
+00DE7F68     833C90 00          cmp dword ptr ds:[eax+edx*4],0
+00DE7F6C     75 5C              jnz short 00DE7FCA
+00DE7F6E     8B4D F8            mov ecx,dword ptr ss:[ebp-8]
+00DE7F71     8B51 08            mov edx,dword ptr ds:[ecx+8]
+00DE7F74     83E2 02            and edx,2
+00DE7F77     74 38              je short 00DE7FB1
+00DE7F79     B8 0B000000        mov eax,0B
+00DE7F7E     C1E0 02            shl eax,2
+00DE7F81     8B0D 04BBE300      mov ecx,dword ptr ds:[E3BB04]
+00DE7F87     8B15 04BBE300      mov edx,dword ptr ds:[E3BB04]
+00DE7F8D     8B35 04BBE300      mov esi,dword ptr ds:[E3BB04]
+00DE7F93     8B5E 78            mov ebx,dword ptr ds:[esi+78]
+00DE7F96     335A 34            xor ebx,dword ptr ds:[edx+34]
+00DE7F99     331C01             xor ebx,dword ptr ds:[ecx+eax]
+00DE7F9C     83E3 10            and ebx,10
+00DE7F9F     F7DB               neg ebx
+00DE7FA1     1BDB               sbb ebx,ebx
+00DE7FA3     F7DB               neg ebx
+00DE7FA5     0FB6C3             movzx eax,bl
+00DE7FA8     85C0               test eax,eax
+00DE7FAA     75 05              jnz short 00DE7FB1
+00DE7FAC     E9 1BFFFFFF        jmp 00DE7ECC
+00DE7FB1     8D8D C8FEFFFF      lea ecx,dword ptr ss:[ebp-138]
+00DE7FB7     51                 push ecx
+00DE7FB8     FF15 D4E1E200      call dword ptr ds:[E2E1D4] ; kernel32.LoadLibraryA
+00DE7FBE     8B55 F4            mov edx,dword ptr ss:[ebp-C]
+00DE7FC1     8B0D 7CDFE300      mov ecx,dword ptr ds:[E3DF7C]
+00DE7FC7     890491             mov dword ptr ds:[ecx+edx*4],eax
+00DE7FCA     8B55 F4            mov edx,dword ptr ss:[ebp-C]
+00DE7FCD     A1 7CDFE300        mov eax,dword ptr ds:[E3DF7C]
+00DE7FD2     833C90 00          cmp dword ptr ds:[eax+edx*4],0
+00DE7FD6     75 05              jnz short 00DE7FDD
+//MagicJmp бя  ->NOP
+00E37FD8     E9 EFFEFFFF        jmp 00E37ECC
+00E37FDD     C785 BCFEFFFF 0000>mov dword ptr ss:[ebp-144],0
+00E37FE7     C785 C0FEFFFF 0000>mov dword ptr ss:[ebp-140],0
+00E37FF1     8B4D F8            mov ecx,dword ptr ss:[ebp-8]
+00E37FF4     8B51 04            mov edx,dword ptr ds:[ecx+4]
+00E37FF7     8995 C4FEFFFF      mov dword ptr ss:[ebp-13C],edx
+00E37FFD     EB 0F              jmp short 00E3800E
+*/
+
+find eip,#39????0F84??010000#,100
+cmp $RESULT,0
+je ArmadilloV5.X
+add $RESULT,3
+mov MagicJMP,$RESULT
+log MagicJMP
+mov T0,$RESULT
+add T0,2
+mov T1, [T0]
+add T1,4
+add T1,T0
+mov JmpAddress,T1
+log JmpAddress
+eval "jmp {JmpAddress}"
+asm MagicJMP,$RESULT
+
+
+/*
+00BD5C8C     391D F0B0BF00      cmp dword ptr ds:[BFB0F0],ebx
+00BD5C92     0F84 C4010000      je 00BD5E5C
+*/
+
+mov Temp,MagicJMP
+sub Temp,100
+find Temp,#39??????????0F84????0000#,100
+cmp $RESULT,0
+je NoFind
+add $RESULT,6
+mov T0,$RESULT
+add T0,2
+mov T1, [T0]
+add T1,4
+add T1,T0
+mov fiXedOver,T1
+log fiXedOver
+eob fiXedOver
+bp fiXedOver
+
+esto
+GoOn3:
+esto
+
+fiXedOver:
+cmp eip,fiXedOver    
+jne GoOn3
+bc fiXedOver
+eval "je {JmpAddress}"
+asm MagicJMP,$RESULT
+jmp Thread
+
+
+ArmadilloV5.X:
+find eip,#833C90007505E9EFFEFFFF#
+cmp $RESULT,0
+je NoFind
+add $RESULT,4
+mov MagicJMP,$RESULT
+log MagicJMP
+mov [MagicJMP],#9090#
+
+/*
+->Standard.Protection
+00E38255     E9 72FCFFFF        jmp 00E37ECC
+00E3825A     EB 03              jmp short 00E3825F
+00E3825C     D6                 salc
+00E3825D     D6                 salc
+
+->Minimum Protection
+00D4754E     E9 72FCFFFF        jmp 00D471C5
+00D47553     E9 03010000        jmp 00D4765B
+00D47558     0FB615 3C3FD900    movzx edx,byte ptr ds:[D93F3C]
+00D4755F     85D2               test edx,edx
+00D47561     74 05              je short 00D47568
+00D47563     E9 F3000000        jmp 00D4765B
+00D47568     C785 DCFDFFFF 0000>mov dword ptr ss:[ebp-224],0
+00D47572     C785 DCFDFFFF 0000>mov dword ptr ss:[ebp-224],0
+00D4757C     EB 0F              jmp short 00D4758D
+*/
+
+find MagicJMP,#E9????????EB03D6D6#
+cmp $RESULT,0
+jne FindfiXedOver
+find MagicJMP,#E9????????E9????00000F????????????85D2#
+cmp $RESULT,0
+je NoFind
+
+FindfiXedOver:
+add $RESULT,5
+mov fiXedOver,$RESULT
+log fiXedOver
+eob fiXedOver
+bp fiXedOver
+
+esto
+GoOn4:
+esto
+
+fiXedOver:
+cmp eip,fiXedOver    
+jne GoOn4
+bc fiXedOver
+mov [MagicJMP],#7505#
+
+
+//CreateThread______________________________________
+
+Thread:
+gpa "CreateThread", "KERNEL32.dll"
+find $RESULT,#C21800#
+mov CreateThread,$RESULT
+eob CreateThread
+bphws CreateThread, "x"
+
+esto
+GoOn5:
+esto
+
+CreateThread:
+cmp eip,CreateThread
+jne GoOn5
+bphwc CreateThread
+esti
+
+
+//FindOEP______________________________________
+
+/*
+00F9F9B3     2BCA               sub ecx,edx
+00F9F9B5     FFD1               call ecx     ; Armadill.004436E0
+*/
+
+mov Temp,eip
+sub Temp,400
+find Temp,#2BCAFFD18BD8#
+cmp $RESULT,0
+jne BP
+find Temp,#2BCAFFD189#
+cmp $RESULT,0
+jne BP
+find Temp,#2BF9FFD7#
+cmp $RESULT,0
+jne BP
+find Temp,#FFD18945FC8B45FC#
+cmp $RESULT,0
+je NoFind
+jmp BPV5
+
+BP:
+add $RESULT,2
+BPV5:
+mov FindOEP,$RESULT
+log FindOEP
+eob FindOEP
+bp FindOEP
+
+esto
+GoOn6:
+esto
+
+FindOEP:
+cmp eip,FindOEP
+jne GoOn6
+bc FindOEP
+sti
+
+
+//GameOver______________________________________ 
+
+log eip
+cmt eip, "This is the OEP!  Found By: fly[CUG] "                              
+MSG "Just : OEP !  Dump and Fix IAT.  Good Luck   "
+ret                       
+
+NoFind:
+MSG "Error! Don't find.     "
+ret
+
+CheckODbgScripVersion:
+msg  "ODBGScript Version Need 1.65 or higher!"
+ret
+
+TryAgain:
+MSG " Plz  Try  Again   !   "
+ret

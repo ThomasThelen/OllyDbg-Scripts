@@ -1,0 +1,61 @@
+var CreateProcessW
+var WriteProcessMemory
+var ResumeThread
+var WaitForDebugEvent
+var buffer
+var pProcessInfo
+var oldbyte1
+var oldbyte2
+var PID
+var OEP
+
+msg "Armadillo v6.40 Detach script by Mr. eXoDia"
+
+gpa "CreateProcessW", "kernel32.dll"
+mov CreateProcessW, $RESULT
+gpa "WriteProcessMemory", "kernel32.dll"
+mov WriteProcessMemory, $RESULT
+gpa "ResumeThread", "kernel32.dll"
+mov ResumeThread, $RESULT
+gpa "WaitForDebugEvent", "kernel32.dll"
+mov WaitForDebugEvent, $RESULT
+
+bp CreateProcessW
+erun
+bc
+mov pProcessInfo, [esp+28]
+
+
+bp WriteProcessMemory
+erun
+mov PID, [pProcessInfo+8]
+bc
+mov OEP, [esp+8]
+estep
+bp WriteProcessMemory
+erun
+bc
+mov buffer, [esp+C]
+mov oldbyte2, [buffer+1]
+mov [buffer+1], #00#
+mov oldbyte1, [buffer]
+mov [buffer], #EBFE#
+
+bp ResumeThread
+erun
+bc
+rtr
+bp WaitForDebugEvent
+erun
+bc
+rtr
+
+esti
+
+exec
+push {PID}
+call DebugActiveProcessStop
+ende
+
+eval "PID: {PID}, OEP: {OEP}, Original bytes {oldbyte1} {oldbyte2}, New bytes: EB FE"
+msg $RESULT

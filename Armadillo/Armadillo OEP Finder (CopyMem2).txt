@@ -1,0 +1,56 @@
+var addr
+var espval
+var oepaddr
+var maddr
+var cbase
+
+lblstart:
+  msgyn "Setting:Ingore all exceptions.go?"
+  cmp $RESULT,1
+  je lbl1
+  ret
+  
+lbl1:
+  dbh
+  gpa "OutputDebugStringA","kernel32.dll"
+  cmp $RESULT,0
+  je lbl2
+  asm $RESULT,"ret 4"
+
+lbl2:
+  gpa "WaitForDebugEvent","kernel32.dll"
+  bp $RESULT
+  esto
+  
+lbl3:
+  bc $RESULT
+  mov addr,esp
+  add addr,4
+  mov espval,[addr]
+  gpa "WriteProcessMemory","kernel32.dll"
+  bp $RESULT
+  esto
+  bc $RESULT
+  mov addr,espval
+  add addr,18
+  mov oepaddr,[addr]
+  mov addr,esp
+  add addr,8
+  mov cbase,[addr]
+  mov maddr,oepaddr
+  sub maddr,cbase
+  add addr,4
+  mov addr,[addr]
+  add maddr,addr
+  mov addr,maddr
+  fill addr,1,eb
+  inc addr
+  fill addr,1,FE
+
+lbl4:
+  eval "Orignal Entry Point:{oepaddr}, Code base:{cbase},please use lordpe's arm plugin dump this process."
+  rtu
+  cmt eip,$RESULT
+  msg $RESULT
+  ret
+

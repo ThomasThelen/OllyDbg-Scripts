@@ -1,0 +1,125 @@
+//The script 2, rereorganizes ARM chaotic IAT
+//comes from the Ricardo Narvaja 207 courses, makes the revision slightly
+
+var it
+var it2
+var x
+var y
+var pit
+var pit2
+var dll
+var dll1
+var pitt
+var it1_end
+var base
+var savecode
+
+//Needs to establish content
+mov it, 00F32B38 //chaotic IAT first site
+mov it1_end, 00F338C0//chaotic at the end of IAT site
+mov it2,00F32B38//waits depositing to reorganize after the IAT first site
+
+//
+mov savecode, [eip]//preserved current eip directional content
+mov [eip], # EBFE #//jmp eip, because reorganizes IAT quite to be slow, uses in treating can renovate the contact surface, guards against the contact surface to play dead 
+
+gmi eip, MODULEBASE//takes the master file base address
+log $RESULT
+mov base, $RESULT
+
+INICIO:              //Initialization
+mov pitt, it// the pitt direction is processing the api address presently, its front all api is processed finished
+                     //pitt each turn to increase 4, after it is equal to the chaotic at the end of IAT site, then this script movement finished
+COMIENZO:
+add pit, it
+add pit2, it2
+
+SEGUIMOS: //WE FOLLOWED new? ¬ the link starts
+
+add pit, x
+add pit2, y
+cmp pit, it1_end
+log pit
+log x
+log y
+je FIN
+cmp pit, it1_end
+ja FIN
+
+gmi [pit], MODULEBASE//takes this api correspondence module base address
+log $RESULT
+log dll1
+cmp pit, pitt
+jne NOPRIMERA
+
+cmp $RESULT, base//this address place api, whether has been processed, if has been processed then its base address primarily document base address base
+je PIRULO//processes has jumped changes to next round
+
+cmp $RESULT, dll1//these two resemble uselessly, if first 1 dll has been processed, here simply cannot jump transfers
+je IGUALES
+mov dll, $RESULT
+log dll
+jmp NOPRIMERA
+
+NOPRIMERA:       //not first
+cmp $RESULT, dll
+jne NOGUARDO
+
+//This address place api, whether has been processed, if has been processed then its base address
+//for example, after processing this 005CA000 place content is 005CADD0, takes its corresponding module base address for primarily document base address base
+cmp $RESULT, base
+je NOGUARDO//processes has jumped changes to next round
+mov [pit2],[pit]//chaotic IAT will preserve api to move in the new address? ¬ the address depositing indicator aims at new address
+mov [pit], pit2
+mov x, 4
+mov y, 4
+jmp FINLOOP
+
+NOGUARDO:    //I do not keep
+mov x, 4
+mov y, 0
+jmp FINLOOP
+
+FINLOOP:      //1 turn of small? ¬ the link finished
+log pit
+log pit2
+jmp SEGUIMOS
+
+
+IGUALES: //What doesn'tEQUAL have to use?
+mov x, 4
+mov y, 0
+jmp FINLOOP
+
+
+FIN:              //1 dll processing finished
+mov [pit2], 0
+mov dll1, dll
+sto//guards against the contact surface to play dead, to renovate od contact surface
+xor x, x
+xor y, y
+add pitt, 4
+cmp dll, base
+je SALTO
+
+add pit2,4
+
+SALTO:          //JUMP
+mov pit, pitt
+cmp pitt, it1_end
+je FINISH
+cmp pitt, it1_end
+ja FINISH
+log pit
+log pit2
+log pitt
+jmp SEGUIMOS
+
+FINISH:            //All dll has been processed all finished
+mov [eip], savecode//preserved current eip directional content
+MSG “TERMINAMOS”
+log pitt
+ret
+PIRULO:         //This address api has been processed in dll, therefore jumps over this address, makes a fresh start turn of
+add pitt, 4
+jmp NOPRIMERA

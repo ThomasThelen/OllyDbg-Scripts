@@ -1,0 +1,28 @@
+/////////////////////////////////////////////////////////////////
+//  OEP Find Script for ASPack 2.12 -> Alexey Solodovnikov
+//  Coded by: PiONEER {RES} & greetz to: {RES},ICU,ARTeam,SnD
+//  Data: 16:02 19.03.2007
+//  Environment :  WinXP SP1,OllyDbg V1.10,ODbgScript V1.48
+//  Contact: http://www.appzclub.tk - or - admin@appzclub.tk
+///////////////////////////////////////////////////////////////////
+
+start:
+find eip, #60#
+cmp $RESULT, 0
+je not found
+sto
+bphws esp,"r"
+run
+bphwc esp
+sto
+find eip, #68??????00#
+sto
+sto
+msg "OEP found! - Now dump and fix the IAT!"
+cmt eip, "<-- OEP found by TEAM {RES}!"
+ret
+
+not found:
+MSG ""Sorry this one isn't packed with ASPack 2.12 -> Alexey Solodovnikov!""
+ret
+end:

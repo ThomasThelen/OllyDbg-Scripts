@@ -1,0 +1,90 @@
+/////////////////////////////////////////////////////////////
+// this script does nothing but takes the amount of time you want 
+// to do that shift+f9 thing for ASProtect targets and does tht shift+f9 
+// throught ESTO command in script. 
+//
+// remember the input is in HEX, so if u want to shift+f9 38 times, 
+// enter 26 
+// 
+// currently ODBGScript 1.41 has some problem, some times mistakenly 
+// it fails to catch the right input 'n rather takes a ZERO as input 
+// tht's why i made a loop and if u want to exit without inputing anything 
+// put a ` <-- the key right below escape key
+/////////////////////////////////////////////////////////////
+/*
+********************
+     nick_name
+ TEAM RESSURRECTiON
+********************
+*/
+
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+
+DEFINE_BEFORE_EXECUTION:
+
+mov iat_start,434000
+mov iat_end,4342bc
+mov binary_paste,491000
+mov patch_with,"call dword ptr [{tmp_start}]"
+//mov patch_with,"jmp dword ptr [{tmp_start}]"
+
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+/*€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€*/
+
+SCRIPT_START:
+
+		lc
+		
+LOOP:
+		mov tmp_start,iat_start
+		mov call_addr, [binary_paste]
+		add binary_paste,4
+		mov api_addr, [binary_paste]
+
+START_FIND:
+		mov abc,[tmp_start]
+		cmp abc,api_addr
+		je PATCH
+		add tmp_start,4
+		cmp tmp_start,iat_end
+		je LOG
+		jmp START_FIND
+
+PATCH:
+		eval patch_with
+		asm call_addr,$RESULT
+		mov tempo1,[binary_paste-4]
+		mov tempo2,[binary_paste]
+		gn [binary_paste]
+		cmp $RESULT,0
+		je LOG
+		eval "{tempo1} :: {tempo2}={$RESULT}"
+		log $RESULT, ""
+		
+	
+HERE:
+		add binary_paste,4
+		cmp [binary_paste],0
+		jne LOOP
+
+EXIT_PATCH:		
+		ret
+
+LOG:
+		mov tempo,[binary_paste-4]
+		eval "\r\n{tempo} :: ...................................       <<---------NOT FOUND------\r\n"
+		log $RESULT, ""
+		
+/*
+		gpa "GetProcAddress","kernel32.dll"
+		mov tempi,iat_end
+		add tempi,4
+		mov [tempi],$RESULT
+		eval "jmp dword ptr [{tempi}]"
+		asm [binary_paste-4],$RESULT
+		
+*/
+			
+		jmp HERE
+	

@@ -1,0 +1,14 @@
+eob Break 
+findop eip, #6175# 
+bphws $RESULT, "x" 
+run 
+
+Break: 
+bphwc $RESULT 
+sto 
+sto 
+sto 
+sto 
+log eip 
+
+ret

@@ -1,0 +1,258 @@
+/*
+Script written by CCDebuger
+Script   	: Aspack 2.x Unpacker
+Ver      	: v0.1
+Date     	: 24-03-2009
+Environment : OllyDbg 1.1, ODBGScript 1.65, WINXP, WIN2000
+Debug Option: Set OllyDbg to ignore all exception 
+Tools		: OllyDbg, ODBGScript 1.65
+Thanks 		: Oleh Yuschuk - author of OllyDbg
+       		SHaG - author of OllyScript
+       		Epsylon3 - author of ODbgScript
+       		hnhuqiong - author of ODbgScript
+*/
+
+var tmp1
+var tmp2
+var NewModSize
+var ExeName
+var DirName
+var NameStarAddr
+var SectionNum
+var SecName
+var SecBase
+var IATRVA
+var IATSize
+var RelocRVA
+var RelocSize
+var AllocVA
+var AllocVATemp
+var VirtualFree
+var imgbase
+var signVA
+var modsize
+var TLSRVA
+var OrgImageBase
+var oep
+var unpackname
+
+cmp $VERSION, "1.65"
+jb errorver
+bc
+bphwcall
+dbh
+GMI eip, MODULEBASE     //get imagebase
+mov imgbase, $RESULT
+gmi eip, MODULESIZE
+mov modsize,$RESULT
+mov tmp1, [imgbase+3C]    //get PE sign RVA
+add tmp1, imgbase         //tmp1=PE sign VA
+mov signVA, tmp1
+mov OrgImageBase, [signVA + 34]		//original imagebase
+//gpi PROCESSNAME
+//mov ProcName, $RESULT
+gpi EXEFILENAME
+mov ExeName, $RESULT
+gpi CURRENTDIR
+mov DirName, $RESULT
+mov SectionNum, [signVA + 6], 1	//get section number
+mov [signVA + 3C], 1000    //FileAlignment = 1000
+mov [signVA + 54], 1000    //SizeOfHeaders = 1000
+alloc 1000
+mov AllocVA, $RESULT
+mov [AllocVA], ExeName
+len ExeName
+mov tmp1, $RESULT
+len DirName
+mov tmp2, $RESULT
+sub tmp1, tmp2
+mov NameStarAddr, tmp2
+mov NameStarAddr, AllocVA + NameStarAddr
+READSTR [NameStarAddr], tmp1
+mov unpackname, $RESULT
+eval "UN_{unpackname}"
+mov unpackname, $RESULT
+free AllocVA
+alloc 1000
+mov AllocVA, $RESULT
+mov AllocVATemp, AllocVA
+//get section RVA and size, set V.Size = R.Size
+mov SecBase, signVA + 0F8
+mov tmp2, SectionNum
+
+GetSecInfo:
+mov SecSize, [SecBase + 08]	//get section V.Size
+mov [AllocVATemp + 4], SecSize	//save section V.Size
+mov [SecBase + 10], SecSize	//R.Size = V.Size
+mov tmp1, [SecBase + 0C]	//get section RVA address
+mov [SecBase + 14], tmp1	//V.Offset = R.Offset
+mov [AllocVATemp], tmp1
+add SecBase, 28			//point to next section
+add AllocVATemp, 8
+dec tmp2
+cmp tmp2, 0
+jne GetSecInfo
+/*find commands:
+00407015    BB EDFFFFFF     MOV EBX,-13
+0040701A    03DD            ADD EBX,EBP
+0040701C    81EB 00700000   SUB EBX,7000
+*/
+find eip, #BBEDFFFFFF03DD81EB#
+mov tmp1, $RESULT
+add tmp1, 7
+bp tmp1
+esto
+bc tmp1
+mov NewModSize, ebx
+sub NewModSize, imgbase		//save original Size Of Image
+
+//set VirtualFree breakpoint, return to appropriate location
+gpa "VirtualFree", "kernel32.dll"
+mov VirtualFree, $RESULT
+bp VirtualFree
+
+FindReloc:
+esto
+rtu
+/*
+find commands£º
+0040C1DA    2BD0            SUB EDX,EAX
+0040C1DC    74 79           JE SHORT 0040C257
+0040C1DE    8BC2            MOV EAX,EDX
+0040C1E0    C1E8 10         SHR EAX,10
+0040C1E3    33DB            XOR EBX,EBX
+*/
+find eip, #2BD074??8BC2C1E8??33DB#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je FindReloc
+bc
+bp tmp1
+esto
+bc
+lc
+//deal with Reloc
+mov [tmp1 + 2], #9090#, 2
+add tmp1, 11
+bp tmp1
+esto
+bc
+findop eip, #74#
+mov tmp1, $RESULT
+mov [tmp1], #EB#, 1
+mov tmp2, esi
+mov RelocRVA, esi
+mov [signVA + 0A0], RelocRVA
+cmp tmp2, 0
+je FixIAT
+log esi, "Reloc RVA = "
+/*
+find commands£º
+0040C278    BE 00600000     MOV ESI,6000
+0040C27D    8B95 22040000   MOV EDX,DWORD PTR SS:[EBP+422]
+0040C283    03F2            ADD ESI,EDX
+*/
+FixIAT:
+find eip, #BE????????8B95????????03F2#
+mov tmp1, $RESULT
+bp tmp1
+esto
+sto
+log esi, "IAT RVA = "
+bc
+mov IATRVA, esi
+mov tmp2, esi
+add tmp2, imgbase
+//IAT table include 5 section, end with twenty 0 byte
+find tmp2, #0000000000000000000000000000000000000000#
+mov IATSize, $RESULT
+sub IATSize, tmp2
+add IATSize, 15
+log IATSize, "IAT Size = "
+mov [signVA + 80], IATRVA	//set IAT address
+mov [signVA + 84],IATSize	//set IAT size
+/*find commands£º
+0040C39A    B8 143F0000     MOV EAX,3F14
+0040C39F    50              PUSH EAX
+0040C3A0    0385 22040000   ADD EAX,DWORD PTR SS:[EBP+422]
+0040C3A6    59              POP ECX
+0040C3A7    0BC9            OR ECX,ECX
+*/
+find eip, #B8????????500385????????59#
+mov tmp1, $RESULT
+mov tmp1, [tmp1 + 1]
+log tmp1, " OEP RVA = "
+mov oep, tmp1
+mov [signVA + 28], oep		//set OEP address
+
+TLS:
+mov TLSRVA,[signVA + 0C0]		//TLS table address
+cmp TLSRVA, 0
+je FixReloc1
+mov AllocVATemp, AllocVA
+
+FindTLS:
+mov tmp1, [AllocVATemp + 8]	//Next Section RVA address
+mov tmp2, [AllocVATemp]		//previous Section RVA address
+add tmp1, imgbase
+mov tmp1, [tmp1]		//Get next section context of start address
+add tmp2, OrgImageBase
+add AllocVATemp, 8		//Point to next section
+cmp tmp2, tmp1
+jne FindTLS
+mov TLSRVA, [AllocVATemp]
+mov [signVA + 0C0], TLSRVA	//Set TLS table RVA address
+mov [signVA + 0C4], 18, 1	//Set TLS table size
+
+FixReloc1:
+mov AllocVATemp, AllocVA
+cmp RelocRVA, 0
+je SetRelocSize0
+
+FixReloc:
+mov tmp1, [AllocVATemp]
+add AllocVATemp, 8
+cmp tmp1, RelocRVA
+jne FixReloc
+add tmp1, imgbase
+find tmp1, #0000000000000000000000000000000000000000#
+mov RelocSize, $RESULT
+sub RelocSize, imgbase
+sub RelocSize, RelocRVA
+//add RelocSize, 4
+mov [signVA + 0A4], RelocSize	//set Reloc table size
+mov [signVA + 0F4], 0		//set Reserved = 0
+/*
+FixSection:
+mov tmp2, 0
+mov AllocVATemp, AllocVA
+
+lab1:
+mov tmp1, [AllocVATemp]
+add AllocVATemp, 8
+inc tmp2
+cmp tmp1, NewModSize
+jne lab1
+dec tmp2
+mov SectionNum, tmp2
+//mul tmp2, 028
+//mov tmp2, signVA + 0F8 + tmp2
+//fill tmp2, 100, 0
+mov [signVA + 6], SectionNum, 1		//set section number
+mov [signVA + 50], NewModSize		//set SizeOfImage
+*/
+DumpFile:
+free AllocVA
+dm imgbase, modsize, unpackname
+msg "The packed file is unpacked and save as UN_ + original file name. OEP, IAT, Reloc, TLS table (if have) are all fixed. you can direct run the unpacked program.\r\n\r\nif you want to optimize unpacked file, please reconstruct resource section and delete the last two junk section."
+
+exit:
+ret
+
+errorver:
+msg "Run this script must to use ODbgScript plugin ver 1.65 or high, your ODbgScript is to old, please update it then try again."
+ret
+
+SetRelocSize0:
+mov [signVA + 0A4], 0		//Reloc size = 0
+jmp DumpFile

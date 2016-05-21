@@ -1,0 +1,1714 @@
+////////////////////////Château-Saint-Martin//////////////////////////////////////////////////////////////////////
+//                                                                      /////////////////////////////////////////
+//  FileName    :  ZProtect HWID & InLine Patcher 1.1                   ////////////////////////////////////////
+//  Features    :                                                       ///////////////////////////////////////
+//                 With this script you can patch any other HWID on     //////////////////////////////////////
+//                 a temporary way in your target to get your target    /////////////////////////////////////
+//                 working on your system with the valid data.This      ////////////////////////////////////
+//                 script also support's a InLine technic to patch      ///////////////////////////////////
+//                 your new HWID permanently in your target.It also     //////////////////////////////////
+//                 can find and re-calc the old & new CRC DWORD.        /////////////////////////////////
+//                                                                      ////////////////////////////////
+//                                                                      ///////////////////////////////
+//                  *************************************************** //////////////////////////////
+//               ( 1.) HWID Find & Patching       (Temporary Way)     * /////////////////////////////
+//                                                                    * ////////////////////////////
+//               ( 2.) HWID InLine Patching       (Permanently 2 Way) * ///////////////////////////
+//                                                                    * //////////////////////////
+//               ( 3.) Double API Hook Patching                       * /////////////////////////
+//                                                                    * ////////////////////////
+//               ( 4.) Creating a Session Info File                   * ///////////////////////
+//                                                                    * //////////////////////
+//               ( 4.) New & Old CRC DWORD Calculation  x2            * /////////////////////
+//                                                                    * ////////////////////
+//                                                                    * ///////////////////
+//                 How to Use Information's | Step List Choice        * //////////////////
+//                  *************************************************** /////////////////
+//                  You have 3 Steps | Choose this way | 1. 2. 3.     * ////////////////
+//                                                                    * ///////////////
+//                  *1 <- Let patch & LOG the new HWID                * //////////////
+//                  *2 <- Add a new section called .MaThiO            * /////////////
+//                  *3 <- Add 3 API Imports                           * ////////////
+//                  *4 <- Let write the HWID InLine Template / save   * ///////////
+//                  *5 <- Change EP / Set section to writabe          * //////////
+//                  *6 <- Find new CRC DWORD / save                   * /////////
+//                  *7 <- Some targets using Overlay's!               * ////////
+//                  *************************************************** ///////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript v1.77.3,              //////
+//                 Import Adder Tool - LordPE,SecAdd Tool               /////
+//  Author      :  LCF-AT                                               ////
+//  Date        :  2010-04-06 | June                                    ///
+//                                                                      //
+//                                                                     // 
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!////////////////////
+BC
+BPMC
+BPHWC
+call VARS
+pause
+LC
+dbh
+////////////////////
+GPI PROCESSID
+mov PROCESSID, $RESULT
+GPI PROCESSNAME
+mov PROCESSNAME, $RESULT
+mov PROCESSNAME_2, $RESULT
+len PROCESSNAME
+mov PROCESSNAME_COUNT, $RESULT
+buf PROCESSNAME_COUNT
+alloc 1000
+mov PROCESSNAME_FREE_SPACE, $RESULT
+mov PROCESSNAME_FREE_SPACE_2, $RESULT
+mov EIP_STORE, eip
+mov eip, PROCESSNAME_FREE_SPACE
+mov [PROCESSNAME_FREE_SPACE], PROCESSNAME
+////////////////////
+PROCESSNAME_CHECK:
+cmp [PROCESSNAME_FREE_SPACE],00
+je PROCESSNAME_CHECK_02
+cmp [PROCESSNAME_FREE_SPACE],#20#, 01
+je PROCESSNAME_CHECK_01
+cmp [PROCESSNAME_FREE_SPACE],#2E#, 01
+je PROCESSNAME_CHECK_01
+inc PROCESSNAME_FREE_SPACE
+jmp PROCESSNAME_CHECK
+////////////////////
+PROCESSNAME_CHECK_01:
+mov [PROCESSNAME_FREE_SPACE], #5F#, 01
+jmp PROCESSNAME_CHECK
+////////////////////
+PROCESSNAME_CHECK_02:
+readstr [PROCESSNAME_FREE_SPACE_2], 08
+mov PROCESSNAME, $RESULT
+str PROCESSNAME
+mov eip, EIP_STORE
+free PROCESSNAME_FREE_SPACE
+////////////////////
+GMA PROCESSNAME, MODULEBASE
+cmp $RESULT, 0
+jne MODULEBASE
+pause
+pause
+////////////////////
+MODULEBASE:
+mov MODULEBASE, $RESULT
+mov PE_HEADER, $RESULT
+GPI CURRENTDIR
+mov CURRENTDIR, $RESULT
+////////////////////
+gmemi PE_HEADER, MEMORYSIZE
+mov PE_HEADER_SIZE, $RESULT
+add CODESECTION, MODULEBASE
+add CODESECTION, PE_HEADER_SIZE
+GMI MODULEBASE, MODULESIZE
+mov MODULESIZE, $RESULT
+add MODULEBASE_and_MODULESIZE, MODULEBASE
+add MODULEBASE_and_MODULESIZE, MODULESIZE
+////////////////////
+gmemi CODESECTION, MEMORYSIZE
+mov CODESECTION_SIZE, $RESULT
+add PE_HEADER, 03C
+mov PE_SIGNATURE, PE_HEADER
+sub PE_HEADER, 03C
+mov PE_SIZE, [PE_SIGNATURE]
+add PE_INFO_START, PE_HEADER
+add PE_INFO_START, PE_SIZE
+////////////////////
+mov PE_TEMP, PE_INFO_START
+////////////////////
+////////////////////
+mov SECTIONS, [PE_TEMP+06], 01
+itoa SECTIONS, 10.
+mov SECTIONS, $RESULT
+mov ENTRYPOINT, [PE_TEMP+028]
+mov BASE_OF_CODE, [PE_TEMP+02C]
+mov IMAGEBASE, [PE_TEMP+034]
+mov SIZE_OF_IMAGE, [PE_TEMP+050]
+mov TLS_TABLE_ADDRESS, [PE_TEMP+0C0]
+mov TLS_TABLE_SIZE, [PE_TEMP+0C4]
+mov IMPORT_TABLE_ADDRESS, [PE_TEMP+080]
+mov IMPORT_TABLE_SIZE, [PE_TEMP+084]
+mov IMPORT_ADDRESS_TABLE, [PE_TEMP+0D8]
+mov IATSTORE, [PE_TEMP+0D8]
+add ENTRYPOINT, IMAGEBASE
+////////////////////
+WRITE_FILE:
+eval "{PROCESSNAME_2}_Session_Infos.txt"
+mov sFile, $RESULT
+log $RESULT, ""
+eval "{scriptname}"
+wrta sFile, $RESULT
+wrta sFile, " "
+log ""
+wrta sFile, points
+log points, ""
+wrta sFile, "\r\n"
+log ""
+eval "Target Name is: {PROCESSNAME_2}"
+wrta sFile, $RESULT
+log $RESULT, ""
+wrta sFile, " "
+////////////////////
+START_1:
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nPress >>> YES <<< to find and patch the new CRC DWORD <<<-- 3 Step = LAST STEP\r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+je START
+cmp $RESULT, 02
+je FULL_END
+////////////////////
+EIP_CHECK_1:
+cmp ENTRYPOINT, eip
+je START_2A
+bphws ENTRYPOINT, "x"
+bp ENTRYPOINT
+esto
+bphwc
+bc
+jmp EIP_CHECK_1
+////////////////////
+START_2A:
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nPress >>> YES <<< for patching the new HWID & LOG  <<<-- 1 Step \r\n\r\nPress >>> NO <<< for patching the HWID InLine Template  <<<-- 2 Step \r\n\r\n{points} \r\n{ME}"                             
+msgyn $RESULT
+cmp $RESULT, 01
+je HWID_PATCH
+cmp $RESULT, 02
+je FULL_END
+mov INLINE_YES, 01
+////////////////////
+NEXT_ASK:
+////////////////////
+////////////////////
+START:
+cmp INLINE_YES, 01
+jne START_2
+////////////////////
+NAME_FIND:
+add PE_TEMP, 0F8
+////////////////////
+NAME_FIND_2:
+readstr [PE_TEMP], 07
+mov NAME, $RESULT
+str NAME
+cmp NAME, ".MaThiO"
+je NAME_FOUND
+add PE_TEMP, 28
+cmp [PE_TEMP], 00
+jne NAME_FIND_2
+log ""
+wrta sFile, " "
+wrta sFile, "No .MaThiO section found!Inline is not posible now!"
+wrta sFile, " "
+wrta sFile, "Add a new section called .MaThiO with a min size of 1000!"
+log "No .MaThiO section found!Inline is not posible now!Add a new section called .MaThiO with a min size of 1000!"
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe last section name is not .MaThiO! \r\n\r\nSo add a new section called .MaThiO with a min size of 1000! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+jmp FULL_END
+////////////////////
+NAME_FOUND:
+eval "The last section name is {NAME}"
+log $RESULT, ""
+log ""
+mov SIZE_OF, [PE_TEMP+08]
+cmp [PE_TEMP+08], 1000
+je SIZE_OK
+ja SIZE_OK
+mov TEMP, [PE_TEMP+08]
+mov SIZE_OF, [PE_TEMP+08]
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe last section {NAME} has a size of {TEMP} but this is too low!Min size you need is 1000! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+eval "The last section {NAME} has a size of {TEMP} but this is too low!Min size you need is 1000!"
+log $RESULT, ""
+log ""
+jmp FULL_END
+////////////////////
+SIZE_OK:
+mov TEMP, [PE_TEMP+0C]
+add TEMP, IMAGEBASE
+mov PATCH_ADDR, TEMP
+readstr [TEMP], 1000
+mov CHECK, $RESULT
+buf CHECK
+alloc 1000
+mov TEMP_CHECK, $RESULT
+readstr [TEMP_CHECK], 1000
+mov TEMP_CHECK_IN, $RESULT
+buf TEMP_CHECK_IN
+cmp TEMP_CHECK_IN, CHECK
+je SECTION_IS_FREE
+log ""
+eval "The last section {NAME} | {PATCH_ADDR} | {SIZE_OF} is not empty!Can I overwrite this section?"
+log $RESULT, ""
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe last section {NAME} | {PATCH_ADDR} | {SIZE_OF} is not empty!Can I overwrite this section? \r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+je SECTION_IS_FREE
+jmp FULL_END
+////////////////////
+SECTION_IS_FREE:
+free TEMP_CHECK
+mov TEMP_CHECK, 00
+fill PATCH_ADDR, SIZE_OF, 00
+mov eip, PATCH_ADDR
+mov [PATCH_ADDR],     #60A1AAAAAAAA68AAAAAAAA6A40680001000050FF15AAAAAAAAA1AAAAAAAA8B08880DBBBBBBBB408B08890DCCCCCCCC61#
+mov [PATCH_ADDR+030], #60A1AAAAAAAAC600E983C0058B0DFFFFFFFF2BC883E804890861#
+mov [PATCH_ADDR+04A], #803DCCCCCCCC00757F90909090E9F2E6FBFF9090817C2408DDDDDDDD750B90909090C605CCCCCCCC01#
+mov [PATCH_ADDR+073], #60A1AAAAAAAA8B0DCCCCCCCC8808408B0DCCCCCCCC890861#
+mov [PATCH_ADDR+08B], #608B4C2420890DCCCCCCCC61#
+mov [PATCH_ADDR+097], #608B4C24208B118915CCCCCCCC83C1048B11668915CCCCCCCC83E904C601E983C1058B1DFFFFFFFF2BD98959FC61#
+mov [PATCH_ADDR+0C5], #FE05CCCCCCCCFF25AAAAAAAA90#
+mov [PATCH_ADDR+0D2], #60A1CCCCCCCC8B0DCCCCCCCC890883C0048B0DCCCCCCCC66890861#
+mov [PATCH_ADDR+0ED], #803DCCCCCCCC01740A90909090FF25CCCCCCCCA3CCCCCCCC#
+mov [PATCH_ADDR+105], #60A1AAAAAAAA8B0DCCCCCCCC8808408B0DCCCCCCCC890861#
+mov [PATCH_ADDR+11D], #60A1AAAAAAAA68AAAAAAAA6A40680001000050FF15AAAAAAAAA1AAAAAAAA8B08880DCCCCCCCC408B08890DCCCCCCCC61#
+mov [PATCH_ADDR+14D], #60A1AAAAAAAAC600E983C0058B0DCCCCCCCC2BC883E804890861#
+mov [PATCH_ADDR+167], #FF25CCCCCCCC9090909090909090909090909090#
+mov [PATCH_ADDR+17B], #60A1AAAAAAAA8B0DCCCCCCCC8808408B0DCCCCCCCC890861#
+mov [PATCH_ADDR+193], #60A1CCCCCCCC05BBBBBBBBA3CCCCCCCC8B08890DCCCCCCCC83C0048B08890DCCCCCCCC83E80483C0058B0DFFFFFFFF2BC8C640FBE98948FCA1CCCCCCCC05BBBBBBBBA3CCCCCCCC61#
+mov [PATCH_ADDR+1DB], #FF25AAAAAAAA9090909090909090909090#
+mov [PATCH_ADDR+1EC], #81FAAAAAAAAA751A81F9BBBBBBBB7512BAAAAAAAAAB9BBBBBBBB89542410894C24140FB6542410FF25CCCCCCCC90#
+cmt PATCH_ADDR,     "VirtualAlloc API patch"
+cmt PATCH_ADDR+01,  "***VirtualAlloc API"
+cmt PATCH_ADDR+06,  "Free address + E0C"
+cmt PATCH_ADDR+0B,  "ReadWrite Access"
+cmt PATCH_ADDR+0D,  "VirtualAlloc size"
+cmt PATCH_ADDR+12,  "VirtualAlloc"
+cmt PATCH_ADDR+13, "***VirtualProtect API"
+cmt PATCH_ADDR+19, "***VirtualAlloc API"
+cmt PATCH_ADDR+20, "Free Address + E10"
+cmt PATCH_ADDR+29, "Free Address + E14"
+cmt PATCH_ADDR+31, "***VirtualAlloc API"
+cmt PATCH_ADDR+3C, "***Mov Size Patch Address"
+cmt PATCH_ADDR+4A, "Free Address + E38"
+cmt PATCH_ADDR+57, "***Entry"
+cmt PATCH_ADDR+5E, "Size Patch Check After VirtualAlloc"
+cmt PATCH_ADDR+6C, "Free Address + E3C If Size found"
+cmt PATCH_ADDR+74, "***VirtualAlloc API"
+cmt PATCH_ADDR+79, "Free Address + E10"
+cmt PATCH_ADDR+82, "Free Address + E14"
+cmt PATCH_ADDR+90, "Free Address + E24 / JMP after VirtualAlloc"
+cmt PATCH_ADDR+9E, "Free Address + E28 / 4 bytes of JMP after VA"
+cmt PATCH_ADDR+0A9, "Free Address + E2C / 2 bytes of JMP after VA "
+cmt PATCH_ADDR+0B9, "Free Address + E34 / start of InLine"
+cmt PATCH_ADDR+0C5, "Free Address + E38"
+cmt PATCH_ADDR+0CB, "JMP VirtualAlloc"
+cmt PATCH_ADDR+0D3, "Free Address + E24 JMP Address"
+cmt PATCH_ADDR+0D8, "Free Address + E28 4 bytes JMP opcode"
+cmt PATCH_ADDR+0E3, "Free Address + E2C 2 bytes JMP opcode"
+cmt PATCH_ADDR+0F4, "Free Address + E3C If size found then JMP"
+cmt PATCH_ADDR+0FA, "Free Address + E24 JMP to JUMP"
+cmt PATCH_ADDR+100, "Free Address + E40 Base of Attack"
+cmt PATCH_ADDR+106, "***VirtualAlloc API"
+cmt PATCH_ADDR+10B, "Free Address + E10 opcode API"
+cmt PATCH_ADDR+114, "Free Address + E14 2 opcode API"
+cmt PATCH_ADDR+11E, "***DeviceIoControl API"
+cmt PATCH_ADDR+123, "Free address + E0C"
+cmt PATCH_ADDR+128, "ReadWrite"
+cmt PATCH_ADDR+12A, "Size"
+cmt PATCH_ADDR+12F, "DeviceIoControl API push"
+cmt PATCH_ADDR+130, "***VirtualProtect API"
+cmt PATCH_ADDR+136, "***DeviceIoControl API"
+cmt PATCH_ADDR+13D, "Free address + E10"
+cmt PATCH_ADDR+146, "Free address + E14"
+cmt PATCH_ADDR+14E, "***DeviceIoControl API"
+cmt PATCH_ADDR+159, "Free address + E48 start of 2 API BackPatch"
+cmt PATCH_ADDR+167, "Free Address + E24 Back Jump"
+cmt PATCH_ADDR+17B, "2 API BackPatch + 1 API"
+cmt PATCH_ADDR+17C, "***DeviceIoControl API"
+cmt PATCH_ADDR+181, "Free Address + E10 byte opcode back"
+cmt PATCH_ADDR+18A, "Free Address + E14 dword opcode back"
+cmt PATCH_ADDR+194, "Free Address + E40 Attack Base"
+cmt PATCH_ADDR+199, "***AttackBase+ X = Attack command"
+cmt PATCH_ADDR+19E, "Free Address + E50 Attack Address"
+cmt PATCH_ADDR+1A5, "Free Address + E54 Attack opcode"
+cmt PATCH_ADDR+1B0, "Free Address + E58 Attack opcode"
+cmt PATCH_ADDR+1BC, "***Free Address + E60 HWID patch start"
+cmt PATCH_ADDR+1CB, "Free Address + E40 Attack Base"
+cmt PATCH_ADDR+1D0, "Attack Base + X = Target JUMP"
+cmt PATCH_ADDR+1D5, "***Free Address + E64 Target JUMP"
+cmt PATCH_ADDR+1DB, "***DeviceIoControl API JUMP"
+cmt PATCH_ADDR+1EC, "First HWID check"
+cmt PATCH_ADDR+1F4, "Second HWID check"
+cmt PATCH_ADDR+1FC, "Mov New first HWID"
+cmt PATCH_ADDR+201, "Mov New second HWID"
+cmt PATCH_ADDR+206, "Mov New first HWID to  [esp+10]"
+cmt PATCH_ADDR+20A, "Mov New second HWID to [esp+14]"
+cmt PATCH_ADDR+20E, "Original Command"
+cmt PATCH_ADDR+213, "***Free Address + E64 Target JUMP"
+mov P1, PATCH_ADDR
+mov P2, PATCH_ADDR
+add P1, 0E0C
+eval "push {P1}"
+asm P2+06, $RESULT
+eval "push {P1}"
+asm P2+123, $RESULT
+sub P1, 0E0C
+
+add P1, 0E10
+eval "MOV BYTE PTR DS:[{P1}],CL"
+asm P2+20, $RESULT
+eval "MOV ECX,DWORD PTR DS:[{P1}]"
+asm P2+79, $RESULT
+eval "MOV ECX,DWORD PTR DS:[{P1}]"
+asm P2+10B, $RESULT
+eval "MOV BYTE PTR DS:[{P1}],CL"
+asm P2+13D, $RESULT
+eval "MOV ECX,DWORD PTR DS:[{P1}]"
+asm P2+181, $RESULT
+sub P1, 0E10
+
+add P1, 0E14
+mov [P2+02B], P1
+mov [P2+084], P1
+mov [P2+116], P1
+mov [P2+148], P1
+mov [P2+18C], P1
+sub P1, 0E14
+
+add P1, 0E38
+mov [P2+04C], P1
+mov [P2+0C7], P1
+sub P1, 0E38
+
+eval "jmp {ENTRYPOINT}"
+asm P1+057, $RESULT
+
+add P1, 0E3C
+mov [P2+06E], P1
+mov [P2+0EF], P1
+sub P1, 0E3C
+
+add P1, 0E24
+mov [P2+092], P1
+mov [P2+0D4], P1
+mov [P2+0FC], P1
+mov [P2+169], P1
+sub P1, 0E24
+
+add P1, 0E28
+mov [P2+0A0], P1
+mov [P2+0DA], P1
+sub P1, 0E28
+
+add P1, 0E2C
+mov [P2+0AC], P1
+mov [P2+0E5], P1
+sub P1, 0E2C
+
+add P1, 0E34
+mov [P2+0BB], P1
+sub P1, 0E34
+
+add P1, 0E40
+mov [P2+101], P1
+mov [P2+195], P1
+mov [P2+1CC], P1
+sub P1, 0E40
+
+add P1, 0E1C
+mov [P2+03E], P1
+mov [P1], P2+05E
+sub P1, 0E1C
+
+add P1, 0E48
+mov [P2+15B], P1
+sub P1, 0E48
+
+add P1, 0E50
+mov [P2+19F], P1
+sub P1, 0E50
+
+add P1, 0E54
+mov [P2+1A7], P1
+sub P1, 0E54
+
+add P1, 0E58
+mov [P2+1B2], P1
+sub P1, 0E58
+
+add P1, 0E60
+mov [P2+1BE], P1
+sub P1, 0E60
+
+add P1, 0E64
+mov [P2+1D6], P1
+mov [P2+215], P1
+sub P1, 0E64
+
+mov [P1+0E34], eip
+mov [P1+0E48], P2+17B
+mov [P1+0E60], P2+1EC
+
+add IMPORT_TABLE_ADDRESS, IMAGEBASE
+cmp [IMPORT_TABLE_ADDRESS+10], 00
+je NOT_FOUND_IN
+////////////////////
+API_INFOS:
+mov API, [IMPORT_TABLE_ADDRESS+10]
+add API, IMAGEBASE
+log API, ""
+////////////////////
+API_CHECK_OFF:
+cmp [API], VirtualAlloc
+je VirtualAlloc
+cmp [API], VirtualProtect
+je VirtualProtect
+cmp [API], DeviceIoControl
+je DeviceIoControl
+////////////////////
+ADD_API:
+add API, 04
+cmp [API], 00
+jne API_CHECK_OFF
+add IMPORT_TABLE_ADDRESS, 14
+cmp [IMPORT_TABLE_ADDRESS+10], 00
+je API_ENDE
+jmp API_INFOS
+////////////////////
+VirtualAlloc:
+mov VA, API
+jmp ADD_API
+////////////////////
+VirtualProtect:
+mov VP, API
+jmp ADD_API
+////////////////////
+DeviceIoControl:
+mov DC, API
+jmp ADD_API
+////////////////////
+//------------
+eval "{scriptname} \r\n\r\n{points} \r\n\r\n \r\n\r\n{points} \r\n{ME}"
+wrta sFile, $RESULT
+wrta sFile, " "
+//-------------
+////////////////////
+NOT_FOUND_IN:
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nNot all 3 APIs was found in your Imports!Add them with LordPE! \r\n\r\nkernel32.dll \r\n-------------------- \r\nVirtualAlloc \r\nVirtualProtect \r\nDeviceIoControl \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+log "Not all 3 APIs was found in your Imports!"
+log "Add them with LordPE!"
+log "kernel32.dll"
+log "--------------------"
+log "VirtualAlloc" 
+log "VirtualProtect" 
+log "DeviceIoControl"
+log ""
+jmp FULL_END
+pause
+pause
+////////////////////
+API_ENDE:
+cmp [VA], VirtualAlloc
+jne NOT_ALL_API
+cmp [VP], VirtualProtect
+jne NOT_ALL_API
+cmp [DC], DeviceIoControl
+jne NOT_ALL_API
+log ""
+log "ALL API ARE THERE!"
+log ""
+log "API-LIST-FOUND"
+wrta sFile, "API-LIST-FOUND"
+log "--------------------"
+wrta sFile, " "
+wrta sFile, "--------------------"
+wrta sFile, " "
+eval "{VA} | {VirtualAlloc} | VirtualAlloc"
+wrta sFile, $RESULT
+wrta sFile, " "
+log $RESULT, ""
+eval "{VP} | {VirtualProtect} | VirtualProtect"
+wrta sFile, $RESULT
+wrta sFile, " "
+log $RESULT, ""
+eval "{DC} | {DeviceIoControl} | DeviceIoControl"
+wrta sFile, $RESULT
+wrta sFile, " "
+log $RESULT, ""
+log "--------------------"
+wrta sFile, "--------------------"
+log ""
+jmp FIX_API_ADDRESSES
+////////////////////
+NOT_ALL_API:
+jmp NOT_FOUND_IN
+pause
+pause
+////////////////////
+FIX_API_ADDRESSES:
+mov [P1+02],  VA
+mov [P1+15],  VP
+mov [P1+1A],  VA
+mov [P1+32],  VA
+mov [P1+75],  VA
+mov [P1+0CD], VA
+mov [P1+107], VA
+mov [P1+11F], DC
+mov [P1+132], VP
+mov [P1+137], DC
+mov [P1+14F], DC
+mov [P1+17D], DC
+mov [P1+1DD], DC
+alloc 1000
+mov READ, $RESULT
+eval "{PROCESSNAME_2}_Session_Infos.txt"
+lm READ, 1000, $RESULT
+////////////////////
+PLUS_VALUES:
+find READ, #6973202B20#
+cmp $RESULT, 00
+jne PLUS_VALUES_1
+pause
+pause
+////////////////////
+PLUS_VALUES_1:
+mov PL1, $RESULT
+add PL1, 05
+find PL1, #20#
+cmp $RESULT, 00
+jne PLUS_VALUES_2
+pause
+pause
+////////////////////
+PLUS_VALUES_2:
+mov PL1_B, $RESULT
+sub PL1_B, PL1
+readstr [PL1], PL1_B
+mov END_PL1, $RESULT
+atoi END_PL1, 16.
+mov END_PL1, $RESULT
+mov [P1+19A], END_PL1
+find PL1, #6973202B20#
+cmp $RESULT, 00
+jne PLUS_VALUES_3
+pause
+pause
+////////////////////
+PLUS_VALUES_3:
+mov PL2, $RESULT
+add PL2, 05
+find PL2, #20#
+cmp $RESULT, 00
+jne PLUS_VALUES_4
+pause
+pause
+////////////////////
+PLUS_VALUES_4:
+mov PL2_B, $RESULT
+sub PL2_B, PL1
+readstr [PL2], PL2_B
+mov END_PL2, $RESULT
+atoi END_PL2, 16.
+mov END_PL2, $RESULT
+mov [P1+1D1], END_PL2
+find READ, #73746F72656420696E746F#
+cmp $RESULT, 00
+jne AFTER_READ
+pause
+pause
+////////////////////
+AFTER_READ:
+mov READFOUND, $RESULT
+find READFOUND, #7C20#
+cmp $RESULT, 00
+jne AFTER_READ_2
+pause
+pause
+////////////////////
+AFTER_READ_2:
+mov READFOUND, $RESULT
+add READFOUND, 02
+find READFOUND, #3C#
+cmp $RESULT, 00
+jne AFTER_READ_3
+pause
+pause
+////////////////////
+AFTER_READ_3:
+mov READFOUND_2, $RESULT
+dec READFOUND_2
+sub READFOUND_2, READFOUND
+readstr [READFOUND], READFOUND_2
+mov SIZE, $RESULT
+atoi SIZE, 16.
+mov SIZE, $RESULT
+mov [P1+62], SIZE
+find READ, #23#
+cmp $RESULT, 00
+jne AFTER_READ_4
+pause
+pause
+////////////////////
+AFTER_READ_4:
+mov READFOUND_3, $RESULT
+inc READFOUND_3
+find READFOUND_3, #23#
+cmp $RESULT, 00
+jne AFTER_READ_5
+pause
+pause
+////////////////////
+AFTER_READ_5:
+mov READFOUND_4, $RESULT
+dec READFOUND_4
+readstr [READFOUND_3], 58
+mov BINARY, $RESULT
+eval "#{BINARY}#"
+mov BINARY, $RESULT
+mov [P1+1EC], BINARY, 27
+gmemi ENTRYPOINT, MEMORYBASE
+mov EPBASE, $RESULT
+add PE_INFO_START, 0F8
+////////////////////
+READ_IT:
+add PE_INFO_START, 0C
+mov ADDR, [PE_INFO_START]
+add ADDR, IMAGEBASE
+cmp ADDR, EPBASE
+je EP2
+add PE_INFO_START, 01C
+jmp READ_IT
+////////////////////
+EP2:
+mov RW, [PE_INFO_START+018]
+mov eax, RW
+shr eax, 18
+shr eax, 04
+cmp al, 8
+je IS_WRITEABLE
+ja IS_WRITEABLE
+mov EP_2, EPBASE
+sub EP_2, IMAGEBASE
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nYou must set the section \r\n\r\nVA: {EPBASE} \r\n\r\nRVA: {EP_2} \r\n\r\nto writeable with LordPE!Dont forget this! \r\n\r\n{points} \r\n{ME}"
+wrta sFile, $RESULT
+wrta sFile, " "
+msg $RESULT
+log ""
+eval "You must set the section VA: {EPBASE} | RVA: {EP_2} to writeable with LordPE!Dont forget this!"
+log $RESULT, ""
+jmp WRITE_OVER
+////////////////////
+IS_WRITEABLE:
+////////////////////
+WRITE_OVER:
+var file
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nCraete a new Dump file now? \r\n\r\nIf you press >>> YES <<< then the script makes a new dump but this can be bigger! \r\n\r\nPress >>> NO <<< if you want to dump or save it manually! \r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+jne NO_DUMP
+eval "{PROCESSNAME_2}_InLine.exe"
+mov file, $RESULT
+dpe $RESULT, eip
+eval "{PROCESSNAME_2}_InLine.exe was successfully created!"
+log $RESULT, ""
+jmp DUMP_OVER
+////////////////////
+NO_DUMP:
+log "No Dump file was created!"
+log ""
+log "Don´t forget to change the new EntryPoint!"
+////////////////////
+DUMP_OVER:
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nNow in your last step you need to run this script again to find the new CRC DWORD! \r\n\r\nAfter this your are finished! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+log ""
+log "Now in your last step you need to run this script again to find the new CRC DWORD!After this your are finished!"
+log ""
+free READ
+jmp FULL_END
+pause
+pause
+////////////////////
+START_2:
+bphws VirtualAlloc, "x"
+bp VirtualAlloc
+bphws MapViewOfFile, "x"
+bp MapViewOfFile
+esto
+cmp eip, VirtualAlloc
+je ALLOC
+bphwc
+bc
+rtu
+mov MAPPEDFILE, eax
+rtu
+gmemi eip, MEMORYBASE
+mov CRCBASE, $RESULT
+find CRCBASE, #5F5EF7D0C3#
+cmp $RESULT, 00
+jne FOUNDCRC
+pause
+pause
+////////////////////
+FOUNDCRC:
+mov CRC, $RESULT
+add CRC, 04
+////////////////////
+FOUNDCRC_2:
+bphws CRC, "x"
+bp CRC
+esto
+inc run
+cmp run, 02
+je RUNTEST
+jb RUNTEST
+pause
+pause
+////////////////////
+RUNTEST:
+cmp DWORD_1, 00
+jne FOUNDCRC_2_A
+mov DWORD_1, eax
+mov DWORD_1_TEMP, eax
+////////////////////
+FOUNDCRC_2_A:
+cmp run, 01
+je FOUNDCRC_2_B
+cmp DWORD_2, 00
+jne FOUNDCRC_2_B
+mov DWORD_2, eax
+////////////////////
+FOUNDCRC_2_B:
+cmp OTHERCRC, 01
+je FOUNDCRC_2_B_1_2
+mov TEMP, ecx
+cmp TEMP, 0
+jne FOUNDCRC_2_B_1
+mov OTHERCRC, 01
+////////////////////
+FOUNDCRC_2_B_1:
+gmemi TEMP, MEMORYBASE
+cmp $RESULT, MAPPEDFILE
+jne FOUNDCRC_2
+////////////////////
+FOUNDCRC_2_B_1_2:
+cmp run, 02
+jb FOUNDCRC_2
+xor DWORD_1, DWORD_2
+mov DWORD, DWORD_1
+cmp OTHERCRC, 01
+jne FOUNDCRC_2_B_1_3
+////////////////////
+ROUNDER:
+sti
+cmp [eip], C833, 02
+jne ROUNDER
+////////////////////
+ROUNDER_2:
+sti
+cmp [eip], 3B, 01
+jne ROUNDER_2
+GOPI eip, 2, ADDR
+mov CRC_ADDRESS, $RESULT
+jmp FOUNDCRC_2_B_1_4
+////////////////////
+FOUNDCRC_2_B_1_3:
+mov CRC_ADDRESS, ecx
+////////////////////
+FOUNDCRC_2_B_1_4:
+mov OLD_CRC, [CRC_ADDRESS]
+mov NEW_CRC, DWORD
+findmem OLD_CRC, CODESECTION
+cmp $RESULT, 00
+jne CRC_CODE
+pause
+pause
+////////////////////
+CRC_CODE:
+mov END_CRC, $RESULT
+bphwc
+bc
+xor DWORD_1_TEMP, OLD_CRC
+mov eax, DWORD_1_TEMP
+eval "The CRC DWORD was located at {END_CRC} | {OLD_CRC}"
+wrta sFile, $RESULT
+log $RESULT, ""
+wrta sFile, " "
+log ""
+eval "The new CRC DWORD is {NEW_CRC}"
+wrta sFile, $RESULT
+log $RESULT, ""
+log ""
+wrta sFile, " "
+wrta sFile, points
+log points, ""
+eval "The new CRC result is: {END_CRC} | {NEW_CRC}"
+wrta sFile, $RESULT
+log $RESULT, ""
+wrta sFile, " "
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe CRC DWORD was located at {END_CRC} | {OLD_CRC} \r\n\r\nThe new CRC DWORD is {NEW_CRC} \r\n\r\nThe new CRC result is: {END_CRC} | {NEW_CRC} \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nDo you want let patch NOW the new CRC DWORD? \r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+jne CRC_ENDE
+mov eip, END_CRC
+mov [END_CRC], NEW_CRC
+mov patched, 01
+////////////////////
+CRC_ENDE:
+log "Save the new CRC DWORD on the LAST step after all your patches!"
+wrta sFile, " "
+wrta sFile, "Save the new CRC DWORD on the LAST step after all your patches!"
+log " "
+cmp patched, 01
+jne CRC_ENDE_2
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe NEW CRC DWORD WAS WRITTEN,NOW SELECT this DWORD AND SAVE! \r\n\r\n{points} \r\n{ME}"
+wrta sFile, " "
+msg $RESULT
+wrta sFile, "The NEW CRC DWORD WAS WRITTEN,NOW SELECT this DWORD AND SAVE!"
+log "The NEW CRC DWORD WAS WRITTEN,NOW SELECT this DWORD AND SAVE!"
+log ""
+OPENDUMP END_CRC
+cmt END_CRC, "CRC DWORD!"
+////////////////////
+CRC_ENDE_2:
+jmp FULL_END
+////////////////////
+ALLOC:
+bphwc VirtualAlloc
+bc VirtualAlloc
+inc ALOC
+cmp A_SIZE, 00
+jne ALLOC_2
+mov A_SIZE, [esp+08]
+rtr
+mov A_ADDRESS, eax
+jmp START_2
+////////////////////
+ALLOC_2:
+cmp B_SIZE, 00
+jne ALLOC_3
+mov B_SIZE, [esp+08]
+rtr
+mov B_ADDRESS, eax
+jmp START_2
+////////////////////
+ALLOC_3:
+cmp C_SIZE, 00
+jne ALLOC_4
+mov C_SIZE, [esp+08]
+rtr
+mov C_ADDRESS, eax
+jmp START_2
+////////////////////
+ALLOC_4:
+cmp D_SIZE, 00
+jne ALLOC_5
+mov D_SIZE, [esp+08]
+rtr
+mov D_ADDRESS, eax
+jmp START_2
+////////////////////
+ALLOC_5:
+mov E_SIZE, [esp+08]
+rtr
+mov E_ADDRESS, eax
+jmp START_2
+////////////////////
+HWID_PATCH:
+bphws DeviceIoControl, "x"
+bp DeviceIoControl
+bphws VirtualAlloc, "x"
+bp VirtualAlloc
+esto
+////////////////////
+HWID_PATCH_CHECK_NEXT:
+cmp eip, VirtualAlloc
+jne HWID_PATCH_2
+bphwc
+bc
+mov A_SIZE, [esp+08]
+rtr
+mov A_ADDRESS, eax
+bphws DeviceIoControl, "x"
+bp DeviceIoControl
+bphws VirtualAlloc, "x"
+bp VirtualAlloc
+esto
+////////////////////
+FIND_STRING:
+cmp eip, DeviceIoControl
+je HWID_PATCH_2
+find A_ADDRESS, #0FB?542410E9#
+cmp $RESULT, 00
+je HWID_PATCH_CHECK_NEXT
+mov A_ADDRESS, $RESULT
+inc A_ADDRESS
+mov A_ADDRESS_BAK, $RESULT
+mov dll, 01
+add A_ADDRESS, 04
+gci A_ADDRESS, DESTINATION
+cmp $RESULT, 00
+sub A_ADDRESS, 04
+je FIND_STRING
+mov ABC, $RESULT
+cmp [ABC+03], 1124, 02 
+jne FIND_STRING
+add ABC, 05
+cmp [ABC], E8, 01
+jne FIND_STRING_B
+mov call, 01
+////////////////////
+FIND_STRING_B:
+gci ABC, DESTINATION
+cmp $RESULT, 00
+sub ABC, 05
+je FIND_STRING
+mov ABC, $RESULT
+cmp call, 01
+je FIND_STRING_C
+cmp [ABC], 30, 01
+jne FIND_STRING
+////////////////////
+FIND_STRING_C:
+mov A_ADDRESS, A_ADDRESS_BAK
+jmp HWID_PATCH_2
+
+jmp HWID_PATCH
+////////////////////
+HWID_PATCH_2:
+eval "HWID check is stored into {A_ADDRESS} | {A_SIZE} <-- Alloc Size"
+log $RESULT, ""
+log ""
+wrta sFile, " "
+wrta sFile, $RESULT
+bphwc
+bc
+cmp dll, 01
+jne HWID_PATCH_2_A
+gmemi A_ADDRESS, MEMORYBASE
+mov VMBASE, $RESULT
+mov $RESULT, A_ADDRESS
+jmp found
+////////////////////
+HWID_PATCH_2_A:
+mov EXTRA, [esp]
+gmemi EXTRA, MEMORYBASE
+mov EXTRA, $RESULT
+rtu
+gmemi eip, MEMORYBASE
+cmp EXTRA, $RESULT
+jne VM
+gmemi eip, MEMORYBASE
+mov EXTRA_2, $RESULT
+cmp [EXTRA_2], 5A4D, 02
+jne VM
+rtr
+mov baceip, eip
+////////////////////
+SELFTEST:
+sti
+cmp eip, baceip
+je SELFTEST
+////////////////////
+VM:
+gmemi eip, MEMORYBASE
+mov VMBASE, $RESULT
+////////////////////
+SEARCH:
+find VMBASE, #0FB?542410E9#
+cmp $RESULT, 00
+jne found
+find A_ADDRESS, #0FB?542410E9#
+cmp $RESULT, 00
+je SEARCH_3
+////////////////////
+SEARCH_2:
+mov A_ADDRESS, $RESULT
+gmemi A_ADDRESS, MEMORYBASE
+mov VMBASE, $RESULT
+mov $RESULT, A_ADDRESS
+jmp found
+////////////////////
+SEARCH_3:
+findmem  #0FB?542410E9#, CODESECTION
+cmp $RESULT, 00
+jne SEARCH_3_A
+pause
+pause
+pause
+////////////////////
+SEARCH_3_A:
+mov A_ADDRESS, $RESULT
+gmemi A_ADDRESS, MEMORYBASE
+mov VMBASE, $RESULT
+mov $RESULT, A_ADDRESS
+jmp found
+pause
+pause
+////////////////////
+found:
+mov FOUND, $RESULT
+add PLUS_1, FOUND
+sub PLUS_1, VMBASE
+mov PLUS_1, PLUS_1
+log PLUS_1
+bp FOUND
+bphws FOUND, "x"
+esto
+mov ID,  [esp+10]
+mov ID2, [esp+14]
+alloc 1000
+mov mem, $RESULT
+mov baceip, eip
+////////////////////
+Ask3:
+ask "Enter your new HWID the first 8 digits together"
+cmp $RESULT,0
+je Ask3
+cmp $RESULT, -1
+je Ask3
+mov ID_1, $RESULT
+////////////////////
+Ask4:
+ask "Enter your new HWID last 8 digits together"
+cmp $RESULT,0
+je Ask4
+cmp $RESULT, -1
+je Ask4
+mov ID_2, $RESULT
+mov temp2,eax
+mov test, ##+"0000-0000-0000-0000"
+mov [mem], test
+mov eax, ID_1
+shr eax, 10
+mov I1, ax
+mov eax, ID_1
+mov I2, ax
+itoa I1, 16.
+mov I1, $RESULT
+len I1
+cmp $RESULT, 04
+je CW_GO
+////////////////////
+AB1:
+cmp $RESULT, 03
+jne AB2
+eval "0{I1}"
+mov I1, $RESULT
+jmp CW_GO
+////////////////////
+AB2:
+cmp $RESULT, 02
+jne AB3
+eval "00{I1}"
+mov I1, $RESULT
+jmp CW_GO
+////////////////////
+AB3:
+cmp $RESULT, 01
+jne AB4
+eval "000{I1}"
+mov I1, $RESULT
+jmp CW_GO
+////////////////////
+AB4:
+cmp $RESULT, 00
+jne AB5
+mov I1, "0000"
+jmp CW_GO
+////////////////////
+AB5:
+pause
+pause
+pause
+////////////////////
+CW_GO:
+itoa I2, 16.
+mov I2, $RESULT
+len I2
+cmp $RESULT, 04
+je CW_GO_2
+////////////////////
+AB1A:
+cmp $RESULT, 03
+jne AB2A
+eval "0{I2}"
+mov I2, $RESULT
+jmp CW_GO_2
+////////////////////
+AB2A:
+cmp $RESULT, 02
+jne AB3A
+eval "00{I2}"
+mov I2, $RESULT
+jmp CW_GO_2
+////////////////////
+AB3A:
+cmp $RESULT, 01
+jne AB4
+eval "000{I2}"
+mov I2, $RESULT
+jmp CW_GO_2
+////////////////////
+AB4A:
+cmp $RESULT, 00
+jne AB5A
+mov I2, "0000"
+jmp CW_GO_2
+////////////////////
+AB5A:
+pause
+pause
+pause
+////////////////////
+CW_GO_2:
+eval "{I1}-{I2}"
+mov test, ##+$RESULT
+mov [mem], test
+mov eax, ID_2
+shr eax, 10
+mov I3, ax
+mov eax, ID_2
+mov I4, ax
+itoa I3, 16.
+mov I3, $RESULT
+len I3
+cmp $RESULT, 04
+je CW_GO_3
+////////////////////
+AB1B:
+cmp $RESULT, 03
+jne AB2B
+eval "0{I3}"
+mov I3, $RESULT
+jmp CW_GO_3
+////////////////////
+AB2B:
+cmp $RESULT, 02
+jne AB3B
+eval "00{I3}"
+mov I3, $RESULT
+jmp CW_GO_3
+////////////////////
+AB3B:
+cmp $RESULT, 01
+jne AB4B
+eval "000{I3}"
+mov I3, $RESULT
+jmp CW_GO_3
+////////////////////
+AB4B:
+cmp $RESULT, 00
+jne AB5B
+mov I3, "0000"
+jmp CW_GO_3
+////////////////////
+AB5B:
+pause
+pause
+pause
+////////////////////
+CW_GO_3:
+itoa I4, 16.
+mov I4, $RESULT
+len I4
+cmp $RESULT, 04
+je CW_GO_4
+////////////////////
+AB1C:
+cmp $RESULT, 03
+jne AB2C
+eval "0{I4}"
+mov I4, $RESULT
+jmp CW_GO_4
+////////////////////
+AB2C:
+cmp $RESULT, 02
+jne AB3C
+eval "00{I4}"
+mov I4, $RESULT
+jmp CW_GO_4
+////////////////////
+AB3C:
+cmp $RESULT, 01
+jne AB4C
+eval "000{I4}"
+mov I4, $RESULT
+jmp CW_GO_4
+////////////////////
+AB4C:
+cmp $RESULT, 00
+jne AB5C
+mov I4, "0000"
+jmp CW_GO_4
+////////////////////
+AB5C:
+pause
+pause
+pause
+////////////////////
+CW_GO_4:
+eval "{I3}-{I4}"
+mov test, ##+$RESULT
+mov [mem+0A], test
+////////////////////
+BIG_LOOP:
+mov CALC, mem
+////////////////////
+BIG_LOOP_2:
+cmp [mem], 61, 01
+je 20
+cmp [mem], 62, 01
+je 20
+cmp [mem], 63, 01
+je 20
+cmp [mem], 64, 01
+je 20
+cmp [mem], 65, 01
+je 20
+cmp [mem], 66, 01
+je 20
+////////////////////
+BIG_LOOP_3:
+inc mem
+inc counta
+cmp counta, 13
+je FERTIG
+jmp BIG_LOOP_2
+////////////////////
+20:
+sub [mem], 20
+jmp BIG_LOOP_3
+////////////////////
+FERTIG:
+mov mem, CALC
+mov counta, 00
+cmp SECOND_LOOP, 01
+je END_SECOND_LOOP
+readstr [mem], 13
+mov STRING, $RESULT
+str STRING
+mov STRING, STRING
+mov eax, temp2
+fill mem, 100, 00
+mov temp2, eax
+mov test, ##+"0000-0000-0000-0000"
+mov [mem], test
+mov eax, [esp+10]
+mov I1, ax
+shr eax, 10
+mov I2, ax
+mov eax, [esp+14]
+mov I3, ax
+shr eax, 10
+mov I4, ax
+itoa I1, 16.
+mov I1, $RESULT
+len I1
+cmp $RESULT, 04
+je CW_GO_5
+////////////////////
+AB1D:
+cmp $RESULT, 03
+jne AB2D
+eval "0{I1}"
+mov I1, $RESULT
+jmp CW_GO_5
+////////////////////
+AB2D:
+cmp $RESULT, 02
+jne AB3D
+eval "00{I1}"
+mov I1, $RESULT
+jmp CW_GO_5
+////////////////////
+AB3D:
+cmp $RESULT, 01
+jne AB4D
+eval "000{I4}"
+mov I1, $RESULT
+jmp CW_GO_5
+////////////////////
+AB4D:
+cmp $RESULT, 00
+jne AB5D
+mov I1, "0000"
+jmp CW_GO_5
+////////////////////
+AB5D:
+pause
+pause
+pause
+////////////////////
+CW_GO_5:
+itoa I2, 16.
+mov I2, $RESULT
+len I2
+cmp $RESULT, 04
+je CW_GO_6
+////////////////////
+AB1E:
+cmp $RESULT, 03
+jne AB2E
+eval "0{I2}"
+mov I2, $RESULT
+jmp CW_GO_6
+////////////////////
+AB2E:
+cmp $RESULT, 02
+jne AB3E
+eval "00{I2}"
+mov I2, $RESULT
+jmp CW_GO_6
+////////////////////
+AB3E:
+cmp $RESULT, 01
+jne AB4E
+eval "000{I2}"
+mov I2, $RESULT
+jmp CW_GO_6
+////////////////////
+AB4E:
+cmp $RESULT, 00
+jne AB5E
+mov I2, "0000"
+jmp CW_GO_6
+////////////////////
+AB5E:
+pause
+pause
+pause
+////////////////////
+CW_GO_6:
+eval "{I1}-{I2}"
+mov test, ##+$RESULT
+mov [mem], test
+itoa I3, 16.
+mov I3, $RESULT
+len I3
+cmp $RESULT, 04
+je CW_GO_7
+////////////////////
+AB1F:
+cmp $RESULT, 03
+jne AB2F
+eval "0{I3}"
+mov I3, $RESULT
+jmp CW_GO_7
+////////////////////
+AB2F:
+cmp $RESULT, 02
+jne AB3F
+eval "00{I3}"
+mov I3, $RESULT
+jmp CW_GO_7
+////////////////////
+AB3F:
+cmp $RESULT, 01
+jne AB4F
+eval "000{I3}"
+mov I3, $RESULT
+jmp CW_GO_7
+////////////////////
+AB4F:
+cmp $RESULT, 00
+jne AB5F
+mov I3, "0000"
+jmp CW_GO_7
+////////////////////
+AB5F:
+pause
+pause
+pause
+////////////////////
+CW_GO_7:
+itoa I4, 16.
+mov I4, $RESULT
+len I4
+cmp $RESULT, 04
+je CW_GO_8
+////////////////////
+AB1G:
+cmp $RESULT, 03
+jne AB2G
+eval "0{I4}"
+mov I4, $RESULT
+jmp CW_GO_8
+////////////////////
+AB2G:
+cmp $RESULT, 02
+jne AB3G
+eval "00{I4}"
+mov I4, $RESULT
+jmp CW_GO_8
+////////////////////
+AB3G:
+cmp $RESULT, 01
+jne AB4G
+eval "000{I4}"
+mov I4, $RESULT
+jmp CW_GO_8
+////////////////////
+AB4G:
+cmp $RESULT, 00
+jne AB5G
+mov I4, "0000"
+jmp CW_GO_8
+////////////////////
+AB5G:
+pause
+pause
+pause
+////////////////////
+CW_GO_8:
+eval "{I3}-{I4}"
+mov test, ##+$RESULT
+mov [mem+0A], test
+mov SECOND_LOOP, 01
+jmp BIG_LOOP
+////////////////////
+END_SECOND_LOOP:
+readstr [mem], 13
+mov STRING_2, $RESULT
+str STRING_2
+mov STRING_2, STRING_2
+mov eax, temp2
+fill mem, 100, 00
+mov SECOND_LOOP, 00
+mov [mem], ID_1
+mov [mem+04], ID_2
+mov [mem+12], [mem], 2
+mov [mem+10], [mem+2], 2
+mov [mem+16], [mem+4], 2
+mov [mem+14], [mem+6], 2
+mov ID_1, [mem+10] 
+mov ID_2,[mem+14] 
+fill mem, 100, 00
+bc FOUND
+bphwc
+readstr [eip], 0A
+mov place, $RESULT
+buf place
+mov test,eip
+add test, 05
+gci test, DESTINATION
+mov ort, $RESULT
+eval "jmp {mem}"
+asm eip, $RESULT
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nDo you want to patch your system HWID check? \r\n\r\ncmp EDX, xxxxxxxx \r\ncmp ECX, xxxxxxxx \r\n\r\nIf you press >>> NO <<< then I will disable this check in the HWID patch so that you can run your file on every PC \r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+mov [mem], #81FAAAAAAAAA751A81F9AAAAAAAA7512BABBBBBBBBB9CCCCCCCC89542410894C24149090#
+cmp $RESULT, 01
+je END_SECOND_LOOP_2
+mov [mem+06], #EB08#
+log ""
+log "System HWID check was disabled to get the target run on all systems!"
+////////////////////
+END_SECOND_LOOP_2:
+add mem, 22
+mov [mem], place
+sub mem, 22
+mov [mem+02],ID
+mov [mem+0A],ID2
+mov [mem+11],ID_1
+mov [mem+16],ID_2
+eval "jmp {ort}"
+asm mem+27, $RESULT
+add PLUS_2, ort
+sub PLUS_2, VMBASE
+mov PLUS_2, PLUS_2
+log PLUS_2
+log ""
+wrta sFile, " "
+readstr [mem], 028
+mov CMP_PATCH, $RESULT
+buf CMP_PATCH
+mov CMP_PATCH, CMP_PATCH
+eval "PLUS 1 value is + {PLUS_1} | PLUS 2 value is + {PLUS_2}"
+log $RESULT, ""
+wrta sFile, $RESULT
+wrta sFile, " "
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe HWID was successfully patched! \r\n\r\n{STRING_2} \r\nto \r\n{STRING} \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+wrta sFile, "The HWID was successfully patched!"
+log "The HWID was successfully patched!"
+log ""
+eval "{STRING_2}"
+log $RESULT, ""
+log ""
+log "to"
+log ""
+eval "{STRING}"
+log $RESULT, ""
+wrta sFile, " "
+wrta sFile, STRING_2
+wrta sFile, " "
+wrta sFile, "to"
+wrta sFile, " "
+wrta sFile, STRING
+log ""
+wrta sFile, " "
+wrta sFile, "Insert this binary bytes in your InLine at the HWID compare!"
+wrta sFile, " "
+wrta sFile, CMP_PATCH
+wrta sFile, " "
+jmp FULL_END
+esto
+pause
+pause
+////////////////////
+VARS:
+var EXTRA_2
+var EXTRA
+var VA
+var VP
+var DC
+var API
+var CMP_PATCH
+var SECOND_LOOP
+var STRING_2
+var counta
+var test
+var STRING
+var CALC
+var I1
+var I2
+var I3
+var I4
+var ME
+var points
+var sFile
+var scriptname
+var PLUS_1
+var PLUS_2
+var SIZE_OF
+var TEMP
+var PATCH_ADDR
+var CHECK
+var TEMP_CHECK
+var TEMP_CHECK_IN
+var PATCH_ADDR
+var INLINE_YES
+var SetWindowTextA
+var patched
+var DWORD_1_TEMP
+var run
+var DWORD
+var DWORD_1
+var DWORD_2
+var END_CRC
+var CRC_CODE
+var NEW_CRC
+var OLD_CRC
+var CRC_ADDRESS
+var MAPPEDFILE
+var CRC
+var CRCBASE
+var ALOC
+var A_SIZE
+var A_ADDRESS
+var B_SIZE
+var B_ADDRESS
+var C_SIZE
+var C_ADDRESS
+var D_SIZE
+var D_ADDRESS
+var E_SIZE
+var E_ADDRESS
+var MapViewOfFile
+var VirtualAlloc
+var ort
+var test
+var place
+var mem
+var ID
+var ID2
+var ID_1
+var ID_2
+var FOUND
+var VMBASE
+var baceip
+var DeviceIoControl
+var VirtualProtect
+var PROCESSID
+var PROCESSNAME
+var PROCESSNAME_2
+var PROCESSNAME_COUNT
+var PROCESSNAME_FREE_SPACE
+var PROCESSNAME_FREE_SPACE_2
+var EIP_STORE
+var MODULEBASE
+var PE_HEADER
+var CURRENTDIR
+var PE_HEADER_SIZE
+var CODESECTION
+var CODESECTION_SIZE
+var MODULESIZE
+var MODULEBASE_and_MODULESIZE
+var PE_SIGNATURE
+var PE_SIZE
+var PE_INFO_START
+var ENTRYPOINT
+var BASE_OF_CODE
+var IMAGEBASE
+var SIZE_OF_IMAGE
+var TLS_TABLE_ADDRESS
+var TLS_TABLE_SIZE
+var IMPORT_ADDRESS_TABLE
+var IMPORT_ADDRESS_SIZE
+var SECTIONS
+var SECTION_01
+var SECTION_01_NAME
+var MAJORLINKERVERSION
+var MINORLINKERVERSION
+var PROGRAMLANGUAGE
+var IMPORT_TABLE_ADDRESS
+var IMPORT_TABLE_ADDRESS_END
+var IMPORT_TABLE_ADDRESS_CALC
+var IMPORT_TABLE_SIZE
+var IAT_BEGIN
+var IMPORT_ADDRESS_TABLE_END
+var API_IN
+var API_NAME
+var MODULE
+var IMPORT_FUNCTIONS
+var IATSTORE_SECTION
+var IATSTORE
+var OTHERCRC
+var dll
+var call
+////////////////////
+gpa "DeviceIoControl", "kernel32.dll"
+mov DeviceIoControl,    $RESULT
+gpa "VirtualAlloc",    "kernel32.dll"
+mov VirtualAlloc,       $RESULT
+gpa "VirtualProtect",  "kernel32.dll"
+mov VirtualProtect,     $RESULT
+gpa "MapViewOfFile",    "kernel32.dll"
+mov MapViewOfFile,      $RESULT
+gpa "SetWindowTextA",  "user32.dll"
+mov SetWindowTextA,     $RESULT
+mov scriptname, "ZProtect HWID & InLine Patcher 1.1"
+mov points, "******************************************************"
+mov ME, "LCF-AT"
+ret
+////////////////////
+FULL_END:
+cmp TEMP_CHECK, 0
+je FULL_END_2
+free TEMP_CHECK
+////////////////////
+FULL_END_2:
+log scriptname, ""
+log points, ""
+log "script was written by"
+log ""
+log ME, ""
+eval "{scriptname} \r\n\r\n{points} \r\nscript was written by \r\n\r\n{ME}"
+msg $RESULT
+wrta sFile, "\r\n"
+wrta sFile, "\r\n"
+wrta sFile, points
+wrta sFile, "script was written by"
+wrta sFile, " "
+wrta sFile, ME
+pause
+ret

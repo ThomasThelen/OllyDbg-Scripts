@@ -1,0 +1,43 @@
+/////////////////////////////////////////////////////////////
+// this script does nothing but takes the amount of time you want 
+// to do that shift+f9 thing for ASProtect targets and does tht shift+f9 
+// throught ESTO command in script. 
+//
+// remember the input is in HEX, so if u want to shift+f9 38 times, 
+// enter 26 
+//
+// currently ODBGScript 1.41 has some problem, some times mistakenly 
+// it fails to catch the right input 'n rather takes a ZERO as input 
+// tht's why i made a loop and if u want to exit without inputing anything 
+// put a ` <-- the key right below escape key 
+/////////////////////////////////////////////////////////////
+
+/*
+********************
+     nick_name
+ TEAM RESSURRECTiON
+********************
+*/
+
+ASK:
+
+	ASK "shift+F9 --> how many (HEX) times ??"
+	cmp $RESULT,"`" 
+	je FINISH
+	cmp $RESULT,0
+	jbe ASK
+
+mov how_many,$RESULT
+run
+dec how_many
+
+TIME:
+
+	esto
+	dec how_many
+	cmp how_many, 0
+	jbe FINISH
+	jmp TIME
+
+FINISH:
+ret

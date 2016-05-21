@@ -1,0 +1,160 @@
+                            ////////////////////////////////////////////
+                            //                 Asprotect              //
+                            //              Date: 19/10/2004           //
+                            //                                        //
+var cebp                            ////////////////////////////////////////////
+var cesp
+var addra
+var addra2
+var addrb
+var addrclast
+var count
+var test
+var addrc
+var addrc2
+var valid
+var valid2
+var csize
+var msize
+var popc
+eoe checklast
+eob checklast
+GMI 401000,CODESIZE
+mov csize,$RESULT
+var sizet
+mov sizet,csize
+add sizet,400000
+GMI 401000,MODULESIZE
+mov msize, $RESULT
+add msize,400000
+
+
+esto
+
+
+checklast:
+dbh
+cmp edx,4
+jne f
+mov popc,eip
+add popc,4
+mov popc,[popc]
+cmp popc,0000068f
+jne f 
+find eip,#74??E8#
+mov popc,$RESULT
+sub popc,5
+mov popc,[popc]
+mov [popc],1
+cmp $RESULT,0
+
+je f:
+bprm 401000,csize
+eob oep
+eoe oep
+esto
+f:
+find eip,#85c00f85#
+cmp $RESULT,0
+je cntlast
+mov valid,$RESULT
+sub valid,3e
+cmp [valid],00001fb8
+
+jne cntlast
+mov valid2,$RESULT
+sub valid2,eip
+cmp valid2,0ff
+ja cntlast
+eob bypass
+bp $RESULT
+esto
+
+bypass:
+mov eax,0
+bc $RESULT
+esto
+cntlast:
+eoe checklast
+eob checklast
+mov addra,ebp
+mov addrc,ebp
+sub addra,10
+mov addra2,addra
+mov  addrc2,addra
+mov cesp,esp
+mov cebp,ebp
+and cesp,00ff0000
+and cebp,00ff0000
+cmp cesp,cebp
+jne false
+
+mov addra,[addra]
+
+cmp addra,400000
+
+jne false1
+add addra2,4
+mov addra2,[addra2]
+cmp addra2,msize
+jb foundlast
+false1:
+sub addrc,20
+mov addrc2,addrc
+mov cesp,esp
+mov cebp,ebp
+and cesp,00ff0000
+and cebp,00ff0000
+cmp cesp,cebp
+
+jne false
+
+mov addrc,[addrc]
+
+
+cmp addrc,400000
+jne false
+add addrc2,4
+mov addrc2,[addrc2]
+cmp addrc2,msize
+
+
+ja test1
+cmp addrc2,401000
+ja foundlast
+jmp false
+test1:
+mov addrc2,edi
+and addrc2,0000ffff
+cmp addrc2,0
+
+je foundlast
+false:
+esto
+ret
+foundlast:
+ MSGYN "this is the last exception, do you want to continue to the OEP?"
+cmp $RESULT,0
+je last
+jmp oepn
+
+oep:
+cmp eip, sizet
+jb  oepf
+esto
+oepn:
+bprm 401000,csize
+cob
+coe
+esto
+
+oepf:
+msg "this is the oep if no stolen,Thanks for using my script;BriteDream"
+bpmc
+ret
+
+
+
+last:
+msg "This is the last exception,Thank you for using my script;BriteDream"
+ret

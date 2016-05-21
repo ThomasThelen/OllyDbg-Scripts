@@ -1,0 +1,38 @@
+/* 
+Tested on WinXP Pro SP2, OllyDbg v1.10, OllyScript v0.92 
+NOTES: 
+- Remove all hardware breakpoints before run the script. 
+- Add the following custom exceptions on OllyDbg: 
+C0000005(ACCESS VIOLATION), C000001D(ILLEGAL INSTRUCTION) 
+C000001E(INVALID LOCK SEQUENCE), C0000096(PRIVILEGED INSTRUCTION) 
+*/ 
+
+// Modified by Maltese. Allows Armadillo to function within Olly. 
+// Armadillo functions would not work with ORIGINAL SCRIPT. 
+// Confirmed working with TheaterTek 2.11 
+
+
+var CreateThread 
+var OEP 
+
+gpa "CreateThread", "kernel32.dll" 
+mov CreateThread, $RESULT 
+
+bp CreateThread 
+esto 
+esto 
+rtu 
+bc CreateThread 
+rtr 
+sti 
+
+find eip, #2B??FF??8?# 
+mov OEP, $RESULT 
+add OEP, 2 
+bp OEP 
+run 
+bc OEP 
+sti 
+cmt eip, "<- OEP" 
+
+msg "You're at the OEP, now dump with LordPE and fix the IAT with ImpRec. =)"

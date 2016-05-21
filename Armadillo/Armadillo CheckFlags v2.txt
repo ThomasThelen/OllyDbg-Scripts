@@ -1,0 +1,459 @@
+var text
+var NanoDW
+
+var RegECX
+var RegEDX
+var RegEBX
+var RegESP
+var RegEBP
+var RegESI
+var RegEDI
+
+var HBPEip
+var HBPEip2
+
+var ActEip
+var EipBytes
+
+var VACont
+var VACont2
+var VANanTypTab
+var VAFlagsTab
+
+var NanoCount
+
+var LogBP
+var LogBP2
+var LogBP3
+var LogBP4
+
+dbh
+mov NanoDW, 0
+eoe LABEL
+eob BABEL
+run
+
+BABEL:
+cob
+bphwc eip
+
+mov RegECX, ecx
+mov RegEDX, edx
+mov RegEBX, ebx
+mov RegESP, esp
+mov RegEBP, ebp
+mov RegESI, esi
+mov RegEDI, edi
+
+msgyn "Nanotypes DWORD = SI  ||  Nanotypes BYTE = NO"
+cmp $RESULT, 0
+je NanB00
+mov NanoDW, 1
+
+mov HBPEip, eip
+sub HBPEip, 0E7
+fill HBPEip, 0E7, 90
+sub eip, 0E4
+mov HBPEip2, eip
+jmp NanDW00
+
+NanB00:
+mov HBPEip, eip
+sub HBPEip, 0E1
+fill HBPEip, 0E1, 90
+sub eip, 0DE
+mov HBPEip2, eip
+
+NanDW00:
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 80"
+add eip, $RESULT
+asm eip, "push 3"
+add eip, $RESULT
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 80000000"
+add eip, $RESULT
+
+ask "VA base?"
+cmp $RESULT, 0
+je NoVA
+mov text, $RESULT
+
+sub eip, 80
+mov ActEip, eip
+mov EipBytes, [eip]
+add eip, 80
+exec
+pushad
+pushfd
+push {ActEip}
+push 40
+push 20000
+push {text}
+call VirtualProtect
+popfd
+popad
+ende
+mov [ActEip], EipBytes
+
+mov VACont, text
+mov VANanTypTab, VACont
+add VANanTypTab, 20
+log VANanTypTab
+
+mov [VANanTypTab], "C:\Documents and Settings\tenketsu\Escritorio\nano_tpor.hex"
+
+eval "push {VANanTypTab}"
+asm eip, $RESULT
+add eip, $RESULT
+asm eip, "call CreateFileA"
+add eip, $RESULT
+
+mov text, VANanTypTab
+add text, 300
+eval "mov [{text}], eax"
+asm eip, $RESULT
+add eip, $RESULT
+
+add text, 0A
+eval "push {text}"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "push eax"
+add eip, $RESULT
+asm eip, "call GetFileSize"
+add eip, $RESULT
+
+eval "mov [{VACont}], eax"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 2"
+add eip, $RESULT
+asm eip, "push 0"
+add eip, $RESULT
+
+sub text, 0A
+eval "push [{text}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "call CreateFileMappingA"
+add eip, $RESULT
+
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 0"
+add eip, $RESULT
+asm eip, "push 4"
+add eip, $RESULT
+asm eip, "push eax"
+add eip, $RESULT
+asm eip, "call MapViewOfFile"
+add eip, $RESULT
+
+eval "push [{VACont}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "push eax"
+add eip, $RESULT
+
+eval "push {VANanTypTab}"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "call RtlMoveMemory"
+add eip, $RESULT
+
+cmp NanoDW, 0
+je NanB01
+
+eval "shr dword [{VACont}], 2"
+asm eip, $RESULT
+add eip, $RESULT
+
+NanB01:
+asm eip, "nop"
+add eip, $RESULT
+
+mov HBPEip, eip
+
+add VACont, 10
+mov VACont2, VACont
+add VACont2, 4
+eval "mov ecx, [{VACont}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+cmp NanoDW, 1
+je NanDW01
+
+asm eip, "xor eax, eax"
+add eip, $RESULT
+
+NanDW01:
+mov eax, VACont
+add eax, 10
+mov VANanTypTab, eax
+
+cmp NanoDW, 0
+je NanB02
+
+eval "mov eax, [ecx*4+{VANanTypTab}]"
+jmp NanDW02
+
+NanB02:
+eval "mov al, byte [ecx+{VANanTypTab}]"
+
+NanDW02:
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "nop"
+add eip, $RESULT
+
+eval "mov ecx, [{VACont2}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+mov VAFlagsTab, VANanTypTab
+add VAFlagsTab, 3000
+
+eval "mov edx, [ecx*4+{VAFlagsTab}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+mov [VAFlagsTab], #02020000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #03020000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #06020000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #42020000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #82020000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #D7070000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #020A0000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #820A0000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #570F0000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #960F0000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #970F0000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #D30F0000#
+add VAFlagsTab, 4
+mov [VAFlagsTab], #D60F0000#
+
+mov NanoCount, eip
+
+cmp NanoDW, 0
+je NanB03
+
+add NanoCount, 03B
+jmp NanDW03
+
+NanB03:
+add NanoCount, 0BF
+
+NanDW03:
+mov NanoCount, [NanoCount]
+add NanoCount, RegEBP
+eval "mov [{NanoCount}], edx"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "nop"
+add eip, $RESULT
+
+eval "mov ecx, {RegECX}"
+asm eip, $RESULT
+add eip, $RESULT
+eval "mov edx, {RegEDX}"
+asm eip, $RESULT
+add eip, $RESULT
+eval "mov ebx, {RegEBX}"
+asm eip, $RESULT
+add eip, $RESULT
+eval "mov esp, {RegESP}"
+asm eip, $RESULT
+add eip, $RESULT
+eval "mov ebp, {RegEBP}"
+asm eip, $RESULT
+add eip, $RESULT
+eval "mov esi, {RegESI}"
+asm eip, $RESULT
+add eip, $RESULT
+eval "mov edi, {RegEDI}"
+asm eip, $RESULT
+add eip, $RESULT
+
+cmp NanoDW, 0
+je NanB04
+
+add eip, 74
+jmp NanDW04
+
+NanB04:
+add eip, 0F6
+
+NanDW04:
+asm eip, "nop"
+add eip, $RESULT
+
+asm eip, "nop"
+add eip, $RESULT
+
+eval "mov ecx, [{VACont2}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "inc ecx"
+add eip, $RESULT
+
+eval "mov [{VACont2}], ecx"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "cmp ecx, 0D"
+add eip, $RESULT
+
+eval "jnz {HBPEip}"
+asm eip, $RESULT
+add eip, $RESULT
+
+eval "mov dword [{VACont2}], 0"
+asm eip, $RESULT
+add eip, $RESULT
+
+eval "mov ecx, [{VACont}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "inc ecx"
+add eip, $RESULT
+
+eval "mov [{VACont}], ecx"
+asm eip, $RESULT
+add eip, $RESULT
+
+mov text, VACont
+sub text, 10
+eval "mov eax, [{text}]"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "cmp ecx, eax"
+add eip, $RESULT
+
+eval "jnz {HBPEip}"
+asm eip, $RESULT
+add eip, $RESULT
+
+asm eip, "nop"
+add eip, $RESULT
+asm eip, "nop"
+add eip, $RESULT
+asm eip, "nop"
+
+bphws eip, "x"
+
+sub eip, 41
+mov LogBP, eip
+
+cmp NanoDW, 0
+je NanB05
+
+bpl eip, "edx"
+
+sub eip, 61
+mov LogBP2, eip
+bpl eip, "ecx"
+jmp NanDW05
+
+NanB05:
+bpl eip, "eax"
+
+sub eip, 1
+mov LogBP2, eip
+bpl eip, "eax"
+
+sub eip, 5E
+mov LogBP3, eip
+bpl eip, "edx"
+
+NanDW05:
+sub eip, 6
+asm eip, "nop"
+add eip, $RESULT
+asm eip, "nop"
+add eip, $RESULT
+asm eip, "nop"
+add eip, $RESULT
+asm eip, "nop"
+add eip, $RESULT
+asm eip, "nop"
+add eip, $RESULT
+asm eip, "nop"
+add eip, $RESULT
+
+cmp NanoDW, 0
+je NanB06
+
+sub eip, 12
+mov LogBP3, eip
+jmp NanDW06
+
+NanB06:
+sub eip, 96
+mov LogBP4, eip
+
+NanDW06:
+bpl eip, "eax"
+
+mov eip, HBPEip2
+
+eob BABEL2
+run
+jmp BABEL
+
+BABEL2:
+bphwc eip
+bc LogBP
+bc LogBP2
+bc LogBP3
+
+cmp NanoDW, 1
+je NanDW07
+
+bc LogBP4
+
+NanDW07:
+msg "Comprobación de nanotypes terminada, guarda el Log y cierra el Olly."
+ret
+
+LABEL:
+esto
+jmp LABEL
+
+NoVA:
+msg "No se ha especificado una VA base para las tablas, script terminado."
+ret

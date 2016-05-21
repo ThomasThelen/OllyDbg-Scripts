@@ -1,0 +1,87 @@
+/*eXPressor.V1.7.0.1 iat fixer
+By Kissy[UpK]
+用SOD隐藏OD 停在TLS入口 
+暂时只支持VC程序IAT修复
+*/
+var iatw
+var fi
+var ff15
+var tmp1
+var tmp2
+var tmp3
+var tmp4
+
+
+bpwm 401000, 1
+esto
+BPMC
+gmemi eip,MEMORYBASE
+mov fi,$RESULT
+find fi,#5985C075176A048D854CFDFFFF50FFB5CCFDFFFFE8CFC4FFFF83C40C#
+cmp $RESULT,0
+je error
+mov iatw,$RESULT
+mov [iatw],#83C4049090#   //1
+find fi,#B85753??00EB019AFFD0A794A45C2BCAF9#
+cmp $RESULT,0
+je error
+bphws $RESULT,"x"
+esto
+bphwc
+mov [iatw],#5985C07517#  //crc1
+find fi,#8B4DF02BC88B45D08908#
+cmp $RESULT,0
+je error
+mov ff15,$RESULT
+mov [ff15-3],#9090908B4DE89090# //2
+find fi,#8975FCEB01EA8B45FC5F5E5B#
+cmp $RESULT,0
+je error
+mov tmp,$RESULT
+bphws tmp,"x"
+esto
+bphwc
+alloc 1000
+mov tmp1,$RESULT
+mov tmp2,tmp
+mov [tmp1],#51B900504C003931750B8BF1598975FCE928B0120083C10481F94C574C007402EBE4598975FCE912B01200#
+add tmp2,6 //mov [ebp+4],esi
+eval "jmp {tmp2}"
+mov tmp3,$RESULT
+asm tmp1+10,tmp3
+asm tmp1+26,tmp3
+eval "jmp {tmp1}"
+asm eip,$RESULT       //3
+find fi,#EB01BB8B45D4C600E8#
+cmp $RESULT,0
+je error
+mov fixff15,$RESULT
+mov [fixff15],#8B45D466C700FF1583C0029090#  //4
+find fi,#33C040C9C3558BEC#
+cmp $RESULT,0
+je error
+bphws $RESULT,"x"
+find fi,#C60090FF55FCEB01#
+cmp $RESULT,0
+je error
+mov tmp4,$RESULT
+mov [tmp4+3],#909090#
+esto
+bphwc
+mov [ff15-3],#83C0058B4DF02BC8# //crc2
+mov [tmp],#8975FCEB01# //crc3
+mov [fixff15],#EB01BB8B45D4C600E88B45D440# //crc4
+mov [tmp4+3],#C60090#
+
+findoep:
+gpa "VirtualProtect","kernel32.dll"
+bpcnd $RESULT, "[esp+4]==00401000"
+esto
+bc
+rtu
+GMEMI 00401000, MEMORYSIZE
+bprm 401000, $RESULT
+esto
+esto
+bpmc
+ret

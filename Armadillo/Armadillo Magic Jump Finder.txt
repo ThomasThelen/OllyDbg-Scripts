@@ -1,0 +1,19 @@
+/*
+Magic Jump Finder Script
+
+*/
+
+var GetModuleHandleA
+
+gpa "GetModuleHandleA", "kernel32.dll"
+mov GetModuleHandleA, $RESULT
+
+bphws GetModuleHandleA, "x"
+repeat:
+esto
+rtu
+find eip, #0F84????????????????????74??????????EB??#
+cmp $RESULT,0
+je repeat
+bphwc GetModuleHandleA
+ret

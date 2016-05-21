@@ -1,0 +1,198 @@
+﻿//code for expressor 1.5x ~ 1.6x  使用原版od,忽略所有异常 停在系统断点
+//code by skylly
+starting:
+//隐藏调试器
+exec
+pushad
+//clear beingdebugged
+mov eax,fs:[30]
+inc eax
+inc eax
+mov ebx,eax      
+mov eax,[eax]    //取出旧值
+xor al,al        //置0
+mov [ebx],eax    //写入
+xor eax,eax
+
+//clear forceflag
+mov ebx,fs:[30] 
+add ebx,18
+mov ebx,[ebx]
+add ebx,10
+mov [ebx],eax
+//clear NtGlobalFlag    
+mov ebx,fs:[30] 
+add ebx,68
+mov [ebx],eax
+popad
+ende
+
+//这里有些anti 像exec的
+gpa "OutputDebugStringA","kernel32.dll"
+mov [$RESULT],#8BFF5533C05DC20400#
+
+gpa "CheckRemoteDebuggerPresent","kernel32.dll"
+mov [$RESULT],#8BFF5533C05DC20800#
+
+gpa "FindWindowA","user32.dll"              //ollydbg,filemon等
+mov [$RESULT],#8BFF5533C05DC20800#
+
+gpa "VirtualProtect", "kernel32.dll"
+cmp $RESULT,0
+je err
+var VirtualProtect
+mov VirtualProtect,$RESULT
+var tmp
+bp VirtualProtect
+lpvp:
+esto
+mov tmp,[esp+8]
+cmp tmp,1000
+jne lpvp
+bc VirtualProtect
+rtu
+mov tmp,eip
+and tmp,FFFF0000
+
+find tmp,     #C7402000100000#
+cmp $RESULT,0
+je err
+mov [$RESULT],#90909090909090# //anti anti dump
+
+find tmp,#75F4FE4DFF75EF#
+cmp $RESULT,0
+je err
+mov [$RESULT],#EB# //heap magic检测,真是会学习...
+
+find tmp,#C745F801000000C3837DF800#      //page页异常,把ntkrnel那套都学了...
+cmp $RESULT,0
+je err
+mov [$RESULT],#EB23#
+
+find tmp,#58833D????????000F84#
+cmp $RESULT,0
+je err
+var nagaddr
+mov nagaddr,$RESULT
+add nagaddr,8
+mov [nagaddr],#90E9#       //去掉nag,不知道对不对,乱改的
+log nagaddr
+
+find tmp,#5356570F843C01#
+cmp $RESULT,0
+je nomagic
+//magic jmp
+add $RESULT,3
+mov [$RESULT],#90E9#
+nomagic:
+
+var djmp
+mov djmp,0
+
+find tmp,#83C0058B4DF8#
+cmp $RESULT,0
+je nodjmp
+msgyn "是否修复direct jmp? 如果选是则要配合uif来修复,如果选否则自己负责..."
+cmp $RESULT,0
+je nodjmp
+
+//direct jmp?
+mov djmp,$RESULT
+log djmp
+add $RESULT,5
+mov [$RESULT],#D8#
+nodjmp:
+
+#log
+find tmp,#83780C000F84#
+cmp $RESULT,0
+je err
+bp $RESULT
+esto
+bc $RESULT
+var iidstart
+var iidsize
+mov iidstart,eax
+
+cmp djmp,0
+jne concon
+msg "此时dump下来,等会到oep后根据日志用loadpe修复即可"
+
+concon:
+mov tmp,eip
+add tmp,6
+mov tmp,[tmp]
+add tmp,eip
+add tmp,A
+bp tmp
+esto
+bc tmp
+mov iidsize,eax
+sub iidsize,iidstart
+
+var nearoep
+find eip,#005F5E5B8BE55DEB01#
+cmp $RESULT,0
+je err
+mov nearoep,$RESULT
+inc nearoep
+bp nearoep
+
+going:
+esto
+cmp eip,nearoep
+jne going
+bc nearoep
+
+find eip,#FFE0#
+cmp $RESULT,0
+je err
+bp $RESULT
+esto
+bc $RESULT
+sti
+
+var espvar
+mov espvar,esp
+sub espvar,4
+bphws espvar,"r"
+esto
+esto
+bphwc espvar
+
+//这里已经非常非常接近oep了,一般f7两到三下就可以了,但为了方便那些比较"懒"的朋友所以写了个非常恶心的单步脚本...
+loopsti:
+mov tmp,[eip]
+and tmp,FF
+cmp tmp,58
+je mysti
+cmp tmp,5A
+je mysti
+cmp tmp,59
+je mysti
+cmp tmp,51
+je mysti
+cmp tmp,68
+je mysti
+cmp tmp,EB
+je mysti
+cmp tmp,FF
+je mysti
+cmp tmp,C3
+je mysti
+jmp atoep
+mysti:
+esti
+jmp loopsti
+atoep:
+cmt eip,"OEP"
+var oep
+mov oep,eip
+log oep
+log iidstart
+log iidsize
+msg "根据日志内容自己用loadpe修复dump文件的oep及引入表地址和大小"
+ret
+err:
+msg "error"
+ret

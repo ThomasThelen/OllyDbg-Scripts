@@ -1,0 +1,140 @@
+//The script 1, goes directly to OEP, while convenient processes magicjump and antidump
+var NewIatHead
+var NewSplitCodeHead
+var SetIatHead
+var SetSplitCodeHead
+var IatOver
+var MagicJmp
+var OEP
+
+var bSplitCodeOver
+var bIatOver
+var pTempAddr
+
+var VirtualAlloc
+
+
+//Needs to fill in information content
+mov NewIatHead, 5CA000
+mov NewSplitCodeHead, 674000
+mov MagicJmp, 00DC973B
+mov SetIatHead, 00DE453B
+mov IatOver, 00DE498E
+mov SetSplitCodeHead, 00DE2653
+mov OEP, 004E8850
+
+
+//Variable initialization
+mov bIatOver, 0
+mov bSplitCodeOver, 0
+
+//Obtains the VirtualAlloc first address
+gpa "VirtualAlloc", "kernel32.dll" 
+mov VirtualAlloc, $RESULT
+
+bphws VirtualAlloc, "x"
+run
+bphwc VirtualAlloc
+
+//This time, the shell memory code has assigned
+//Starts to suppose the break point
+bphws MagicJmp, “x”//magicjump place
+//bphws 00994704, “x” reads in when the memory
+bphws SetIatHead, “x”//writes down input table first address time
+bphws IatOver, “x”//processes all dll
+bphws SetSplitCodeHead, “x”//application top digit memory place, must change returns to eax is section of low positions memories 
+
+eoe _Exception
+eob _Break
+run 
+
+//Meets the exception to continue to carry out
+_Exception: 
+esto
+
+//Processes the break point severance
+_Break:
+cmp eip, SetIatHead
+je _SetIatHead
+cmp eip, MagicJmp
+je _MagicJmp
+cmp eip, IatOver
+je _IATOver
+cmp eip, SetSplitCodeHead
+je _SetSplitCodeHead
+jmp _InvalidBreak
+
+
+//Establishes the new IAT first address
+/*
+00DE453B 8B8D F0E6FFFF MOV ECX, DWORD PTR SS:[EBP-1910]//preserves IAT the first address
+00DE 45,418 D0481 LEA EAX, DWORD PTR DS:[ECX+EAX * 4]
+00DE 454,489,851 CE8FFFF MOV DWORD PTR SS:[EBP-17E4], EAX//current IAT indicator
+*/
+_SetIatHead:
+mov pTempAddr, ebp
+sub pTempAddr, 1910//has a liking for scolds to one's face according to
+mov [pTempAddr], NewIatHead
+log NewIatHead
+bphwc SetIatHead
+run 
+
+//Revises magicjump, obtains primitive IAT
+_MagicJmp:
+mov!ZF, 1//revises magicjump
+run 
+
+The//maigcjump processing finished
+_IATOver:
+bphwc MagicJmp
+bphwc IatOver
+mov bIatOver, 1
+cmp bSplitCodeOver, 1
+je _FixOver
+run 
+
+//Establishes the new preserved CodeSplit code the first address
+/*
+00DE263A 6A 40 PUSH 40
+00DE263C 6,800,100,000 PUSH 1000
+00DE2641 FFB 570 E6FFFF PUSH DWORD PTR SS:[EBP-1990]
+00DE2647 FF 353,092 DF00 PUSH DWORD PTR DS:[DF9230]
+00DE264D FF15 A0B1DE00 CALL DWORD PTR DS:[DEB1A0]; 
+
+kernel32.VirtualAlloc
+00DE 2,653,898,578 E6FFFF MOV DWORD PTR SS:[EBP-1988], EAX//preserves the antidump first address
+00DE 265,983 BD 78E6FFFF 0>CMP DWORD PTR SS:[EBP-1988], 0
+00DE 2,660,740 B JE SHORT 00DE266D
+*/
+_SetSplitCodeHead:
+mov eax, NewSplitCodeHead
+mov bSplitCodeOver, 1
+bphwc SetSplitCodeHead
+cmp bIatOver, 1
+je _FixOver
+run 
+
+//Other raw sewage break point
+_InvalidBreak:
+log eip
+msg “Invalid Break”
+ret
+
+
+
+//IAT, the AntiDump processing finished
+//The preparation jumps toward OEP
+_FixOver:
+eoe _Continue
+eob _End
+bphws OEP, “x”
+run
+
+_Continue: 
+esto 
+
+_End:
+bphwc OEP
+msg “Success!”
+ret
+ 

@@ -1,0 +1,137 @@
+/*
+脚本   : Vmprotect 2.0x Unpacker(2.01-2.05)
+版本     : v1.0
+日期     : 09-6-2010
+调试选项 : 1.设置 OllyDbg 忽略所有异常选项 
+	   2.使用海风月影全选项.
+	   3.去掉'选项-调试设置-地址-解析修饰符号名称' 前面的勾,然后重新打开OD.跑脚本.(必须)
+工具 : OllyDbg1.1, ODBGScript 1.65
+感谢 : 牙签群里各位大牛.
+*/
+
+var getapi
+var write
+var addr
+var dword
+var end
+var begin
+var vpro
+var rapi
+var dllname
+var apiname
+var imgbase
+var imgbasefromdisk
+var sizeofimg
+var tmp1
+var tmp2
+var secbase
+var secsize
+var logfile
+mov logfile,"FakIat.txt"
+
+/////////////////////////
+//配置区
+/////////////////////////
+mov first,005D9333
+mov write,00D3BEAF
+mov getapi,00D3BEC4
+mov begin,0012F7FC
+mov end,0012FB98
+/////////////////////////
+
+cmp $VERSION, "1.64"
+jb odbgver
+GMI eip, MODULEBASE
+mov imgbase, $RESULT
+mov tmp1, [imgbase+3C]
+add tmp1, imgbase
+mov signVA, tmp1
+mov imgbasefromdisk, [signVA+34]
+mov sizeofimg, [signVA+50]
+mov tmp1, signVA
+add tmp1, f8
+mov tmp2, 0
+mov tmp2, [signVA+6], 2
+wrta logfile,tmp2
+wrta logfile,"\r\n"
+
+last:
+mov secsize, [tmp1+8]
+mov tmp3, [tmp1+0C]
+add tmp3, imgbase
+mov secbase, tmp3
+wrta logfile,secbase
+wrta logfile,"\r\n"
+wrta logfile,secsize
+wrta logfile,"\r\n"
+cmp tmp2, 1
+je lab1
+add tmp1, 28
+sub tmp2, 1
+jmp last
+
+lab1:
+
+
+cmp imgbasefromdisk, imgbase
+je lab1_1
+jmp error
+
+lab1_1:
+bc
+bphwc
+
+gpa "VirtualProtect","kernel32.dll"
+mov vpro,$RESULT
+add vpro,13
+bp vpro
+esto
+bc
+sub end,4
+bphws end,"w"
+esto
+bphwc
+bphws first
+add end,4
+loopfix:
+eval "eax>{begin}&&eax<{end}"
+bpcnd getapi, $RESULT
+esto
+cmp eip,first
+je exit
+bc eip
+sti
+mov rapi,eax
+gn eax
+mov dllname,$RESULT_1
+mov apiname,$RESULT_2
+bp write
+esto
+cmp eip,first
+je exit
+bc eip
+mov addr,eax
+mov dword,rapi
+sub dword,edx
+wrta logfile,addr
+wrta logfile,","
+wrta logfile,dword
+wrta logfile,","
+wrta logfile,dllname
+wrta logfile,","
+wrta logfile,apiname
+wrta logfile,"\r\n"
+jmp loopfix
+
+error:
+msg "dll不支持."
+RET
+
+odbgver:
+msg "ODSCR版本要大于1.65"
+ret
+
+exit:
+bc
+bphwc
+ret

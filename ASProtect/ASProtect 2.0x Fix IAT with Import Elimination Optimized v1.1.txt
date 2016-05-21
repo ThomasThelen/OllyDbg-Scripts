@@ -1,0 +1,327 @@
+//copyright by Pnluck 20005 pnluck@virgilio.it
+//if u use this script for write a tutorial, u can put  me in thankses :D
+//i must to thanks MaRKuS-DJM and KaGra for their info at http://forum.exetools.com/showthread.php?t=7545
+//modified and optimized by D3XT3R for the recursive capabilities
+//
+//This script will ONLY run on ODBGScript v1.41 or higher. If you try to use this with any other plugin or a lower version DO NOT
+//expect me to give you any support what so ever.
+
+var $STD
+var x_addr     //addr originale
+var x_LoadLib  //addr LoadLibraryA
+var x_AddrApi
+var data_sect
+var end_data
+var x_eax
+var go
+var xvar
+var str
+var x
+var str_eax
+var str_edi
+var sav_eax
+var sav_ecx
+var sav_edx
+var sav_ebx
+var sav_esp
+var sav_ebp
+var sav_esi
+var sav_edi
+var save_data
+var confronta
+var iat_section
+var save_dll
+var OEP
+
+var save_iats
+var save_iate
+
+var prevcall
+var calldest
+var checkadd
+var endadd
+var fincall
+var Call_Jump
+
+//chiedo l'addr della .data section
+
+reset:
+mov OEP,eip
+msgyn "Is the IAT of this PE corrupt?"
+cmp $RESULT,0
+je start_std
+gmi eip,CODEBASE
+mov prevcall, $RESULT
+ask "Enter the address of section where is the IAT:"
+mov iat_section,$RESULT
+mov xvar,$RESULT
+mov str,1500
+eval "IAT Corrupt: Yes, Code section: {prevcall}, IAT section: {iat_section}, Is this correct?"
+msgyn $RESULT
+cmp $RESULT,0
+je reset
+msgyn "Is it CALL to CALL?"
+cmp $RESULT,0
+je inizio
+mov Call_Jump,1 
+
+//find the start of iat
+inizio:
+mov x,[iat_section]
+cmp x,0
+je do_jmp
+gn x
+cmp $RESULT_1,0
+jne trovato1
+mov [iat_section],0
+
+do_jmp:
+add iat_section,4
+jmp inizio
+
+trovato1:
+mov save_iats,iat_section
+eval "The iat start at {iat_section}"
+MSG $RESULT
+
+
+//find the end of iat
+mov iat_section,str
+add iat_section,xvar
+inizio1:
+mov x,[iat_section]
+cmp x,0
+je do_jmp1
+gn x
+cmp $RESULT_1,0
+jne pre_start
+mov [iat_section],0
+
+do_jmp1:
+sub iat_section,4
+jmp inizio1
+
+pre_start:
+mov save_iate,iat_section
+add iat_section,4
+mov data_sect,iat_section
+
+//ora cancello dall'iat gli addr errati
+erase_garbage:
+mov x,[save_iats]
+gn x
+cmp $RESULT_1,0
+jne add_addr
+mov [save_iats],0
+add_addr:
+cmp save_iats,save_iate
+je getcall
+add save_iats,4
+jmp erase_garbage
+
+getcall:
+ask "Enter the AIP Call destination address:"
+mov endadd,$RESULT
+ask "Enter the address of the last call to repair:"
+mov fincall,$RESULT
+jmp start_procs
+
+start_procs:
+eval "AIP call destination: {endadd}, Final call: {fincall}. Is this correct?"
+msgyn $RESULT
+cmp $RESULT,1
+jne getcall
+
+start_proc:
+//domando che call devo analizzare
+add prevcall,1
+cmp prevcall, fincall
+ja fine
+find prevcall, #e8????????#
+cmp $RESULT,0
+je fine
+mov prevcall,$RESULT
+mov x_addr,$RESULT 
+mov eip,$RESULT
+mov checkadd,eip
+add checkadd,1
+mov calldest, [checkadd]
+add calldest, eip
+add calldest,5
+cmp calldest,endadd
+jne start_proc
+GPA "LoadLibraryA","kernel32.dll"
+cmp $RESULT,0
+je exit
+mov x_LoadLib,$RESULT
+add x_LoadLib,b
+bp x_LoadLib  //setto bp al je di LoadLibraryA
+run
+bc x_LoadLib
+//al bp
+//verifico secon i egistri è tutto a posto
+cmp eax,0
+je vuoi_usci
+cmp edi,0
+je vuoi_usci
+mov x_eax,eax
+mov str,""
+mov go,1
+
+//inizio della proc hex->ascii
+analize:
+mov xvar,[x_eax]
+and xvar,0ff
+
+
+cmp xvar,0
+je fin_an
+
+GPA [edi],[eax]
+
+mov x,$RESULT
+
+//inizio la ricerca di un dword usabile
+start_trovo:
+cmp save_dll,[eax]
+je trovato
+add data_sect,4
+mov save_dll,[eax]
+jmp trovato
+
+trovato:
+mov [data_sect],x
+trov:
+eval "jmp dword ptr [{data_sect}]"
+asm x_addr,$RESULT
+
+mov eip,x_addr
+add data_sect,4
+jmp start_proc
+
+fine:
+mov eip,OEP
+ret
+
+exit:
+MSG "Error" 
+ret
+
+vuoi_usci:
+MSGYN "Error: eax or edi value is 0, do you want continue with analising?"
+cmp $RESULT,1
+jne fine
+mov eip,x_addr
+jmp start_proc
+
+start_std:
+mov OEP,eip
+mov sav_eax,eax
+mov sav_ecx,ecx
+mov sav_edx,edx
+mov sav_ebx,ebx
+mov sav_esp,esp
+mov sav_ebp,ebp
+mov sav_esi,esi
+mov sav_edi,edi
+
+reset_std:
+msgyn "Is it CALL to CALL?"
+cmp $RESULT,0
+je IAT_INFO
+mov Call_Jump,1 
+
+IAT_INFO:
+
+ask "Enter the address of the data section:"
+mov data_sect,$RESULT
+mov save_data,$RESULT
+mov end_data,$RESULT
+ask "Enter the size of the data section:"
+add end_data,$RESULT
+
+gmi eip,CODEBASE
+mov x_addr,$RESULT
+ask "Enter the AIP Call destination address:"
+mov endadd,$RESULT
+ask "Enter the address of the last call to repair:"
+mov fincall,$RESULT
+eval "IAT Corrupt: No, Code section: {x_addr}, Data section: {data_sect}, End of data section: {end_data}, AIP Calls: {endadd}, Last call: {fincall}.  Is this correct?"
+msgyn $RESULT
+cmp $RESULT,0
+je reset_std
+jmp start_proc_std
+
+start_proc_std:
+add x_addr,1
+cmp x_addr, fincall
+ja fine_std
+find x_addr, #e8????????#
+cmp $RESULT,0
+je fine_std
+mov x_addr,$RESULT 
+mov eip,$RESULT
+mov checkadd,eip
+add checkadd,1
+mov calldest, [checkadd]
+add calldest, eip
+add calldest,5
+cmp calldest,endadd
+jne start_proc_std
+mov eip,x_addr
+GPA "LoadLibraryA","kernel32.dll"
+cmp $RESULT,0
+je exit_std
+mov x_LoadLib,$RESULT
+add x_LoadLib,b
+bp x_LoadLib
+run
+bc x_LoadLib
+mov x_eax,eax
+mov str,""
+mov go,1
+
+analyze:
+mov xvar,[x_eax]
+and xvar,0ff
+
+cmp xvar,0
+je fin_an_std
+
+GPA [edi],[eax]
+cmp $RESULT,0
+je exit_std
+mov x,$RESULT
+
+start_fix:
+mov xvar,[data_sect]
+cmp x,xvar
+je fix
+add data_sect,4
+cmp data_sect,end_data
+je exit
+jmp start_fix
+
+fix:
+cmp Call_Jump,0
+jne fix2
+eval "jmp dword ptr [{data_sect}]"
+asm x_addr,$RESULT
+mov eip,x_addr
+mov data_sect,save_data
+jmp start_proc_std
+
+fix2:
+eval "Call dword ptr [{data_sect}]"
+asm x_addr,$RESULT
+mov eip,x_addr
+mov data_sect,save_data
+jmp start_proc_std
+
+fine_std:
+mov eip,OEP
+ret
+
+exit_std:
+msg "Error"
+ret

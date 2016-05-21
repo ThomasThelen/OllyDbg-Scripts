@@ -1,0 +1,214 @@
+﻿/*
+/////////////////////////////////////////////////////
+Auther  : Linex        
+version : v1.01
+Test Environment : OllyDbg 1.1
+                   ODBGScript 1.47 under WINXP or WIN2003
+/////////////////////////////////////////////////////
+*/
+
+var tmp1            
+var tmp2            
+var tmp3            
+var tmp4            
+var tmp5            
+var tmp6            
+var tmp7            
+var tmp8            
+var tmp9            
+var imgbase
+var 1stsecbase
+var 1stsecsize
+var dllimgbase
+var count
+var transit1
+var stolen
+var stolenstart
+var stolencmt
+var stolenadds
+
+checkversion:
+cmp  $VERSION,"1.47"
+jae  int3
+msg  "ODBGScript version need 1.47 or higher!"
+ret
+int3:
+msgyn "Setting:Ignore all exceptions except 'INT 3 breaks',Continue?(请设置忽略除INT3外的所有异常!继续吗?)"
+cmp $RESULT,1
+je  start                                        
+ret
+start:
+dbh
+BPHWCALL                //clear hardware breakpoint
+GMI eip, MODULEBASE     //get imagebase
+mov imgbase, $RESULT
+log imgbase
+mov tmp1, imgbase
+add tmp1, 3C              //40003C
+mov tmp1, [tmp1]
+add tmp1, imgbase         //tmp1=signature VA
+add tmp1, f8              //1st section
+log tmp1
+add tmp1, 8
+mov 1stsecsize, [tmp1]
+log 1stsecsize
+add tmp1, 4
+mov 1stsecbase, [tmp1]
+add 1stsecbase, imgbase
+log 1stsecbase
+gpa "GetSystemTime", "kernel32.dll"
+bp $RESULT
+run
+bc $RESULT
+rtr
+sti
+GMEMI eip, MEMORYOWNER
+mov dllimgbase, $RESULT
+cmp dllimgbase, 0
+je error
+log dllimgbase
+alloc 2000
+mov stolen,$RESULT
+log stolen
+mov stolenstart,stolen
+find dllimgbase, #3135310D0A#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je wrongver
+mov tmp1, dllimgbase
+add tmp1, 010e00
+find tmp1, #B8050000005b5dc20400#      //MOV EAX,5 POP EBX POP EBP RETN 4
+mov tmp4, $RESULT
+cmp tmp4, 0
+je error31
+bphws tmp4 ,"x"
+
+find tmp1, #8B45F08B55F43B55FC#          //remove anti
+mov tmp5, $RESULT
+cmp tmp5, 0
+je wrongver
+add tmp5,0e
+bp tmp5 
+
+find tmp1, #83c4245f5e5bc3#         //ADD ESP,24 POP EDI POP ESI POP EBX
+mov tmp6, $RESULT
+cmp tmp6, 0
+je wrongver
+sub tmp6,5
+bphws tmp6 ,"x" 
+
+find tmp1, #83c3088b0385c075df33c0#   //ADD EBX,8  MOV EAX,DWORD PTR DS:[EBX] TEST EAX,EAX
+mov tmp7, $RESULT
+cmp tmp7, 0
+je error31
+add tmp7,9
+bp tmp7 
+eob lab3
+eoe lab3
+run
+
+lab3:
+cmp eip, tmp4
+je lab4
+cmp eip,tmp5
+je lab31
+cmp eip,tmp7
+je lab6
+cmp eip,tmp6
+je lab62
+eob lab3
+eoe lab3
+run
+
+lab31:
+cmp !zf,1
+je lab32
+mov !zf,1
+bc tmp5
+run
+
+lab4:
+mov [stolen],ebx
+add stolen,4
+run
+
+lab6:
+bc tmp7
+bphwc tmp4
+cob 
+coe
+
+
+lab61:
+run
+cmp eip,tmp6
+je lab5
+jmp lab61
+
+lab62:
+bc tmp7
+bphwc tmp4
+cob 
+coe
+bphwc tmp6
+sti
+rtr
+sti
+bprm 1stsecbase, 1stsecsize
+run
+bpmc
+msg "OEP found, no stolen code at the OEP!"
+pause
+ret
+
+
+
+lab5:
+bphwc tmp6
+sti
+rtr
+sti
+
+oep:
+msg "Stolen Oep Find !Press Ok to add cmtments"
+
+cmtstolen:
+mov stolencmt,[stolenstart]
+cmp stolencmt,0
+je end
+mov tmp8,stolencmt
+add tmp8,1
+mov stolenadds,[tmp8]
+mov stolenadds,stolenadds+stolencmt+5
+eval "{stolencmt}"
+cmt stolenadds, $RESULT
+add stolenstart,4
+jmp cmtstolen
+
+end:
+
+msg "cmtments  are added!"
+ret
+
+
+error:
+msg "Error!"
+pause
+jmp end
+
+wrongver:
+msg "Unsupported Aspr version or it is not packed with Aspr?"
+pause
+jmp end
+
+error31:
+msg "Error 31!"
+pause
+jmp end
+
+notfound:
+msg "Not found"
+pause
+
+end:
+ret

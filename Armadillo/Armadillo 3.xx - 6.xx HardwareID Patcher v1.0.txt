@@ -1,0 +1,712 @@
+////////////////////////Château-Saint-Martin//////////////////////////////////////////////////
+//                                                                 //////////////////////////
+//  FileName    :  Armadillo 3.xx - 6.xx HWID-Patcher-PS 1.0       /////////////////////////
+//  Features    :                                                  ////////////////////////
+//                 This script stores the new HWID information     ///////////////////////
+//                 permanently on your system.Unpacking of HWID    //////////////////////
+//                 targets is not more required.                   /////////////////////
+//                                                                 ////////////////////
+//  ************************************************************   ///////////////////
+//  *               This script calculates a new FingerPrint   *   //////////////////
+//  *               for every different single target and      *   /////////////////
+//  *               stores the new one.                        *   ////////////////
+//  *                                                          *   ///////////////
+//  *               Supported version are:                     *   //////////////
+//  *                -Standard Hardware Locking                *   /////////////
+//  *                -Enhanced Hardware Locking                *   ////////////
+//  ************************************************************   ///////////
+//  *	            Note:If you get this message...            *   //////////
+//  *               > "Problem! Update necessary" <            *   /////////
+//  *               Then let my know it,thanks!                *   //////// 
+//  ************************************************************   ///////
+//                                                                 //////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript v1.66.3          /////
+//  Author      :  LCF-AT                                          ////
+//  Date        :  2008-25-12                                      ///
+//                                                                 //
+//                                                                // 
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!///////////////  	
+
+LC
+eval "Armadillo 3.xx - 6.xx HWID-Patcher-PS 1.0 written by LCF-AT"
+log $RESULT,""
+log "-"
+var OutputDebugStringA
+var OpenMutexA
+var GetSystemTime
+var VirtualProtect
+var address1
+var address2
+var RegValue
+var NewPrint
+var a1
+var a2
+var a3
+var a4
+var a5
+var Reger
+var abc1
+var T1
+var T2
+var T3
+var DFG
+var mers
+var sam1
+var sam2
+var TEST_A
+var FX_one
+var NewPrint_2
+//////////////////////////////
+var S_Section
+var FOUND_1
+var FOUND_2
+var FOUND_3
+var S_code1
+var S_code2
+var S_eip
+var Offset
+var xor_01
+var xor_02
+var NewPrint
+var NewPrintS
+var xor_In_01
+var xor_In_02
+var Reger
+var TEST_01
+var CreateThread
+var nichts_gefunden
+var ARMA_3
+var TT_1
+var SEB
+var SEB_2
+var TR
+var TR_2
+var KS
+var KS_2
+////////////////////////////
+dbh
+mov mers, 0
+BPHWCALL
+BPMC
+BC
+////////////////////////////
+start0:
+
+mov TT_1, 0
+mov $RESULT, 0
+ask "Enter New Fingerprint without - like 1234ABCD"
+cmp $RESULT,FFFFFFFF
+je ende_2
+
+mov NewPrint, $RESULT
+mov NewPrintS, $RESULT
+mov ss, $RESULT
+READSTR ss, len
+mov ss, $RESULT
+len $RESULT
+mov ss, $RESULT
+cmp $RESULT, 0
+jne ende_2
+
+mov ss, NewPrint
+////////////////////////////
+TEV_0:
+
+////////////////////////////
+TEV_1:
+
+mov TT_1, 0
+mov $RESULT, 0
+eval "You have enter a new HWID >>> {NewPrint} <<< Just enter HEX values 0-9 and A-F!!!Press yes if correct!"
+log $RESULT, ""
+msgyn $RESULT
+cmp $RESULT, 0
+je start0
+cmp $RESULT, 2
+je ende
+mov $RESULT, 0
+
+////////////////////////////
+start:
+
+mov Reger, 65E6C08A                        // standart xor value old
+gpa "OutputDebugStringA", "kernel32.dll"
+mov OutputDebugStringA, $RESULT
+mov [OutputDebugStringA], #C20400#
+gpa "OpenMutexA", "kernel32.dll"
+mov OpenMutexA, $RESULT
+find OpenMutexA, #C20C00#
+mov OpenMutexA, $RESULT
+gpa "GetSystemTime", "kernel32.dll"
+mov GetSystemTime, $RESULT
+find GetSystemTime, #C20400#
+mov GetSystemTime, $RESULT
+gpa "VirtualProtect", "kernel32.dll"
+mov VirtualProtect, $RESULT
+find VirtualProtect, #C21000#
+mov VirtualProtect, $RESULT
+////////////////////////////
+bphws OpenMutexA, "x"
+bp OpenMutexA
+esto
+sti
+mov eax, 1
+
+////////////////////////////
+bphws VirtualProtect, "x"
+bp VirtualProtect
+esto
+
+////////////////////////////
+cmp eip, VirtualProtect
+je Round_02
+
+cmp eip, OpenMutexA
+je Round_01
+jmp ende_3                           // Problem! Update necessary.
+
+////////////////////////////
+Round_01:
+sti
+mov eax, 1
+bphwc OpenMutexA
+bc OpenMutexA
+esto
+
+cmp eip, VirtualProtect
+je Round_02
+jmp ende_3                           // Problem! Update necessary.
+
+////////////////////////////
+Round_02:
+bphwc VirtualProtect
+bc VirtualProtect
+bphwc OpenMutexA
+bc OpenMutexA
+
+mov S_Section, [esp+4]              // older serach section
+
+find S_Section, #8B??????????8B??????8B??????3381????????#        // Arma 3.xx
+cmp $RESULT, 0
+jne ARMADILLO_3.xx
+
+find S_Section, #8B??????????8B??????8B????????????3381????????#  // Arma 4.xx
+cmp $RESULT, 0
+jne Round_05b
+
+////////////////////////////
+
+bphws GetSystemTime, "x"
+bp GetSystemTime
+esto
+
+cmp eip, GetSystemTime
+je Round_03
+jmp ende_3                           // Problem! Update necessary.
+
+Round_03:
+bc GetSystemTime
+bphwc GetSystemTime
+sti
+////////////////////////////
+start2:
+
+find S_Section, #358AC0E665#       // XOR EAX,65E6C08A
+cmp $RESULT, 0
+jne ARMADILLO_4.xx
+
+find S_Section, #8B??????????8B??????8B??????3381????????#        // Arma 3.xx
+cmp $RESULT, 0
+jne ARMADILLO_3.xx
+
+find S_Section, #8B??????????8B??????8B????????????3381????????# // Arma 4.xx
+cmp $RESULT, 0
+jne Round_05b
+
+find S_Section, #558BEC83EC0C894DF88B45F88B885C060000#           // Arma 5 and 6 some 4
+cmp $RESULT, 0
+jne ARMADILLO_6.xx
+
+////////////////////////////
+findop eip, #E8#
+cmp $RESULT, 0
+je ende_3
+
+go $RESULT
+sti
+
+findop eip, #E8#
+cmp $RESULT, 0
+je ende_3
+
+go $RESULT
+sti
+
+find eip, #8B84#
+cmp $RESULT, 0
+je ende_3
+
+go $RESULT
+GCI eip, SIZE
+cmp $RESULT, 7
+jne ende_3
+
+opcode eip
+mov SEB, $RESULT_1
+
+mov TR, eip
+mov TR_2, eip
+
+GMEMI eip, MEMORYBASE
+mov SEB_2, $RESULT
+////////////////////////////
+AS_1:
+cmp TR_2, SEB_2
+je AS_2
+dec TR_2
+opcode TR_2
+cmp SEB, $RESULT_1
+jne AS_1
+mov TR_2, TR_2
+jmp ARMADILLO_6.xx_2
+
+////////////////////////////
+AS_2:
+log "Nothing Found!"
+jmp ende_3                           // Problem! Update necessary.
+
+////////////////////////////
+ARMADILLO_4.xx:
+
+mov FOUND_1, $RESULT                // address XOR EAX,65E6C08A
+mov FOUND_2, $RESULT
+
+PREOP FOUND_1
+mov FOUND_1, $RESULT
+
+BPHWS FOUND_1, "x"
+esto
+
+////////////////////////////
+SAILER:
+sto
+rtr
+
+SAILER_2:
+sto
+mov ss, [eip]
+and ss, 0ff
+cmp ss, 33                     // xor eax dword [xxx] check
+jne SAILER_2
+
+GCI eip, SIZE
+cmp $RESULT, 6
+jne SAILER_2
+
+mov S_eip, eip                 // eip sichern
+mov S_code1, [eip]             // code an eip seichern
+mov S_code2, [eip+1]
+asm eip, "pushad"
+LOOP_00:
+sto                            //  pushad ausführen (register sichern)
+cmp eip, S_eip
+je LOOP_00
+
+mov eip, S_eip
+mov [eip], 8D                  // patche Befehl zu LEA Register, [???????]
+mov [eip+1], S_code2
+////////////////////////////
+LOOP_01:
+sto
+cmp eip, S_eip
+je LOOP_01
+
+cmp eax, [esp+1C]              // vergleiche welches Register sich ändert
+je _ecx
+mov Offset, eax
+jmp Found
+ 
+_ecx:
+cmp ecx, [esp+18]
+je _edx
+mov Offset, ecx
+jmp Found
+ 
+_edx:
+cmp edx, [esp+14]
+je _ebx
+mov Offset, ebx
+jmp Found
+ 
+_ebx:
+cmp ebx, [esp+10]
+je _ebp
+mov Offset, ebx
+jmp Found
+ 
+_ebp:
+cmp ebp, [esp+8]
+je _esi
+mov Offset, ebp
+jmp Found
+ 
+_esi:
+cmp esi, [esp+4]
+je _edi
+mov Offset, esi
+jmp Found
+ 
+_edi:
+cmp edi, [esp]
+je NotFound
+mov Offset, edi
+////////////////////////////
+Found:
+mov xor_01, Offset           // First Address
+jmp ende_01
+////////////////////////////
+NotFound:
+mov nichts_gefunden, 01
+log "kein Offset gefunden"
+
+////////////////////////////
+ende_01:
+mov eip, S_eip 
+asm eip, "popad"  
+////////////////////////////
+LOOP_02:
+sto                
+cmp eip, S_eip
+je LOOP_02
+mov eip, S_eip        
+mov [eip], S_code1    
+
+/////////////////////////////
+cmp nichts_gefunden, 01
+je Round_04a
+
+mov xor_02, xor_01          // address
+mov xor_In_01, [xor_02]     // value
+mov xor_In_02, xor_In_01
+
+xor xor_In_01, eax          //Reger after
+mov xor_In_01, xor_In_01    // B6E88764
+
+eval "The actually FingerPrint is {xor_In_01}"
+log "-"
+log $RESULT, ""
+
+xor NewPrint, eax
+mov NewPrint, NewPrint
+
+mov [xor_02], NewPrint     // New end 01
+mov NewPrint, NewPrintS
+
+////////////////////////////
+Round_04a:
+mov nichts_gefunden, 0
+sto
+sto
+esto
+
+cmp eip, FOUND_1
+je Round_04
+jmp ende_3                           // Problem! Update necessary.
+
+////////////////////////////
+Round_04:
+inc TEST_01
+cmp TEST_01, 3             // count three rounds
+jb SAILER
+
+cmp [xor_02+4], 0         // drüber
+jne elmo2
+
+elmo1:
+cmp [xor_02-4], 0         // drunter
+je SAILER
+
+////////////////////////////
+elmo2:
+cmp nichts_gefunden, 01
+jne Round_04b
+mov ziel, "NO"
+jmp Round_04c
+Round_04b:
+mov ziel, "YES"
+Round_04c:
+log "-"
+je Round_04b
+eval "The FingerPrint was patched two times for Standart and Enhanced Lock permanently >>>{ziel} to {NewPrintS}<<<"
+log $RESULT, ""
+bphwcall
+BC
+msg $RESULT
+esto
+ret
+////////////////////////////
+////////////////////////////
+////////////////////////////
+ARMADILLO_3.xx:
+
+mov FOUND_1, $RESULT
+mov S_Section, $RESULT
+add S_Section, 02
+
+find S_Section, #8B??????????8B??????8B??????3381????????#
+cmp $RESULT, 0
+jne Round_05
+
+find S_Section, #8B??????????8B??????8B????????????3381????????#
+cmp $RESULT, 0
+jne Round_05b
+log "Nothing Found!"
+jmp ende_3                           // Problem! Update necessary.
+
+Round_05b:
+add $RESULT, 03
+
+////////////////////////////
+Round_05:
+mov FOUND_2, $RESULT
+add FOUND_2, 0E
+add FOUND_1, 0E
+
+BPHWS FOUND_1, "x"
+BPHWS FOUND_2, "x"
+esto
+
+////////////////////////////
+Round_06a:
+cmp eip, FOUND_1
+jne Round_06
+BPHWC FOUND_1
+jmp Round_05a
+Round_06:
+BPHWC FOUND_2
+
+////////////////////////////
+Round_05a:
+inc ARMA_3
+mov S_eip, eip               
+mov S_code1, [eip]           
+mov S_code2, [eip+1]
+asm eip, "pushad"
+LOOP_03:
+sto                       
+cmp eip, S_eip
+je LOOP_03
+
+mov eip, S_eip
+mov [eip], 8D                  // patche Befehl zu LEA Register, [???????]
+mov [eip+1], S_code2
+////////////////////////////
+LOOP_04:
+sto
+cmp eip, S_eip
+je LOOP_04
+
+mov xor_01, eax            
+mov eip, S_eip 
+asm eip, "popad"
+LOOP_05:
+sto                       
+cmp eip, S_eip
+je LOOP_05
+mov eip, S_eip        
+mov [eip], S_code1        
+mov [eip+1], S_code2
+
+xor NewPrint, eax
+mov NewPrint, NewPrint
+mov [xor_01], NewPrint     // New end 01
+mov NewPrint, NewPrintS
+
+eval "The new HWID was successfully patched to {NewPrintS}"
+log $RESULT, ""
+msg $RESULT
+
+esto
+cmp ARMA_3, 2
+jb Round_06a
+
+pause
+ret
+////////////////////////////
+////////////////////////////
+////////////////////////////
+ARMADILLO_6.xx:
+
+mov FOUND_1, $RESULT
+mov S_Section, $RESULT
+add S_Section, 02
+
+find S_Section, #558BEC83EC0C894DF88B45F88B885C060000#  // 2. time
+cmp $RESULT, 0
+jne Round_07
+jmp ende_3                           // Problem! Update necessary.
+
+//////////////
+Round_07:
+mov FOUND_2, $RESULT
+
+BP FOUND_1
+BP FOUND_2
+esto
+
+////////////////////////////
+Round_07ab:
+cmp eip, FOUND_1
+jne Round_07a
+BC FOUND_1
+jmp Round_08
+
+////////////////////////////
+Round_07a:
+BC FOUND_2
+
+////////////////////////////
+Round_08:
+find eip, #8B840A64200000#          // Arma 6.xx
+cmp $RESULT, 0
+jne Round_08a
+                                    // check noch einbauen
+
+find eip, #8B840A5C200000#          // Arma 5.xx
+cmp $RESULT, 0
+jne Round_08a
+ 
+
+find eip, #8B840A???00000#          // Arma 5.xx or 6
+cmp $RESULT, 0
+jne Round_08a
+
+////////////////////////////
+Dreh_01:
+sto
+mov ss, [eip]
+and ss, 0ffff
+cmp ss, 848B                   // MOV EAX,DWORD PTR DS:[????????] check
+jne Dreh_01
+mov a1, 1
+mov $RESULT, eip
+///////////////////////////////
+Round_08a:
+mov FOUND_3, $RESULT
+cmp a1, 1
+je Round_08as
+go FOUND_3
+
+////////////////////////////
+Round_08as:
+mov a1, 0
+inc ARMA_3
+mov S_eip, eip               
+mov S_code1, [eip]            
+mov S_code2, [eip+1]
+asm eip, "pushad"
+LOOP_08b:
+sto                         
+cmp eip, S_eip
+je LOOP_08b
+
+mov eip, S_eip
+mov [eip], 8D      
+mov [eip+1], S_code2
+////////////////////////
+LOOP_08c:
+sto
+cmp eip, S_eip
+je LOOP_08c
+
+mov xor_01, eax           
+mov eip, S_eip 
+asm eip, "popad"
+
+////////////////////////////
+LOOP_08d:
+sto                   
+cmp eip, S_eip
+je LOOP_08d
+mov eip, S_eip        
+mov [eip], S_code1       
+mov [eip+1], S_code2
+
+findop eip, #E8#
+cmp $RESULT, 0
+jne Round_09
+jmp ende_3                           // Problem! Update necessary.
+
+////////////////////////////
+Round_09:
+bp $RESULT+5
+esto
+bc $RESULT+5
+
+mov xor_02, eax
+xor NewPrint, xor_02
+mov NewPrint, NewPrint
+
+mov [xor_01], NewPrint
+mov NewPrint, NewPrintS
+////////////////////////////
+Round_Seven:
+eval "FingerPrints was successfully patched to >>>> {NewPrintS} <<<<"
+log $RESULT, ""
+msg $RESULT
+esto
+cmp ARMA_3, 2
+jb Round_07ab
+ret
+////////////////////////////
+ende:
+ret
+////////////////////////////
+ende_2:
+mov TT_1, 0
+msg "You have to enter just 8 digits also in HEX values 0-9 and A-F,try it again!"
+jmp start0
+////////////////////////////
+ende_3:
+eval "Problem! Update necessary.Try to send me your target to update this script."
+log $RESULT, ""
+msg $RESULT
+pause
+ret
+////////////////////////////
+////////////////////////////
+////////////////////////////
+ARMADILLO_6.xx_2:
+inc ARMA_3
+
+GOPI TR, 2, ADDR
+mov KS, $RESULT     // Address
+
+GOPI TR, 2, DATA
+mov KS_2, $RESULT     // [Address]
+
+findop eip, #E8#
+cmp $RESULT, 0
+je ende_3
+
+bp $RESULT+5
+esto
+bc $RESULT+5
+
+mov xor_02, eax
+xor NewPrint, xor_02
+mov NewPrint, NewPrint
+
+mov [KS], NewPrint
+mov NewPrint, NewPrintS
+cmp ARMA_3, 2
+je Round_Seven
+
+BP TR_2
+esto
+BC TR_2
+mov TR, eip
+jmp ARMADILLO_6.xx_2
+////////////////////////////
+////////////////////////////
+////////////////////////////

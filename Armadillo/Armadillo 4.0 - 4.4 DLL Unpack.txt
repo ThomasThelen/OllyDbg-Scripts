@@ -1,0 +1,267 @@
+Armadillo V4.0-V4.4.DLL UnPacK Script
+
+
+/////////////////////////////////////////////////////////////
+// FileName    :  Armadillo V4.0-V4.4.DLL.osc
+// Comment     :  Armadillo V4.0-V4.4.DLL UnPacK Script
+// Environment :  WinXP SP2,OllyDbg V1.10,OllyScript V0.92
+// Author      :  fly
+// WebSite     :  http://www.unpack.cn
+// Date        :  2005-12-12 16:00
+/////////////////////////////////////////////////////////////
+
+/*
+★ 注意: ★
+如果OllyDBG载入目标DLL时无法暂停在其EP而直接运行
+请先设置OllyDBG忽略除了“内存访问异常”和“异常范围”之外的其他异常选项，
+等OllyDBG暂停在第一个内存异常处，再忽略所有异常选项，然后运行此脚本。
+
+Attention:  
+  if OllyDBG fail to first pause at EP when loading a dll,
+  plz not check the "Memory access violation" & "Igorne also following ..."
+  after is pause at first exceptoin, then check those exceptions options all and run the script.
+*/
+
+
+#log
+dbh
+
+var T0
+var T1
+var temp
+var bpcnt
+var MagicJMP
+var JmpAddress
+var fiXedOver
+var OpenMutexA 
+var GetModuleHandleA
+var set_new_handler
+var FindOEP
+
+
+MSGYN "Plz Clear All BreakPoints  And  Set Debugging Option Ignore All Excepions Options  And  Add C000001D..C000001E in custom exceptions !"
+cmp $RESULT, 0
+je TryAgain
+
+
+//OutputDebugStringA————————————————————————————————
+
+gpa "OutputDebugStringA", "KERNEL32.dll"
+mov [$RESULT], #C20400#
+
+
+//OpenMutexA————————————————————————————————
+
+gpa "OpenMutexA", "KERNEL32.dll"
+mov OpenMutexA,$RESULT
+mov [OpenMutexA], #33C0C20C00#
+
+
+//GetModuleHandleA————————————————————————————————
+
+gpa "GetModuleHandleA", "KERNEL32.dll"
+find $RESULT,#C20400#
+mov GetModuleHandleA,$RESULT
+bp GetModuleHandleA
+
+eob GetModuleHandleA
+GoOn0:
+esto
+
+GetModuleHandleA:
+cmp eip,GetModuleHandleA
+jne GoOn0
+cmp bpcnt,1
+je  VirtualFree
+cmp bpcnt,2
+je  Third
+
+  
+/*
+00129528   00BE6DF3  RETURN to 00BE6DF3 from kernel32.GetModuleHandleA
+0012952C   00BFBC1C  ASCII "kernel32.dll"
+00129530   00BFCEC4  ASCII "VirtualAlloc"
+*/
+
+VirtualAlloc:  
+mov temp,esp
+add temp,4
+log temp
+mov T0,[temp]
+cmp [T0],6E72656B
+log [T0]
+jne GoOn0
+add temp,4
+mov T1,[temp]
+cmp [T1],74726956
+jne GoOn0
+bc OpenMutexA
+inc bpcnt
+jmp GoOn0
+
+
+/*
+00129528   00BE6E10  RETURN to 00BE6E10 from kernel32.GetModuleHandleA
+0012952C   00BFBC1C  ASCII "kernel32.dll"
+00129530   00BFCEB8  ASCII "VirtualFree"
+*/
+
+VirtualFree:
+mov temp,esp
+add temp,4
+mov T1,[temp]
+cmp [T1],6E72656B
+jne GoOn0
+add temp,4
+mov T1,[temp]
+add T1,7
+cmp [T1],65657246
+log [T1]
+jne GoOn0
+inc bpcnt
+jmp GoOn0
+
+
+/*
+0012928C   00BD5CE1  RETURN to 00BD5CE1 from kernel32.GetModuleHandleA
+00129290   001293DC  ASCII "kernel32.dll"
+*/   
+
+Third:
+mov temp,esp
+add temp,4
+mov T1,[temp]
+cmp [T1],6E72656B
+jne GoOn0
+bc GetModuleHandleA
+sti
+
+
+//MagicJMP————————————————————————————————
+
+/*
+00BD5CDB     FF15 B860BF00      call dword ptr ds:[BF60B8]       ; kernel32.GetModuleHandleA
+00BD5CE1     8B0D AC40C000      mov ecx,dword ptr ds:[C040AC]
+00BD5CE7     89040E             mov dword ptr ds:[esi+ecx],eax
+00BD5CEA     A1 AC40C000        mov eax,dword ptr ds:[C040AC]
+00BD5CEF     391C06             cmp dword ptr ds:[esi+eax],ebx
+00BD5CF2     75 16              jnz short 00BD5D0A
+00BD5CF4     8D85 B4FEFFFF      lea eax,dword ptr ss:[ebp-14C]
+00BD5CFA     50                 push eax
+00BD5CFB     FF15 BC62BF00      call dword ptr ds:[BF62BC]       ; kernel32.LoadLibraryA
+00BD5D01     8B0D AC40C000      mov ecx,dword ptr ds:[C040AC]
+00BD5D07     89040E             mov dword ptr ds:[esi+ecx],eax
+00BD5D0A     A1 AC40C000        mov eax,dword ptr ds:[C040AC]
+00BD5D0F     391C06             cmp dword ptr ds:[esi+eax],ebx
+00BD5D12     0F84 2F010000      je 00BD5E47
+*/
+
+find eip,#39????0F84#
+cmp $RESULT,0
+je NoFind
+add $RESULT,3
+mov MagicJMP,$RESULT
+log MagicJMP
+mov T0,$RESULT
+add T0,2
+mov T1, [T0]
+add T1,4
+add T1,T0
+mov JmpAddress,T1
+log JmpAddress
+eval "jmp {JmpAddress}"
+asm MagicJMP,$RESULT
+
+
+/*
+00BD5C8C     391D F0B0BF00      cmp dword ptr ds:[BFB0F0],ebx
+00BD5C92     0F84 C4010000      je 00BD5E5C
+*/
+
+mov temp,MagicJMP
+sub temp,100
+find temp,#39??????????0F84#
+cmp $RESULT,0
+je NoFind
+add $RESULT,6
+mov T0,$RESULT
+add T0,2
+mov T1, [T0]
+add T1,4
+add T1,T0
+mov fiXedOver,T1
+log fiXedOver
+eob fiXedOver
+bp fiXedOver
+
+esto
+GoOn1:
+esto
+
+fiXedOver:
+cmp eip,fiXedOver    
+jne GoOn1
+bc fiXedOver
+eval "je {JmpAddress}"
+asm MagicJMP,$RESULT
+
+
+//_set_new_handler————————————————————————————————
+
+gpa "?_set_new_handler@@YAP6AHI@ZP6AHI@Z@Z", "msvcrt.dll"
+mov set_new_handler,$RESULT
+eob set_new_handler
+bp set_new_handler
+
+esto
+GoOn2:
+esto
+
+set_new_handler:
+cmp eip,set_new_handler
+jne GoOn2
+bc set_new_handler
+rtu
+rtr
+
+
+//FindOEP————————————————————————————————
+
+/*
+10320DE6     8B0D 90D63410      mov ecx,dword ptr ds:[1034D690]
+10320DEC     51                 push ecx
+10320DED     FF15 C4D63410      call dword ptr ds:[1034D6C4]
+*/
+
+find eip,#8B??????????51FF15#
+cmp $RESULT,0
+je NoFind
+
+add $RESULT,7
+mov FindOEP,$RESULT
+log FindOEP
+eob FindOEP
+bp FindOEP
+
+esto
+
+FindOEP:
+bc FindOEP
+sti
+
+
+//GameOver————————————————————————————————  
+
+log eip
+cmt eip, "This is the OEP!  Found By: fly "                              
+                                                     
+MSG "Just : OEP !  Dump and Fix IAT/Relocation/Code Splicing.  Good Luck   "
+ret                       
+
+NoFind:
+MSG "Error! Don't find.     "
+ret
+
+TryAgain:
+MSG " Plz  Try  Again   !   "
+ret

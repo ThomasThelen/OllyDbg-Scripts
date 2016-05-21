@@ -1,0 +1,74 @@
+var CreateP
+var ChildH
+var WriteP
+var Count
+var WaitFDV
+
+dbh
+mov Count, 0
+gpa "CreateProcessW", "kernel32.dll"
+mov CreateP, $RESULT
+bp CreateP
+eob SaveH
+run
+
+SaveH:
+bc CreateP
+cob
+mov ChildH, esp
+add ChildH, 28
+mov ChildH, [ChildH]
+add ChildH, 8
+rtr
+mov ChildH, [ChildH]
+gpa "WriteProcessMemory", "kernel32.dll"
+mov WriteP, $RESULT
+bp WriteP
+eob OEP
+run
+
+OEP:
+add Count, 1
+cmp Count, 2
+jne Sig
+bc WriteP
+cob
+mov Count, esp
+add Count, 0C
+mov Count, [Count]
+log Count
+log [Count]
+mov [Count], #EBFE#
+mov Count, 0
+gpa "WaitForDebugEvent", "kernel32.dll"
+mov WaitFDV, $RESULT
+bp WaitFDV
+eob Detach
+run
+
+Detach:
+add Count, 1
+cmp Count, 10
+jne Sig
+bc WaitFDV
+cob
+rtr
+sto
+eval "push {ChildH}"
+asm eip, $RESULT
+add eip, 5
+asm eip, "Call DebugActiveProcessStop"
+add eip, 5
+asm eip, "nop"
+add eip, 1
+asm eip, "nop"
+add eip, 1
+asm eip, "nop"
+sub eip, 0C
+sto
+sto
+sto
+ret
+
+Sig:
+run

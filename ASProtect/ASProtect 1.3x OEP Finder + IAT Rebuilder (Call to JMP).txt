@@ -1,0 +1,100 @@
+// Скриптик для востановления кода после аспра:
+// call 0BA0000 ;Call CreateFileA
+// После скрипта:
+// call [Real_addr_in_IAT]
+//Писал для AlterWind Log Analyzer Professional 3.0.0.1
+// До скорого, братья. by BiT-H@ck in 26.08.2005 3:42:)
+#log
+var calladdr
+var aftercalladdr
+var filesecend
+var startscan
+var endscan
+var VirtualAllocExAddr
+var realfunction
+var iatcell
+var temp
+var endmemoryspice
+var OEP
+var x
+var y
+var IATend
+
+gpa "VirtualAllocEx", "kernel32.dll"	//Получили адрес VirtualAllocEx, эта функция будет юзаться для получния реального адреса
+mov VirtualAllocExAddr, $RESULT
+
+mov endmemoryspice, 0F21000 //Конец заалоченной памяти и начало системных библиотек
+mov IATend, 005321BC
+mov startscan, 00401000 //Начальная граница сканирования (секция кода, возможно не полностью)
+mov endscan, 00448BB1 //Конечная граница сканирования (секция кода)
+mov filesecend, 5E0000	//Конец секций файла в памяти
+
+mov OEP, eip
+
+		
+jmp @finder
+@continue2:	//Главный цикл скрипта (поиск call`а, проверка на принадлежность к аспровскому)
+mov startscan, $RESULT	//Сохранили адрес найденного байта
+inc $RESULT		//Если это call aspr_code, по адреу call aspr_code+1 лежит dword - смещение отнасительно следующей инструкции 
+mov calladdr, [$RESULT]	//Получаем кол-во байт для смещения от следующей команды
+add $RESULT, 4		//Адрес, от которого отчитается смещение (первый байт инструкции после call aspr_code).
+mov aftercalladdr, $RESULT	//Сохранили адрес следующей инструкции
+add aftercalladdr, calladdr	//Получили адрес aspr_code (адрес, на который переходит call)
+mov calladdr, aftercalladdr
+and calladdr, FF000000
+cmp calladdr, 0
+jne @finder
+
+cmp startscan, endscan	
+ja @endscript		//Проверяем границы кода для сканирования (не выходит ли адрес анализируемого call`а за границы)
+cmp calladdr, endmemoryspice 
+jae @finder		//Проверяем, чтобы скрипт не загрёб вооще другую инструкцию в которой содержится байт E8
+cmp aftercalladdr, endmemoryspice
+jae @finder
+
+cmp aftercalladdr, filesecend
+jae @reconstruct		//call ведёт за пределы файла в памяти? Да - это проделки аспра
+jmp @finder		//Продолжем поиски, мы ещё должны всю вселенную обойти:) by Factor 2
+
+@reconstruct:		//В это процедуре будет происходить самое главное - востановление call aspr
+mov eip, startscan		//Установили eip на call aspr_code
+bp VirtualAllocExAddr	//Для остановки внутри функции получения адреса реальной функции, после получения адреса, будем юзать VirtualAllocEx
+run			//Установили eip на call aspr_code, поставили бряк на VirtualAllocEx, запустили программу
+bc VirtualAllocExAddr	//Остановились, удалили брейкпоинт
+mov temp, esp
+add temp, 5C		//В esp+5C лежит адрес реальной функции
+mov realfunction, [temp]	//Взяли адрес реальной функции
+bphws startscan, "x"	//Установили брейкпоинт на call aspr_code
+run
+bphwc startscan		//Вышли из call aspr_code и попали обратно на него-же, но он уже ведёт на другой адрес
+
+@IAT_write:
+mov [IATend], realfunction
+			//Сейчас будем востанавливать call aspr_code, заменяя на call [IAT_cell]
+mov [eip], #FF25#		//FF15 - опкод call [XXXXXXXX]
+add eip,2			//Сместили указатель на 2, тут надо будет писать адрес, по которому лежит адрес для перехода
+mov [eip], IATend
+add IATend, 4		//Записали адрес ячейки таблицы импорта (call [Iat_cell])
+jmp @finder		//Продолжаем поиск, востановление и т.д.
+@endscript:
+mov eip, OEP		//Устанавливаем eip на адрес, которму равнялся eip до начала выполнения скрипта, обычно это ОЕР или очень близкий к ОЕР код
+ret			//Вышли из скрипта
+
+
+@finder:
+mov $RESULT, startscan
+@manual_find:		//Цикл поиска и тут пришлось писать свой:(
+add $RESULT, 1
+mov iatcell, [$RESULT]
+and iatcell, 000000FF
+cmp iatcell, 000000E8
+jne @manual_find
+add $RESULT, 1
+mov iatcell, [$RESULT]
+and iatcell, FF000000
+cmp iatcell, 00000000
+jne @manual_find
+sub $RESULT, 1
+log $RESULT
+jmp @continue2
+

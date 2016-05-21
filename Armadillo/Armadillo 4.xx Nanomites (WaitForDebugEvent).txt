@@ -1,0 +1,56 @@
+//////////////////////////////////////////////////////////
+// FileName    :  WaitForDebugEvent.osc
+// Comment     :  Armadillo V4.X Nanomites WaitForDebugEvent
+// Environment :  WinXP SP2,OllyDbg V1.10,OllyScript V0.92
+// Author      :  fly
+// WebSite     :  http://www.unpack.cn
+// Date        :  2005-11-04 16:40
+//////////////////////////////////////////////////////////
+#log
+dbh
+
+var BeginFix
+var WaitForDebugEvent
+
+
+gpa "OutputDebugStringA", "KERNEL32.dll"
+mov [$RESULT], #C20400#
+
+gpa "WaitForDebugEvent", "KERNEL32.dll"
+find $RESULT,#C20800#
+mov WaitForDebugEvent,$RESULT
+bp WaitForDebugEvent
+esto
+GoOn0:
+esto
+WaitForDebugEvent:
+cmp eip,WaitForDebugEvent
+jne GoOn0
+
+bc WaitForDebugEvent
+rtu
+
+
+find eip,#C785????????000000006AFF6A04#
+cmp $RESULT, 0
+je Error
+mov BeginFix,$RESULT
+eob BeginFix
+bp BeginFix
+esto
+GoOn1:
+esto
+BeginFix:
+cmp eip,BeginFix
+jne GoOn1
+bc BeginFix
+cmt BeginFix,"Plz Continue Fix Nanomites !"
+
+
+OK:                        
+MSG " Plz Continue Fix Nanomites !  Game Over.     "  
+ret
+
+Error:
+msg "Error!"
+ret

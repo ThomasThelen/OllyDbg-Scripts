@@ -1,0 +1,1504 @@
+/*
+Script written by VolX
+version : v2.2 special edition
+Date    : 7-Aug-2006
+Test Environment : OllyDbg 1.1
+                   ODBGScript 1.47 under WINXP
+Thanks : Oleh Yuschuk - author of OllyDbg
+         SHaG - author of OllyScript
+         Epsylon3 - author of ODbgScript
+*/
+//support Asprotect 1.32, 1.33, ,1.35, 1.4, 2.0, 2.1, 2.11, 2.2beta, 2.2, 2.3
+
+var tmp1            
+var tmp2            
+var tmp3            
+var tmp4            
+var tmp5            
+var tmp6            
+var tmp7            
+var tmp8            
+var tmp9            
+var imgbase
+var imgbasefromdisk
+var 1stsecbase
+var 1stsecsize
+var dllimgbase
+var count
+var transit1
+var transit2
+var func1
+var func2
+var func3
+var func4
+var OEP_rva
+var caller
+
+//for IAT fixing
+var patch1
+var patch2
+var patch3
+var ori1
+var ori2
+var ori3
+var ori4
+var iatstartaddr
+var iatstart_rva
+var iatendaddr
+var iatsize
+var EBXaddr
+var ESIaddr
+var lastsecbase
+var lastsecsize
+var type3dataloc
+var thunkdataloc
+var thunkpt
+var thunkstop
+var type3API
+var type3count
+var type1API
+var E8count
+var writept2
+var APIpoint3
+var crcpoint1
+var FF15flag
+var ESIpara1
+var ESIpara2
+var ESIpara3
+var ESIpara4
+var nortype
+var v1.32
+var v2.0x
+var type1fixed
+
+//for stolencode after API
+var SCafterAPIcount
+
+//for dll
+var reloc_rva
+var reloc_size
+var isdll
+
+dbh
+cmp $VERSION, "1.47"
+jb odbgver
+BPHWCALL                //clear hardware breakpoint
+GMI eip, MODULEBASE     //get imagebase
+mov imgbase, $RESULT
+log imgbase
+mov tmp1, imgbase
+add tmp1, 3C              //40003C
+mov tmp1, [tmp1]
+add tmp1, imgbase         //tmp1=signature VA
+mov tmp3, tmp1
+add tmp1, 34
+mov imgbasefromdisk, [tmp1]
+log imgbasefromdisk
+mov tmp1, tmp3
+add tmp1, f8              //1st section
+log tmp1
+add tmp1, 8
+mov 1stsecsize, [tmp1]
+log 1stsecsize
+add tmp1, 4
+mov 1stsecbase, [tmp1]
+add 1stsecbase, imgbase
+log 1stsecbase
+mov tmp1, tmp3
+add tmp1, f8             //1st section
+add tmp3, 6
+mov tmp2, [tmp3]
+and tmp2, 0FFFF
+
+last:
+cmp tmp2, 1
+je lab1
+add tmp1, 28
+sub tmp2, 1
+jmp last
+
+lab1:
+log tmp1
+add tmp1, 8
+mov lastsecsize, [tmp1]
+log lastsecsize
+add tmp1, 4
+mov tmp3, [tmp1]
+add tmp3, imgbase
+mov lastsecbase, tmp3
+log lastsecbase
+
+//check if its an exe or dll
+GPI EXEFILENAME
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+GPI PROCESSNAME
+mov tmp2, $RESULT
+GPI CURRENTDIR
+mov tmp3, $RESULT
+eval "{tmp3}{tmp2}.exe"
+mov tmp4, $RESULT
+eval "{tmp3}{tmp2}.dll"
+mov tmp5, $RESULT
+scmp tmp1, tmp4
+je lab1_1
+scmp tmp1, tmp5
+jne error
+mov isdll, 1
+
+lab1_1:
+log isdll
+gpa "GetSystemTime", "kernel32.dll"
+bp $RESULT
+esto
+bc $RESULT
+rtr
+sti
+GMEMI eip, MEMORYOWNER
+mov dllimgbase, $RESULT
+cmp dllimgbase, 0
+je error
+log dllimgbase
+find dllimgbase, #3135310D0A#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je wrongver
+find dllimgbase, #0F318901895104#      //check rdtsc trick
+mov tmp1, $RESULT
+cmp tmp1, 0
+je lab2
+log tmp1
+sub tmp1, 80
+find tmp1, #558BEC#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+bp tmp1
+esto
+bc tmp1
+mov eip, [esp]
+add esp, 4
+
+lab2:
+mov tmp1, dllimgbase
+add tmp1, 010e00
+find tmp1, #892D????????3b6C24??#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error45
+find tmp2, #833C240074??#
+mov tmp4, $RESULT
+cmp tmp4, 0
+je error45
+add tmp4, 4
+log tmp4
+bp tmp4
+eob lab3
+eoe lab3
+esto
+
+lab3:
+cmp eip, tmp4
+je lab4
+esto
+
+lab4:
+bc tmp4
+mov tmp1, eip
+sub tmp1, 1000
+find tmp1, #F3A566A5#  //search "rep movs[edi],[esi]","movs [edi],[esi]"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+find tmp1, #0F84??000000#
+mov thunkstop, $RESULT
+log thunkstop
+bp thunkstop
+find dllimgbase, #45894500#   //search "inc ebp", "mov [ebp],eax"
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+sub tmp2, 27
+mov APIpoint3, tmp2
+log APIpoint3
+find dllimgbase, #40890383C704#
+mov tmp1, $RESULT
+add tmp1, 1
+mov thunkpt, tmp1
+log thunkpt
+cmp isdll, 1
+jne lab7_1
+mov !zf, 1
+mov tmp1, eip
+mov tmp2, [tmp1+2]
+log tmp2
+and tmp2, 0FFFF
+cmp tmp2, 5C03             //chk if "add ebx, [esp+4]"
+je lab5
+cmp tmp2, 5C8B             //chk if "mov ebx, [esp+4]"
+jne error
+mov reloc_rva, esi
+mov tmp1, esi
+jmp lab6
+
+lab5:
+mov reloc_rva, ebx
+mov tmp1, ebx
+
+lab6:
+add tmp1, imgbase
+find tmp1, #0000000000000000#
+mov tmp2, $RESULT
+sub tmp2, imgbase
+sub tmp2, reloc_rva
+mov tmp3, tmp2
+and tmp3, 0F
+cmp tmp3, 0
+jne size0
+jmp lab7
+
+size0:
+cmp tmp3, 4
+ja size1
+and tmp2, 0FFFFFFF0
+add tmp2, 4
+jmp lab7
+
+size1:
+cmp tmp3, 8
+ja size2
+and tmp2, 0FFFFFFF0
+add tmp2, 8
+jmp lab7
+
+size2:
+cmp tmp3, C
+ja size3
+and tmp2, 0FFFFFFF0
+add tmp2, C
+jmp lab7
+
+size3:
+and tmp2, 0FFFFFFF0
+add tmp2, 10
+
+lab7:
+mov reloc_size, tmp2
+
+lab7_1:
+bp thunkpt
+find dllimgbase, #33C08A433?3BF0#   //search "xor eax,eax", "mov al, {ebx+3?]", "cmp esi,eax"
+mov patch1, $RESULT
+cmp patch1, 0
+je error
+add patch1, 7
+log patch1
+mov tmp1, patch1
+sub tmp1, 3
+mov tmp2, [tmp1]
+and tmp2, FF
+log tmp2
+cmp tmp2, 3F
+jne lab8
+mov v1.32, 1
+
+lab8:
+mov tmp1, dllimgbase
+add tmp1, 200        
+mov thunkdataloc, tmp1
+log thunkdataloc
+find dllimgbase, #0036300D0A#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+find tmp1, #68????????68????????68????????68????????#
+mov tmp2, $RESULT
+log tmp2
+mov tmp1, tmp2
+add tmp1, 14
+mov tmp3, [tmp1]
+and tmp3, 0FFFF
+log tmp3
+cmp tmp3, 35FF
+je lab11
+mov crcpoint1, tmp1
+log crcpoint1
+bp crcpoint1
+eob lab9
+eoe lab9
+esto
+
+lab9:
+cmp eip, crcpoint1
+je lab10
+esto
+
+lab10:
+eob
+eoe
+bc crcpoint1
+bc thunkpt
+bc thunkstop
+rtr
+sti
+bp thunkpt
+bp thunkstop
+
+lab11:
+eob lab12
+eoe lab12
+esto
+
+lab12:
+cmp eip, thunkpt
+je lab13
+cmp eip, thunkstop
+je lab18
+esto
+
+lab13:
+bc thunkpt
+mov ESIaddr, esi
+log ESIaddr
+mov ori1, [patch1]
+mov ori2, [patch1+4]
+find eip, #3A5E3?7517#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+mov ESIpara1, [tmp1]
+log ESIpara1
+add tmp1, 6
+find tmp1, #3A5E3?7517#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+mov ESIpara2, [tmp2]
+log ESIpara2
+add tmp2, 6
+find tmp2, #3A5E3?75??#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+mov ESIpara3, [tmp1]
+log ESIpara3
+add tmp1, 6
+find tmp1, #473A5E3?#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+add tmp2, 1
+mov tmp3, [tmp2]
+and tmp3, 00FFFFFF
+add tmp3, 74000000
+mov ESIpara4, tmp3
+log ESIpara4
+find eip, #834424080447EB1A#  //search "add [esp+8],4", "inc edi"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je lab13_1
+mov nortype, 1
+log nortype
+
+//checking iatendaddr
+lab13_1:
+mov tmp7, eip         //save eip
+mov tmp1, dllimgbase
+mov [tmp1], #609CBE740E8C00BD000F8600C74500000286008B4D008B0305000000018901834500048BFB83C70A83C1048939834500#
+add tmp1, 30   //30
+mov [tmp1], #0433C0B9FFFFFFFFF2AE8A1F3A5E3474373A5E37750883C707FF45FCEBEC3A5E38750883C705FF45FCEBDF3A5E3A7508#
+add tmp1, 30  //60
+mov [tmp1], #83C704FF45FCEBD283C703668B0783C00203F8FF45FCEBC2807D04017465478BDF833B00758DC6450401C74508000286#
+add tmp1, 30  //90
+mov [tmp1], #00C745FC000000008B45088B0089450C8945148B45088B4004894510834508088B45088B0083F80074213B450C720E89#
+add tmp1, 30  //C0
+mov [tmp1], #450C8B5D088B5B04895D10EB083B4514770389451483450808EBD58B7D10E94EFFFFFFB8000286008B0883F90074113B# 
+add tmp1, 30  //F0
+mov [tmp1], #4D147407C741FC0000000083C008EBE89D61909000#
+mov tmp1, dllimgbase
+mov tmp2, dllimgbase
+add tmp2, 0F00          //dllimgbase+F00
+add tmp1, 3     //3
+mov [tmp1], ESIaddr
+add tmp1, 5     //8
+mov [tmp1], tmp2
+add tmp1, 7     //F
+mov [tmp1], thunkdataloc
+add tmp1, A    //19
+mov [tmp1], imgbase
+add tmp1, 23    //3C
+mov [tmp1], ESIpara4
+add tmp1, 5     //41
+mov [tmp1], ESIpara1
+add tmp1, D     //4E
+mov [tmp1], ESIpara2
+add tmp1, D     //5B
+mov [tmp1], ESIpara3
+add tmp1, 32    //8D
+mov [tmp1], thunkdataloc
+add tmp1, 57    //E4
+mov [tmp1], thunkdataloc
+cmp nortype, 1
+je lab14
+mov tmp1, dllimgbase
+add tmp1, 60       //60
+mov [tmp1], #83C705FF#
+
+lab14:
+cob
+coe
+mov tmp4, dllimgbase
+add tmp4, 102      //end point
+bp tmp4
+mov eip, dllimgbase
+run
+bc tmp4
+mov eip, tmp7       //restore eip
+mov tmp1, dllimgbase
+add tmp1, 0EFC
+mov tmp2, [tmp1]     //API count of last dll
+log tmp2            
+mov tmp3, [tmp1+10]  //last thunk addr
+log tmp3            
+shl tmp2, 2
+add tmp3, tmp2
+mov iatendaddr, tmp3
+log iatendaddr
+mov iatstartaddr, [tmp1+18]
+log iatstartaddr
+mov iatstart_rva, iatstartaddr
+sub iatstart_rva, imgbase
+log iatstart_rva
+mov [iatendaddr], 0
+mov tmp1, iatendaddr
+sub tmp1, iatstartaddr
+add tmp1, 4
+mov iatsize, tmp1
+fill dllimgbase, f20, 00
+
+//force to decrypt all api
+mov tmp1, dllimgbase
+cmp v1.32, 1
+je lab15
+mov [tmp1], #570FB67B353BF775040FB673365F3BF00F8500000000E900000000#
+jmp lab16
+
+lab15:
+mov [tmp1], #570FB67B393BF775040FB6733A5F3BF00F8500000000E900000000#
+
+lab16:
+add tmp1, 10
+mov tmp2, patch1
+add tmp2, 60
+eval "jnz {tmp2}" 
+asm tmp1, $RESULT
+add tmp1, 6
+mov tmp2, patch1
+add tmp2, 5
+eval "jmp {tmp2}"
+asm tmp1, $RESULT
+eval "jmp {dllimgbase}"
+asm patch1, $RESULT
+find patch1, #3B432?74656AFF#  //search "cmp eax,[ebx+2?]","je xxxxxx","push -1"  
+mov patch2, $RESULT
+cmp patch2, 0
+je lab17
+add patch2, 3
+log patch2
+mov ori3, [patch2]
+mov [patch2], #EB#
+
+lab17:
+find patch1, #3B432?741b6AFF#  //search "cmp eax,[ebx+2?]","je xxxxxx","push -1"
+mov patch3, $RESULT
+cmp patch3, 0
+je error
+add patch3, 3
+log patch3
+mov ori4, [patch3]
+mov [patch3], #EB#
+eob lab12
+eoe lab12
+esto
+
+lab18:
+bc thunkstop
+bphwc thunkpt
+fill dllimgbase, 20, 00
+mov [patch1], ori1
+mov tmp1, patch1
+add tmp1, 4
+mov [tmp1], ori2
+cmp patch2, 0
+je lab19
+mov [patch2], ori3
+
+lab19:
+mov [patch3], ori4
+
+find dllimgbase, #8B432C2BC583E805#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 8
+mov writept2, tmp1
+log writept2
+bphws writept2, "x"
+find dllimgbase, #0036300D0A#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+sub tmp1, 60
+log tmp1
+find tmp1, #5?C3#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+log tmp2
+add tmp2, 1
+mov transit1, tmp2
+log transit1
+bp transit1
+BPHWS APIpoint3, "x"
+eoe lab20
+eob lab20
+esto
+
+lab20:
+cmp eip, APIpoint3
+je lab21
+cmp eip, writept2
+je lab23
+cmp eip, transit1
+je lab25
+esto
+
+lab21:
+mov type3API, 1
+cmp EBXaddr, 0
+jne lab22
+mov EBXaddr, ebx
+log EBXaddr
+mov tmp1, [EBXaddr+4A]
+and tmp1, 0FF
+mov FF15flag, tmp1
+log FF15flag
+
+lab22:
+bphwc APIpoint3
+eob lab20
+eoe lab20
+esto
+
+lab23:
+bphwc writept2
+cmp EBXaddr, 0
+jne lab24
+mov EBXaddr, ebx
+log EBXaddr
+mov tmp1, [EBXaddr+4A]
+and tmp1, 0FF
+mov FF15flag, tmp1
+log FF15flag
+
+lab24:
+mov type1API, 1
+log type1API
+eob lab20
+eoe lab20
+esto
+
+lab25:
+bphwc APIpoint3
+bphwc writept2
+bc transit1
+cmp type3API, 0
+je lab30
+
+//fix type3 API
+mov tmp4, APIpoint3
+sub tmp4, 100
+find tmp4, #05FF000000508BC3#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 8
+log tmp1
+opcode tmp1
+mov func1, $RESULT_1
+log func1
+add tmp1, 5
+find tmp1, #8BC3E8??#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+add tmp2, 2
+opcode tmp2
+mov func2, $RESULT_1
+log func2
+add tmp2, 5
+find tmp2, #8BC3E8??#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 2
+opcode tmp1
+mov func3, $RESULT_1
+log func3
+mov tmp3, [tmp1-D]
+log tmp3
+and tmp3, 0FF
+cmp tmp3, 50
+je lab26
+mov v1.32, 1
+log v1.32
+
+lab26:
+mov tmp1, dllimgbase
+mov [tmp1], #60BB6806CA00BD000DC4008B73548D7B408B43188945608B83E000000089453433C08A078D04408B4C83688BC6FFD18B#
+add tmp1, 30     //30
+mov [tmp1], #C8034B24038BE000000033C08A47098D04408B5483688BC6FFD2807B20000F854C0100003C010F8544010000894D7033#
+add tmp1, 30     //60
+mov [tmp1], #C08A47078D04408B5483688BC6FFD289452433C08A47088D04408B5483688BC6FFD289452833C08A47028D04408B5483#
+add tmp1, 30     //90
+mov [tmp1], #688BC6FFD289453C33C08A47068D04408B5483688BC6FFD28845408B83E000000001453C8B453C5033C08A454005FF00#
+add tmp1, 30     //C0
+mov [tmp1], #0000508BC3E85A6A03008BC88B53108BC3E8725803008B552403553403D08955248B55282B55342BD089552833C08A47#
+add tmp1, 30     //F0
+mov [tmp1], #038D04408B5483688BC6FFD28945348B83E000000001453433C08A47018D04408B5483688BC6FFD28845388D452C5066#
+add tmp1, 30     //120
+mov [tmp1], #8B4D24668B55288BC3E8126503008B552C0393E0000000909090909060E82E00000066B9FF153E8A4538363A434A7405#
+add tmp1, 30    //150
+mov [tmp1], #6681C100108B457066890883C002893061EB3A00000000000000000000000090BEE02150003916740D83C60481FE3C2A#
+add tmp1, 30    //180
+mov [tmp1], #0210770FEBEF81EE0000400081C600004000C390900000000000000000FF4568FF4D6003B3E4000000837D60000F876D#
+add tmp1, 30    //1B0
+mov [tmp1], #FEFFFF6190#
+mov tmp1, dllimgbase
+mov tmp2, dllimgbase
+add tmp2, 0D00        //dllimgbase+D00
+mov tmp3, dllimgbase
+add tmp3, 0D68        //Dllimgbase+D68
+add tmp1, 2           //2
+mov [tmp1], EBXaddr
+add tmp1, 5           //7
+mov [tmp1], tmp2
+add tmp1, BE          //C5
+eval "{func1}"
+asm tmp1, $RESULT
+add tmp1, 0C          //D1
+eval "{func2}"
+asm tmp1, $RESULT
+add tmp1, 58          //129
+eval "{func3}"
+asm tmp1, $RESULT
+add tmp1, 48          //171
+mov [tmp1], iatstartaddr
+add tmp1, D           //17E
+mov [tmp1], iatendaddr
+add tmp1, A           //188
+mov [tmp1], imgbase
+add tmp1, 6           //18E
+mov [tmp1], imgbasefromdisk
+add tmp1, 5           //193   error point   
+mov tmp5, tmp1
+bp tmp5
+add tmp1, 21          //1B4   end point
+mov tmp6, tmp1
+bp tmp6
+mov tmp7, eip         //store eip
+cmp v1.32, 1
+jne lab27
+mov tmp1, dllimgbase
+add tmp1, 11B         //dllimgbase+11B
+mov [tmp1], #90909090#
+add tmp1, 13          //dllimgbase+12E
+mov [tmp1], #8BD090909090909090#
+
+lab27:
+mov eip, dllimgbase
+eob lab28
+eoe lab28
+run
+
+lab28:
+cmp eip, tmp5      //error
+je lab36
+cmp eip, tmp6      //OK
+je lab29
+
+lab29:
+bc tmp5
+bc tmp6
+mov type3count, [tmp3]
+log type3count
+fill dllimgbase, 0E00, 00
+mov eip, tmp7           //restore eip
+
+//get all call xxxxxxxx
+lab30:
+cmp type1API, 0
+je lab78
+MSGYN "Fix call xxxxxxxx now?"
+cmp $RESULT, 1
+jne lab78
+mov caller, "lab30"
+
+fixtype1:
+find dllimgbase, #3130320D0A#          //search "102"
+mov tmp6, $RESULT
+cmp tmp6, 0
+je error
+find tmp6, #05FF00000050#          //"Add eax,FF"  "push eax"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+find tmp1, #8B45F4E8#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+add tmp2, 3
+log tmp2
+opcode tmp2
+mov func1, $RESULT_1
+log func1
+add tmp2, 5
+find tmp2, #8B45F4E8#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 3
+opcode tmp1
+mov func2, $RESULT_1
+log func2
+add tmp1, 5
+find tmp1, #8B45F4E8????????#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+add tmp2, 3
+opcode tmp2
+mov func3, $RESULT_1
+log func3
+mov tmp1, tmp2
+add tmp1, 5
+mov tmp3, [tmp1]
+//log tmp3
+find tmp1, #8B55FCE8#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+add tmp2, 3
+opcode tmp2
+mov func4, $RESULT_1
+log func4
+cmp tmp3, A1FC4589
+jne lab31
+log tmp1
+find tmp1, #8B83080100008B401C#
+mov tmp2, $RESULT
+cmp tmp2, 0
+je lab30_1
+mov v2.0x, 1
+jmp lab31
+
+lab30_1:
+mov v1.32, 1
+
+lab31:
+log v1.32
+log v2.0x
+mov tmp1, dllimgbase
+mov [tmp1], #609CBB000E0201BE00104000803EE875188B460103C683C0053B432C750B893500C09E00E8170000004681FE00705900#
+add tmp1, 30     //30
+mov [tmp1], #72DA9D6190909000000000000000009060BD0009FB00A100C09E00894510BB000E02018B480103C883C1053B4B2C7421#
+add tmp1, 30     //60
+mov [tmp1], #61C3909090909090909090909090909090909090909090909090909090909090908B45102B43148B55102B53242B93E0#
+add tmp1, 30     //90
+mov [tmp1], #0000008955F83B43280F83600400008D53408955E48B53188955F48B551083C2058A123293E00000008BFA81E7FF0000#
+add tmp1, 30     //C0
+mov [tmp1], #0025FF00000033F83B7DF40F87AE0100008B83E4000000F7EF0343548945FC8B45E40FB6008D04408B7483688B45FCFF#
+add tmp1, 30     //F0
+mov [tmp1], #D68BF03B75F80F8574010000807B2000741B8B45E40FB640098D04408B5483688B45FCFFD23C010F843B0200008D75FC#
+add tmp1, 30     //120
+mov [tmp1], #33C08A43428D04408BD38B7C82688B06FFD78945B833C08A43438D04408BD38B7C82688B06FFD78BF833C08A43458D04#
+add tmp1, 30     //150
+mov [tmp1], #408BD38B5482688B06FFD28845B733C08A43418D04408BD38B5482688B06FFD28845BF8B83E00000000345B88945D433#
+add tmp1, 30     //180
+mov [tmp1], #C08A43478D04408BD38B5482688B06FFD28945E003BBE00000005733C08A45B705FF000000508BC3E88BB102008BC88B#
+add tmp1, 30     //1B0
+mov [tmp1], #53108BC3E80B9F02008945D033C08A43488D04408BD38B7C82688B06FFD78B55D00155E08B5510422B022B45D08B5510#
+add tmp1, 30     //1E0
+mov [tmp1], #0FB61203C28BD38B522C2B551083EA0503C28D55CC52668B4DE08BD08BC3E8E9AB02008B83E00000000145CC837DD4FF#
+add tmp1, 30     //210
+mov [tmp1], #740E8B45108B5D14890383C304895D148B5DCCE9A8020000909090909090909090909090909090909090909090909090#
+add tmp1, 30     //240
+mov [tmp1], #BE00705900391E741183C60481FE747A59000F87A7020000EBEB81EE0000400081C600004000C3000000000000000090#
+add tmp1, 30     //270
+mov [tmp1], #81C7FF0000003B7DF40F8652FEFFFF8B83080100008B401C488945F48B43188B55F4423BC27405E9630200008B45F485#
+add tmp1, 30     //2A0
+mov [tmp1], #C00F8C58020000408945E0C745EC000000008B83080100008B55ECE8800000008BF88B45E40FB6008D04408B7483688B#
+add tmp1, 30     //2D0
+mov [tmp1], #4704FFD68BF03B75F8753F807B200074178B45E40FB640098D04408B5483688B4704FFD23C01746883C7048BF7E91EFE#
+add tmp1, 30     //300
+mov [tmp1], #FFFF909090900000000000000000000000000000000090909090FF45ECFF4DE07590E9D8010000909090909000000000#
+add tmp1, 30     //330
+mov [tmp1], #0000000000000000000000000000000033C985D27C0B3B501C7D068B40188B0C908BC1C3909090908D75FCEB08909090#
+add tmp1, 30     //360
+mov [tmp1], #83C7048BF733C08A43478D04408BD38B7C82688B06FFD78945EC33C08A43488D04408BD38B7C82688B06FFD78945E833#
+add tmp1, 30     //390
+mov [tmp1], #C08A43428D04408BD38B7C82688B06FFD78BF833C08A43468D04408BD38B5482688B06FFD28845DF03BBE00000005733#
+add tmp1, 30     //3C0
+mov [tmp1], #C08A45DF05FF000000508BC3E867AF02008BC88B53108BC3E8E79C02008945D833C08A43438D04408BD38B7C82688B06#
+add tmp1, 30     //3F0
+mov [tmp1], #FFD78BF803BBE00000008B45EC03C70345D88945EC8B45E82BC72B45D88945E833C08A43418D04408BD38B5482688B06#
+add tmp1, 30     //420
+mov [tmp1], #FFD28845BF895D208BD88D45B450668B4DEC668B55E88B4520E8AEA902008B45208B80E00000000345B48945FC8945CC#
+add tmp1, 30     //450
+mov [tmp1], #576A008D4DE08B45208B403C8B55FCE8106D02008945FC8B45E08B00E81F0000000045BF8B5DCCEB5700000000000000#
+add tmp1, 30     //480
+mov [tmp1], #00000000000000000000000000000090516689C1C1C0106601C828E059C30000#
+add tmp1, 30     //4B0
+mov [tmp1], #0000000000000000000000000000000090909090909090909090909090909090E86BFDFFFF66B9FF158B5DE48A430A3A#
+add tmp1, 30     //4E0
+mov [tmp1], #45BF74056681C100108B5D1066890B83C3028933FF05000E900061C390909090#
+
+mov tmp1, dllimgbase
+mov tmp2, tmp1
+add tmp1, 3       //3
+mov [tmp1], EBXaddr
+add tmp1, 5       //8
+mov [tmp1], 1stsecbase
+add tmp1, 18      //20
+mov tmp4, dllimgbase
+add tmp4, 0E04       //dllimgbase+0E04
+mov [tmp1], tmp4
+add tmp1, 0C      //2C
+mov tmp3, 1stsecbase
+add tmp3, 1stsecsize
+mov [tmp1], tmp3
+add tmp1, 16      //42
+mov tmp2, dllimgbase
+add tmp2, 900        //dllimgbase+900
+mov [tmp1], tmp2
+add tmp1, 5       //47
+mov [tmp1], tmp4
+add tmp1, 8       //4F
+mov [tmp1], EBXaddr
+add tmp1, 159     //1A8
+eval "{func1}"
+asm tmp1, $RESULT
+add tmp1, C       //1B4
+eval "{func2}"
+asm tmp1, $RESULT
+add tmp1, 4A      //1FE
+eval "{func3}"
+asm tmp1, $RESULT
+add tmp1, 43      //241
+mov [tmp1], iatstartaddr
+add tmp1, D       //24E
+mov [tmp1], iatendaddr
+add tmp1, E       //25C
+mov [tmp1], imgbase
+add tmp1, 6       //262
+mov [tmp1], imgbasefromdisk
+add tmp1, 16A     //3CC
+eval "{func1}"
+asm tmp1, $RESULT
+add tmp1, C       //3D8
+eval "{func2}"
+asm tmp1, $RESULT
+add tmp1, 61      //439
+eval "{func3}"
+asm tmp1, $RESULT
+add tmp1, 26      //45F
+eval "{func4}"
+asm tmp1, $RESULT
+add tmp1, 97      //4F6
+mov tmp2, dllimgbase
+add tmp2, E00        //dllimgbase+E00  for storing E8count
+mov [tmp1], tmp2
+mov tmp2, dllimgbase
+add tmp2, 914        //dllimgbase+900
+mov [tmp2], lastsecbase    //loc for storing sc after API
+mov tmp2, dllimgbase
+add tmp2, 34         //34 -- end point
+bp tmp2
+mov tmp3, dllimgbase
+add tmp3, 4FF        //4FF -- error point
+bp tmp3
+cmp v1.32, 1
+jne lab32
+mov tmp4, dllimgbase
+add tmp4, 203        //203
+mov [tmp4], #8945CC83C404909090#
+add tmp4, 7C         //27F
+mov [tmp4], #8B830401#
+add tmp4, 33         //2B2
+mov [tmp4], #8B830401#
+add tmp4, 18C        //43E
+mov [tmp4], #83C404909090909090909090#
+jmp lab33
+
+lab32:
+cmp v2.0x, 1
+jne lab33
+mov tmp4, dllimgbase
+add tmp4, 203        //203
+mov [tmp4], #8945CC83C404909090#
+add tmp4, 23b        //43E
+mov [tmp4], #83C404909090909090909090#
+
+lab33:
+mov tmp6, eip
+mov eip, dllimgbase
+eob lab34
+eoe lab34
+run
+
+lab34:
+cmp eip, tmp2
+je lab35
+cmp eip, tmp3
+je lab36
+run
+
+lab35:
+bc tmp2
+bc tmp3
+mov eip, tmp6
+mov tmp1, dllimgbase
+add tmp1, 0E00
+mov tmp2, [tmp1]
+mov E8count, tmp2
+log E8count
+mov type1fixed, 1
+jmp lab47
+
+lab36:
+msg "Unexpected termination of the process"
+pause
+jmp end
+
+//lab37_lab46
+
+lab47:
+mov tmp1, dllimgbase
+add tmp1, 914
+mov tmp2, [tmp1]
+mov tmp3, lastsecbase          //loc for storing sc after API
+cmp tmp3, tmp2
+je lab56
+sub tmp2, tmp3
+//dm tmp3, tmp2, "SCafAPI.bin"
+shr tmp2, 2
+mov SCafterAPIcount, tmp2
+log SCafterAPIcount
+//msg "Advanced IAT protection detected, press OK to fix it"
+//pause
+fill dllimgbase, 0E10, 00
+
+//Advanced Import protection
+find dllimgbase, #3130320D0A#  //search "102"
+mov tmp6, $RESULT
+cmp tmp6, 0
+je error
+find tmp6, #8B80E4000000E8#   //search "mov eax,[eax+E4]" "call xxxxxxxx"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 6
+log tmp1
+opcode tmp1
+mov func1, $RESULT_1
+log func1
+add tmp1 , 6
+find tmp1, #8BC7E8????????#        //search "mov eax,edi","call xxxxxxx" 
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+add tmp2, 2
+opcode tmp2
+mov func2, $RESULT_1
+log func2
+add tmp2, 8
+mov ori1, [tmp2]
+log ori1
+find tmp2, #E8????????#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+opcode tmp1
+mov func3, $RESULT_1
+log func3
+
+lab50:
+mov tmp9, eip                 //save eip
+
+mov tmp1, dllimgbase
+mov [tmp1], #60BB6806F400BD000BEE00BF000BEE008B57048BC3E8860900008945D88D73408B83E4000000E821250000897DDC8BF8#
+add tmp1, 30   //30
+mov [tmp1], #8B8BE40000008B55D88BC7E87C6000006A10B9C0B7F1008B93E40000008BC7E8E848010033C08A46028D04408BD38B54#
+add tmp1, 30   //60
+mov [tmp1], #82688BC7FFD28945F033C08A46038D04408BD38B5482688BC7FFD28945EC33C08A46018D04408BD38B5482688BC7FFD2#
+add tmp1, 30   //90
+mov [tmp1], #3A434A74443A434B0F84420000003A434C0F84890000003A434D0F84800000003A434F0F84A70600003A43500F841E07#
+add tmp1, 30  //C0
+mov [tmp1], #00003A43510F84750700003A43520F84DC070000E907090000E9E208000090908B8BE0000000034DEC034D908B7DDC8B#
+add tmp1, 30  //F0
+mov [tmp1], #3F8B1F83C3068BC12BC38BD07905F7D283C20481FA81000000770BC603EB83E802884301EB09C603E983E805894301E9#
+add tmp1, 30  //120
+mov [tmp1], #9C0800009090909090909090909090908845D033C08945AC8945B08945B48945B88945BC8A46078D04408B5483688BC7#
+add tmp1, 30  //150
+mov [tmp1], #FFD28945B033C08A46058D04408B5483688BC7FFD28BD080EA080F92C280FA01750A8945B0C745B40100000033C08A46#
+add tmp1, 30  //180
+mov [tmp1], #088D04408B5483688BC7FFD28945B833C08A46068D04408B5483688BC7FFD28BD080EA080F92C280FA01750A8945B8C7#
+add tmp1, 30  //1B0
+mov [tmp1], #45BC0100000033C08A46098D04408B5483688BC7FFD284C0742EFEC87430FEC87432FEC80F8466010000FEC80F841E02#
+add tmp1, 30  //1E0
+mov [tmp1], #0000FEC80F8416030000FEC80F84BE030000E9E907000090E9C307000090E9BD0700009057538B7DDC8B3F8B0F83C106#
+add tmp1, 30  //210
+mov [tmp1], #837DB4010F85B8000000837DBC017547B83900000033D23E8A55B8C0E2033E0255B086F203C2807DB004740E807DB005#
+add tmp1, 30  //240
+mov [tmp1], #741166890183C102EB18668901C6410224EB0C0500400000668901C641020083C103E9D00000003E8B55B881FA800000#
+add tmp1, 30  //270
+mov [tmp1], #007307B883380000EB05B88138000033D23E8A55B086F203C2807DB004740E807DB005741466890183C102EB1B668901#
+add tmp1, 30  //2A0
+mov [tmp1], #C641022483C103EB0F0500400000668901C641020083C1033E8B55B881FA800000007307881183C101EB6C891183C104#
+add tmp1, 30  //2D0
+mov [tmp1], #EB658B45900145B0837DBC017521B83905000033D23E8A55B8C0E20386F203C26689013E8B55B089510283C106EB383E#
+add tmp1, 30  //300
+mov [tmp1], #8B55B881FA800000007317B8833D00006689013E8B45B089410288510683C107EB15B8813D00006689013E8B45B08941#
+add tmp1, 30  //330
+mov [tmp1], #0289510683C10A8BD9E952030000909057538B7DDC8B3F8B0F83C106837DB4010F858A060000837DBC017544B83B0000#
+add tmp1, 30  //360
+mov [tmp1], #0033D23E8A55B0C0E2033E0255B886F203C2807DB804740E807DB805741166890183C102EB3C668901C6410224EB0C05# 
+add tmp1, 30  //390
+mov [tmp1], #00400000668901C641020083C103EB22B83B05000033D23E8A55B0C0E20386F203C26689013E8B55B803559089510283#
+add tmp1, 30  //3C0
+mov [tmp1], #C1068BD9E9C702000000000000000000#
+add tmp1, 30  //3F0
+mov [tmp1], #9090909090909090909090909090909057538B7DDC8B3F8B1F83C306837DB4010F859F000000837DBC017551807DB005#
+add tmp1, 30  //420
+mov [tmp1], #742AB83800000033D23E8A55B8C0E2033E0255B086F203C266890383C302807DB0047524C6032483C301EB1CB8384500#
+add tmp1, 30  //450
+mov [tmp1], #0033D23E8A55B8C0E20386F203C2668903C643020083C303E923020000807DB0047423807DB005742BB88038000033D2#
+add tmp1, 30  //480
+mov [tmp1], #3E8A55B086F203C26689038B55B888530283C303EB5AC703833C24008B55B8885303EB0CC703837D00008A55B8885303#
+add tmp1, 30  //4B0
+mov [tmp1], #83C304EB3B837DBC017521B83805000033D23E8A55B8C0E20386F203C26689033E8B55B089530283C306EB1466C70380#
+add tmp1, 30  //4E0
+mov [tmp1], #3D8B55B08953028A45B888430683C307E99B010000909090909090909090909057538B7DDC8B3F8B1F83C306837DB401#
+add tmp1, 30  //510
+mov [tmp1], #0F85CA040000837DBC017544B83A00000033D23E8A55B0C0E2033E0255B886F203C2807DB804740E807DB80574116689#
+add tmp1, 30  //540
+mov [tmp1], #0383C302EB39668903C6430224EB0C0500400000668903C643020083C303EB1FB83A05000033D23E8A55B0C0E20386F2#
+add tmp1, 30  //570
+mov [tmp1], #03C26689033E8B55B889530283C306E90C010000900000000000000000000000#
+add tmp1, 30  //5A0
+mov [tmp1], #0000000090909090909090909090909057538B7DDC8B3F8B1F83C306837DB4010F851A040000837DBC01751EB83BC000#
+add tmp1, 30  //5D0
+mov [tmp1], #0033D23E8A55B0C0E2033E0255B886F203C266890383C302EB4B3E8B55B881FA80000000731AB883F8000033C93E8A4D#
+add tmp1, 30  //600
+mov [tmp1], #B086E903C166890388530283C303EB258B4DB083F900750BC6033D89530183C305EB12B881F8000086E903C166890389#
+add tmp1, 30  //630
+mov [tmp1], #530283C306EB59909090909090909090#
+add tmp1, 30  //660
+add tmp1, 30  //690
+mov [tmp1], #895DAC5B5F33C08A45D03A434C0F851D0300009090909090909090909090909033C08A46048D04408BD38B5482688BC7#
+add tmp1, 30  //6C0
+mov [tmp1], #FFD23C06740E3C07740E3C0A740E3C0B740EEB0EB00AEB0AB00BEB06B006EB02B007508B83E00000000345EC0345908B#
+add tmp1, 30  //6F0
+mov [tmp1], #55AC8BCA2BC87826F7D14980F980720B5883C0708802884A01EB3D5886E0050F80000066890283E904894A02EB2AF7D1#
+add tmp1, 30  //720
+mov [tmp1], #4181F981000000770E5883C070880283E902884A01EB115886E0050F80000066890283E906894A02E973020000000000#
+add tmp1, 30  //750
+mov [tmp1], #0000000000000000000000000090909033C08A46058D04408BD38B5482688BC7FFD28845EB33C08A46078D04408BD38B#
+add tmp1, 30  //780
+mov [tmp1], #5482688BC7FFD28BC88B7DDC8B3F8B1F83C3063D80000000771433C08A45EB86E00583C00000668903884B02EB1E33C0#
+add tmp1, 30  //7B0
+mov [tmp1], #8A45EB3C007508C60305894B01EB0D86E00581C00000668903894B02E9EF010000000000000000000000000000000090#
+add tmp1, 30  //7E0
+mov [tmp1], #33C08A46058D04408BD38B5482688BC7FFD28845EB33C08A46068D04408BD38B5482688BC7FFD28845EA8B7DDC8B3F8B#
+add tmp1, 30  //810
+mov [tmp1], #1F33C08A45EBC1E0030245EA86E0058BC0000066894306E9940100000000000000000000000000000000000000000000#
+add tmp1, 30  //840
+mov [tmp1], #33C08A46058D04408BD38B5482688BC7FFD28845EB33C08A46078D04408BD38B5482688BC7FFD28BC8034D908B7DDC8B#
+add tmp1, 30  //870
+mov [tmp1], #3F8B1F83C306807DEB00741733C08A45EBC0E00386E00589050000668903894B02EB06C603A3894B01E9220100000000#
+add tmp1, 30  //8A0
+mov [tmp1], #0000000000000090909090909090909033C08A46058D04408BD38B5482688BC7FFD28845EB33C08A46068D04408BD38B#
+add tmp1, 30  //8D0
+mov [tmp1], #5482688BC7FFD28845EA33C08A46078D04408BD38B5482688BC7FFD28BC88B7DDC8B3F8B1F83C306807DEB04743B3D80#
+add tmp1, 30  //900
+mov [tmp1], #000000771A33C08A45EAC0E0030245EB86E00589400000668903884B02EB5533C08A45EAC0E0030245EB86E005898000#
+add tmp1, 30  //930
+mov [tmp1], #00668903894B02EB3B3D80000000771B33C08A45EAC0E00386E00589440000668903C6430224884B03EB1933C08A45EA#
+add tmp1, 30  //960
+mov [tmp1], #C0E00386E00589840000668903C6430224894B03EB4A90909000000000000000#
+add tmp1, 30  //990
+mov [tmp1], #0000000000000000000000000000009053568BF28BD83B731C7602EB338BC6F7ABE40000000343585E5BC39000000000# 
+add tmp1, 30  //9C0
+mov [tmp1], #8B7DDC8B0783C004833800740A8907FF4704E92AF6FFFF6190900000000000009090#
+
+
+
+mov tmp1, dllimgbase
+add tmp1, 2     //2
+mov [tmp1], EBXaddr
+mov tmp2, dllimgbase
+add tmp2, 0B00
+add tmp1, 5    //7
+mov [tmp1], tmp2
+add tmp1, 5    //C
+mov [tmp1], tmp2
+mov [tmp2], lastsecbase    //loc for storing sc after API
+add tmp1, 1A   //26
+eval "{func1}"
+asm tmp1, $RESULT
+add tmp1, 15   //3B
+eval "{func2}"
+asm tmp1, $RESULT
+add tmp1, 8   //43
+mov [tmp1], ori1
+add tmp1, 0C  //4F
+eval "{func3}"
+asm tmp1, $RESULT
+mov tmp1, dllimgbase
+mov tmp2, tmp1
+mov tmp3, tmp1
+mov tmp4, tmp1
+mov tmp5, tmp1
+add tmp5, A90        //dllimgbase+A90
+mov [tmp5], imgbasefromdisk
+add tmp3, 1F8        //cmp type 0
+bp tmp3
+add tmp4, 1FE        //cmp type 1
+bp tmp4
+add tmp1, 9d8        //9d8   
+bp tmp1              //end point
+add tmp2, 9E0        //error point 
+bp tmp2
+mov eip, dllimgbase
+eob lab51
+eoe lab51
+esto
+
+lab51:
+cmp eip, tmp1
+je lab52
+cmp eip, tmp2
+je lab53
+cmp eip, tmp3
+je lab54
+cmp eip, tmp4
+je lab55
+jmp error
+
+lab52:
+bc tmp1
+bc tmp2
+bc tmp3
+bc tmp4
+mov eip, tmp9            //restore eip
+jmp lab56
+
+lab53:
+msg "Something error"
+pause
+jmp end
+
+lab54:
+msg "cmp type 0"
+pause
+eob lab51
+eoe lab51
+esto
+
+lab55:
+msg "cmp type 1"
+pause
+eob lab51
+eoe lab51
+esto
+
+lab56:
+fill dllimgbase, E10, 00
+fill lastsecbase, lastsecsize, 00
+
+mov tmp1, type3count
+add tmp1, E8count
+mov tmp2, [EBXaddr+18]
+cmp tmp1, tmp2
+je lab57
+msg "Warning, there are some API not resolved!"
+pause
+
+lab57:
+scmp caller, "lab30"
+je lab78
+scmp caller, "lab80"
+je lab80_1
+jmp error
+
+lab78:
+mov caller, "nil"
+mov tmp1, dllimgbase
+add tmp1, 1000
+find tmp1, #C6463401#    //search "mov byte[esi+34], 1"
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+find tmp2, #68????????68????????68#
+mov transit2, $RESULT
+cmp transit2, 0
+je error
+bp transit2
+eob lab79
+eoe lab79
+esto
+
+lab79:
+cmp eip, transit2
+je lab80
+esto
+
+lab80:
+bc transit2
+cmp type1API, 0
+je lab80_1
+cmp type1fixed, 1
+je lab80_1
+mov caller, "lab80"
+jmp fixtype1
+
+lab80_1:
+cob
+coe
+mov caller, "nil"
+mov tmp1, dllimgbase
+add tmp1, 1000
+find tmp1, #3135330D0A#    //search ASCII"153"
+mov tmp2, $RESULT
+sub tmp2, 40
+find tmp2, #5?5?C3#
+mov tmp3, $RESULT
+cmp tmp3, 0
+je error
+add tmp3, 2
+rtr
+bp tmp3
+eob lab81
+eoe lab81
+esto
+
+lab81:
+cmp eip, tmp3
+je lab82
+esto
+
+lab82:
+bc tmp3
+mov tmp1, dllimgbase
+add tmp1, 1000
+find tmp1, #3130330D0A#     //search ASCII"103"
+mov tmp2, $RESULT
+cmp tmp2, 0
+je wrongver
+find tmp2, #8D00C3#        //search "lea eax,[eax]" "ret"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je wrongver
+bphws tmp1, "x"
+eob lab83
+eoe lab83
+esto
+
+lab83:
+cmp eip, tmp1
+je lab84
+esto
+
+lab84:
+cmp isdll, 1
+jne lab85
+log reloc_rva
+log reloc_size
+
+lab85:
+log iatstartaddr
+log iatstart_rva
+log iatsize
+bphwc tmp1
+cob
+coe
+mov tmp1, [esp+C]
+cmp tmp1, esi
+je lab86
+mov tmp1, [esp+8]
+cmp tmp1, 0
+jne lab87
+mov tmp1, [esp+C]
+cmp tmp1, 0
+je lab88
+jmp lab89
+
+//version is build 4.23 or above
+lab86:
+mov tmp1, [esp+8]
+cmp tmp1, 0
+jne lab89
+jmp lab88
+
+lab87:
+mov tmp1, [esp+10]
+cmp tmp1, 0
+je lab88
+GMEMI tmp1, MEMORYOWNER
+mov tmp2, $RESULT
+GMEMI esp, MEMORYOWNER
+mov tmp3, $RESULT
+cmp tmp2, tmp3
+jne lab89
+
+lab88: 
+bprm 1stsecbase, 1stsecsize
+esto
+bpmc
+mov tmp1, eip
+sub tmp1, imgbase
+mov OEP_rva, tmp1
+log OEP_rva
+msg "IAT fixed. No stolen code at the OEP! Check the address and size of IAT in log window"
+//jmp end
+mov tmp3, eip
+jmp lab94
+
+lab89:
+bp tmp1
+esto
+bc tmp1
+mov tmp5, eip
+find eip, #0000000000000000#
+mov tmp2, $RESULT
+mov tmp1, tmp2
+add tmp1, 8
+mov tmp4, 10
+
+loop16:
+cmp tmp4, 0
+je notfound
+mov tmp2, [tmp1]
+and tmp2, ff
+cmp tmp2, 0
+jne lab90
+add tmp1, 1
+sub tmp4, 1
+jmp loop16
+
+lab90:
+add tmp1, 3
+mov tmp2, [tmp1]
+and tmp2, ff
+cmp tmp2, 0
+jne error
+sub tmp1, b
+mov tmp6, tmp1
+sub tmp1, 4
+mov tmp4, 200
+mov count, 0
+
+loop17:
+cmp tmp4, 0
+je notfound
+mov tmp2, [tmp1]
+cmp tmp2, 00000000
+je lab91
+sub tmp1, 8
+sub tmp4, 8
+jmp loop17
+
+lab91:
+cmp count, 1
+je lab92
+add count, 1
+sub tmp1, 8
+sub tmp4, 8
+jmp loop17
+
+lab92:
+mov tmp4, tmp1
+add tmp4, 4
+mov tmp7, tmp4
+
+loop18:
+cmp tmp4, tmp6
+jae lab93
+mov tmp1, [tmp4]
+add tmp1, imgbase
+eval "{tmp1}"
+add tmp4, 4
+mov tmp2, [tmp4]
+add tmp2, tmp5             //tmp2== address to put comment
+cmt tmp2, $RESULT
+add tmp4, 4
+jmp loop18
+
+lab93:
+mov tmp1, tmp6
+sub tmp1, tmp7
+dm tmp7, tmp1, "st_table.bin"
+GCMT eip
+mov tmp1, $RESULT
+ATOI tmp1
+mov tmp2, $RESULT
+sub tmp2, imgbase
+mov OEP_rva, tmp2
+log OEP_rva
+msg "IAT fixed. Stolen code start, check the address and size of IAT in log window"
+//jmp end
+mov tmp3, $RESULT
+
+lab94:
+GPI PROCESSNAME
+mov tmp1, $RESULT
+cmp isdll, 1
+je lab95
+eval "un_{tmp1}.exe"
+mov tmp2, $RESULT
+jmp lab96
+
+lab95:
+eval "un_{tmp1}.dll"
+mov tmp2, $RESULT
+
+lab96:
+dpe tmp2, tmp3
+jmp end
+
+error:
+msg "Error!"
+pause
+jmp end
+
+wrongver:
+msg "Unsupported Aspr version or it is not packed with Aspr?"
+pause
+jmp end
+
+error45:
+msg "Error 45!"
+pause
+jmp end
+
+odbgver:
+msg "This script work with ODbgscript 1.47 or above"
+jmp end
+
+notfound:
+msg "Not found"
+pause
+
+end:
+ret 

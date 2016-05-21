@@ -1,0 +1,28 @@
+var VarVal
+var VarName
+var ActEip
+
+dbh
+mov ActEip, eip
+ask "VA disponible?"
+cmp $RESULT, 0
+mov VarVal, $RESULT
+je FIN
+mov [VarVal], "60"
+mov VarName, VarVal
+add VarName, 40
+mov [VarName], "DAYSLEFT"
+exec
+pushad
+pushfd
+push {VarVal}
+push {VarName}
+call SetEnvironmentVariableA
+popfd
+popad
+jmp {ActEip}
+ende
+ret
+
+FIN:
+ret

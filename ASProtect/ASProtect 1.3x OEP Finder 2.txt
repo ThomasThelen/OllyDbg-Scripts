@@ -1,0 +1,80 @@
+                            ////////////////////////////////////////////
+                            //                 Asprotect              //
+                            //              Date: 29/8/2004           //
+                            //                                        //
+                            ////////////////////////////////////////////
+
+var addra
+var addrb
+var addrc
+var count
+var test
+var valid
+var valid2
+var csize
+eoe checklast
+eob checklast
+GMI 401000,CODESIZE
+mov csize,$RESULT
+esto
+
+
+checklast:
+dbh
+find eip,#85c00f85#
+cmp $RESULT,0
+je cnt
+mov valid,$RESULT
+sub valid,3e
+cmp [valid],00001fb8
+
+jne cnt
+mov valid2,$RESULT
+sub valid2,eip
+cmp valid2,0ff
+ja cnt
+eob bypass
+bp $RESULT
+esto
+
+bypass:
+mov eax,0
+bc $RESULT
+esto
+cnt:
+eoe checklast
+eob checklast
+mov addra,ebp
+mov addrc,ebp
+sub addra,10
+
+mov addra,[addra]
+
+
+cmp addra,400000
+je found
+sub addrc,20
+mov addrc,[addrc]
+cmp addrc,400000
+je found
+
+esto
+
+found:
+ MSGYN "this is the last exception, do you want to continue to the OEP?"
+cmp $RESULT,0
+je last
+bprm 401000,csize
+cob
+coe
+esto
+msg "this is the oep if no stolen,Thanks for using my script;BriteDream"
+bpmc
+ret
+
+
+
+last:
+
+msg "This is the last exception,Thank you for using my script;BriteDream"
+ret

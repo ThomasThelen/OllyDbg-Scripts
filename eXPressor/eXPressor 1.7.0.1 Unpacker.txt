@@ -1,0 +1,156 @@
+/*
+//////////////////////////////////////////////////
+ eXePressor Unpacker 1.7.01 
+OS : XP SP2 Olly +Strong
+Note : Дополнительная информация
+/////////////////////////////////////////////////
+*/
+
+var fn
+var i_st
+var padr
+var pf
+var pend
+var isz
+var addr
+var ldrb
+var patch
+var imb
+var ipbase
+var mi
+var nm
+var counter
+var iatw
+GMI eip,NAME
+mov nm,$RESULT
+eval "{nm}_U.exe"
+mov nm,$RESULT
+GMI eip,IDATABASE
+mov ipbase,$RESULT
+GMI eip,MODULEBASE
+mov imb,$RESULT
+mov mi,imb
+rev mi
+mov mi,$RESULT
+eval " #0000{mi}#"
+mov mi,$RESULT
+
+
+GMI eip,CODEBASE
+mov cb,$RESULT
+GMI eip,CODESIZE
+mov csz,$RESULT
+GMI eip,ENTRY
+mov oep,$RESULT
+BC oep
+
+
+
+gpa "GetProcAddress","kernel32.dll"
+find $RESULT,#5F5BC9C2#
+bp $RESULT+3
+erun
+erun
+bc eip
+rtu
+
+
+find ipbase,mi
+cmp $RESULT,0
+je quit
+mov ipbase,$RESULT+4
+find ipbase,mi
+cmp $RESULT,0
+je quit
+
+mov i_st,[$RESULT+8]
+mov oep,$RESULT-C
+mov iatw,[$RESULT+4C]
+add iatw,imb
+
+GMEMI eip, MEMORYBASE
+mov ldrb,$RESULT
+find ldrb,#742481BD54FDFFFF3B1032E3741881BD54FDFFFFAB1CA7D7740C81BD54FDFFFF3C7C33B67533EB01#
+cmp $RESULT,0
+je quit
+mov patch,$RESULT
+find ldrb,#8B4DF02BC88B45D08908EB01#
+cmp $RESULT,0
+je quit
+mov padr,$RESULT+A
+mov pend,$RESULT+22
+find ldrb,#8945E8837DE800750733C0#
+cmp $RESULT,0
+je quit
+mov pf,$RESULT
+find ldrb,#405B5FC9C3C3558BEC81EC5001000053565733F68D511C8B028BF8C1CF0881E700FF00FF#
+mov pendoep,$RESULT+4
+
+fill patch,24,90
+mov [patch+24],#EB#
+
+bp padr
+bp pf
+bp pend
+
+erun
+
+
+proci:
+
+bp pend
+erun
+cmp eip,pend
+je end
+cmp eip,padr
+je mem_adr
+cmp eip,pf
+je wrimp
+
+
+mem_adr:
+mov addr,eax-1
+mov [addr],#FF15#
+mov [addr+2],fn
+jmp proci
+
+wrimp:
+mov fn,eax
+find iatw,fn
+cmp $RESULT,0
+je end
+mov fn,$RESULT
+jmp proci
+
+
+end:
+
+bp pendoep
+cmt pendoep,"if Show Nag push try:)"
+
+l:
+
+erun
+cmp oep,[esp+4]
+jne l
+
+mov oep,[oep]
+add oep,imb
+mov eip,oep
+
+sub oep,imb
+
+mov counter,imb
+add counter,3C
+mov counter,[counter]
+add counter,imb
+add counter,28
+mov [counter],oep
+add counter,58
+mov [counter],i_st
+dpe nm, eip
+
+msg  "File Unpacked"
+ret
+quit:
+ret

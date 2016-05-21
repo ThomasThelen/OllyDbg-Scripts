@@ -1,0 +1,48 @@
+//////////////////////////////////////////////////
+//  FileName    :  eXPressor.V1.X.osc
+//  Comment     :  OEP Find For eXPressor V1.0-V1.4X
+//  Environment :  WinXP SP2,OllyDbg V1.10,OllyScript V0.92
+//  Author      :  fly
+//  WebSite     :  http://www.unpack.cn
+//  Date        :  2005-10-02 19:00
+//////////////////////////////////////////////////
+#log
+
+MSGYN "Plz Clear All BreakPoints  And  Set Debugging Options : Events->Make First Pause at->WinMain !   "
+cmp $RESULT, 0
+je TryAgain
+
+
+//GameStart———————————————————————————————— 
+
+find eip, #FFE05F5E5BC9C3#
+cmp $RESULT, 0
+je NoFind
+eob Break
+bp $RESULT
+
+esto
+GoOn0:
+esto
+
+Break:
+cmp eip,$RESULT
+jne GoOn0
+bc $RESULT
+sto
+
+
+//GameOver———————————————————————————————— 
+
+log eip
+cmt eip, "This is the OEP! Found By: fly"
+MSG "Just : OEP !  Dump and Fix IAT.  Good Luck  "
+ret
+
+NoFind:
+MSG "Error! Maybe It's not eXPressor V1.0-V1.4X ! "
+ret
+
+TryAgain:
+MSG " Plz  Try  Again   !   "
+ret

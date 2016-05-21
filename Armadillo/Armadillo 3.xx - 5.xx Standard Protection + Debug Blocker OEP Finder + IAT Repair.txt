@@ -1,0 +1,611 @@
+/*
+
+Armadillo 3.xx / 4.xx / 5.xx
+Standard Protection/Debug Blocker OEP Finder
+Fix IAT Redirection, bypass and log SDK ArmAccess.dll calls
+
+*/
+
+// Variable Declarations
+
+var vpt                                    // VirtualProtect
+var ctd                                    // CreateThread
+var idp                                    // IsDebuggerPresent
+var odsa                                   // OutputDebugStringA
+var odsw                                   // OutputDebugStringW
+var oma                                    // OpenMutexA
+var idb                                    // Debug Blocker Y/N
+var aver                                   // Armadillo Version
+var ceip1                                  // EIP compare 1
+var ceip2                                  // EIP compare 2
+var seip1                                  // EIP search 1
+var seip2                                  // EIP search 2
+var ired                                   // Address of Import Redirection
+var afix                                   // Address of ArmAccess Fix
+var acall                                  // Address of ArmAccess Calls
+var aname                                  // Address of ArmAccess Import Name
+var eoir                                   // End of Import Redirection
+var savr                                   // Address of Import Redirection Opcode
+var SDK                                    // SDK ArmAccess call name
+var oep1                                   // OEP call console 
+var oep2                                   // OEP call win32
+var oep3                                   // OEP call dll
+var isdll                                  // DLL flag
+var ImageBase                              // PE Image Base
+var PEHeaderBase                           // PE Header Base
+var Characteristics                        // Module Characteristics
+var tmp1                                   // Temporary Storage
+var tmp2                                   // ""
+var tmp3                                   // ""
+var save                                   // Code replacement storage
+
+// Check ODBGScript Version
+
+cmp $VERSION, "1.65"
+jb errorv
+
+msg "Set Ollydbg to pass all exceptions and add custom exceptions C0000005, C000001D, C000001E and C0000096, press OK to continue."
+
+// Setup Variables and Hide Ollydbg
+
+gmi eip, MODULEBASE                        // Check if module is a dll
+mov ImageBase, $RESULT
+mov PEHeaderBase, ImageBase
+add PEHeaderBase, 3C
+mov PEHeaderBase, [PEHeaderBase]
+add PEHeaderBase, ImageBase
+mov Characteristics, PEHeaderBase
+add Characteristics, 16
+mov Characteristics, [Characteristics]
+and Characteristics, 00002000
+cmp Characteristics, 0
+je Executable
+mov isdll, 01
+log "DLL Module Detected"
+
+Executable:
+gmi eip, MODULEBASE
+mov ceip2, $RESULT
+mov tmp1, ceip2
+gmi eip, MODULESIZE
+mov tmp2, $RESULT
+add tmp1, tmp2
+mov ceip1, tmp1
+
+gpa "VirtualProtect", "kernel32.dll"
+mov vpt, $RESULT
+gpa "CreateThread", "kernel32.dll"
+mov ctd, $RESULT
+gpa "OpenMutexA", "kernel32.dll"
+mov oma, $RESULT
+find vpt, #C21000#                         // find "retn 10"
+mov vpt, $RESULT
+find ctd, #C21800#                         // find "retn 18"
+mov ctd, $RESULT
+find oma, #C20C00#                         // find "retn 0C"
+mov oma, $RESULT
+gpa "IsDebuggerPresent", "kernel32.dll"
+mov idp, $RESULT
+gpa "OutputDebugStringA", "kernel32.dll"
+mov odsa, $RESULT
+gpa "OutputDebugStringW", "kernel32.dll"
+mov odsw, $RESULT
+mov [idp], #B800000000C3#                  // assemble "mov eax,0" "retn"
+mov [odsa], #C20400#                       // assemble "retn 4"
+mov [odsw], #C20400#                       // assemble "retn 4"
+
+
+// Start Unpacking
+
+ask "Enter Armadillo Version (3,4,5)"
+mov aver, $RESULT
+cmp aver, 3
+je ok1
+cmp aver, 4
+je ok1
+cmp aver, 5
+je ok1
+jmp error4
+
+ok1:
+cmp isdll, 1
+je check1
+msgyn "Is target using Debug Blocker?\r\n\r\n (CopyMem II and/or Memory Patching Protections must not be enabled!)"
+mov idb, $RESULT
+cmp idb, 0
+je check1
+                                           // Bypass Debug Blocker
+bp oma
+erun
+
+mov eax, 01
+erun
+
+mov eax, 01
+bc oma
+                                           // Begin normal unpacking procedure
+check1:
+bp vpt
+erun
+
+bc vpt
+sti
+gmi eip, NAME                              // check if eip is in unowned section
+cmp $RESULT, 0
+jne check1
+cmp ceip2,eip                              // check if eip is below PE image
+ja findir
+cmp ceip1,eip                              // check if eip is above PE image
+jb findir
+jmp check1
+
+// Find Import Redirection
+
+findir:
+
+gmemi eip, MEMORYBASE
+mov seip1, $RESULT
+cmp seip1, 0
+je error2
+cmp aver, 5                                // Is it Armadillo ver 5.xx?
+je redir2
+                                           // It is Armadillo ver 3.xx or 4.xx
+redir1:
+find seip1, #558BEC51A1????????53565785C075??# // find "push ebp" "mov ebp,esp" "push ecx" "mov eax, dword ptr ds:[xxxxxxxx]" "push ebx" "push esi" "push edi" "test eax,eax" "jnz xxxxxxxx"
+mov ired, $RESULT
+cmp ired, 0
+je error1
+mov savr, [ired], 1
+mov [ired], #C3#
+jmp fixarmaccess
+                                           // It is Armadillo ver 5.xx
+redir2:
+find seip1, #558BEC83EC2C83????????????75??#   // find "push ebp" "mov ebp,esp" "sub esp,2c" "cmp dword ptr ds:[xxxxxxxx],0" "jnz "xxxxxxxx"
+mov ired, $RESULT
+cmp ired, 0
+je error1
+mov savr, [ired], 1
+mov [ired], #C3#
+
+fixarmaccess:
+bp ired
+erun
+
+bc ired
+sti
+
+mov tmp1, eip
+add tmp1, 19
+cmp [tmp1], 85, 1
+je type0
+
+cmp aver, 5
+je extra2
+cmp aver, 3
+je extra2
+
+extra1:
+
+find eip, #5?C9C3#
+mov eoir, $RESULT
+cmp eoir, 0
+je error5
+add eoir, 02
+bp eoir
+erun
+
+bc eoir
+sti
+
+find eip, #5?C3#
+mov eoir, $RESULT
+cmp eoir, 0
+je error5
+add eoir, 01
+bp eoir
+erun
+
+bc eoir
+sti
+
+find eip, #5?C2??00#
+mov eoir, $RESULT
+cmp eoir, 0
+je error5
+add eoir, 01
+bp eoir
+erun
+
+bc eoir
+sti
+jmp type0
+
+extra2:
+
+find eip, #5?C3#
+mov eoir, $RESULT
+cmp eoir, 0
+je error5
+add eoir, 01
+bp eoir
+erun
+
+bc eoir
+sti
+
+find eip, #5?C3#
+mov eoir, $RESULT
+cmp eoir, 0
+je error5
+add eoir, 01
+bp eoir
+erun
+
+bc eoir
+sti
+
+find eip, #5?C2??00#
+mov eoir, $RESULT
+cmp eoir, 0
+je error5
+add eoir, 01
+bp eoir
+erun
+
+bc eoir
+sti
+
+type0:
+find eip, #74??FF15????????83F83275??C785????????????????#  // find "JE XXXXXXXX" "CALL DWORD PTR DS:[XXXXXXXX]" "CMP EAX,32" JNZ "XXXXXXXX" "MOV DWORD PTR SS:[EBP XXXX],XXXXXXXX"
+mov afix, $RESULT
+cmp afix, 0
+je error5
+
+mov tmp1, afix                             // Fix ArmAccess calls
+alloc 1000
+mov save, $RESULT
+memcpy save, afix, 18
+mov tmp1, afix
+mov [tmp1], #9090#
+add tmp1, 0B
+mov [tmp1], #9090#
+add tmp1, 08
+mov [tmp1], #00000000#
+sub tmp1, 06
+mov acall, tmp1
+cmp aver, 5
+je rest2
+
+rest1:
+find eip, #FFB5????????E8??????????EB??#   // find "PUSH DWORD PTR SS:[EBP XXXX]" "CALL XXXXXXXX" "POP XXX" "JMP XXXXXXXX"
+mov eoir, $RESULT
+cmp eoir, 0
+jne type1:
+find eip, #E8??????????E9????????#         // find "call XXXXXXXX" "POP XXX" "JMP XXXXXXXX"
+mov eoir, $RESULT
+cmp eoir, 0
+je error6
+add eoir, 0B
+
+type1:
+bp eoir
+bp acall
+rerun1:
+erun
+
+cmp eip, acall
+jne restore1
+mov tmp3, esp
+add tmp3, 0C
+mov tmp3, [tmp3]
+
+find tmp3, #00#
+mov tmp1, $RESULT
+sub tmp1, tmp3
+
+readstr [tmp3], tmp1
+mov tmp3, $RESULT
+sto
+sto
+find eip, #89088B85????????#               // find "mov dword ptr ds:[eax],ecx" "mov eax, dword ptr ss:[ebp-????] 
+mov tmp1, $RESULT
+add tmp1, 04
+mov tmp1, [tmp1]
+mov tmp2, ebp
+add tmp1, tmp2
+mov tmp1, [tmp1]
+eval "call {tmp3} at RVA {tmp1}"
+mov SDK, $RESULT
+log SDK
+jmp rerun1
+
+restore1:
+bc eoir
+bc acall
+memcpy afix, save, 18
+free save, 1000
+mov [ired], savr, 1
+
+jmp oepfind
+
+rest2:
+find eip, #E8????????83C404E9????????#     // find "CALL XXXXXXXX" "ADD ESP,4" "JMP XXXXXXXX"
+mov eoir, $RESULT
+cmp eoir, 0
+je error6
+add eoir, 0D
+
+rest3:
+bp eoir
+bp acall
+rerun2:
+erun
+
+cmp eip, acall
+jne restore2
+mov tmp3, esp
+add tmp3, 0C
+mov tmp3, [tmp3]
+
+find tmp3, #00#
+mov tmp1, $RESULT
+sub tmp1, tmp3
+
+readstr [tmp3], tmp1
+mov tmp3, $RESULT
+sto
+sto
+find eip, #89088B85????????#               // find "mov dword ptr ds:[eax],ecx" "mov eax, dword ptr ss:[ebp-????] 
+mov tmp1, $RESULT
+add tmp1, 04
+mov tmp1, [tmp1]
+mov tmp2, ebp
+add tmp1, tmp2
+mov tmp1, [tmp1]
+eval "call {tmp3} at RVA {tmp1}"
+mov SDK, $RESULT
+log SDK
+jmp rerun2
+
+restore2:
+bc eoir
+bc acall
+memcpy afix, save, 18
+free save, 1000
+mov [ired], savr, 1
+jmp oepfind
+
+// Find OEP
+
+oepfind:
+bp ctd
+erun
+
+bc ctd
+sti
+gmi eip, NAME
+cmp $RESULT, 0
+jne oepfind
+rtr
+sti
+
+cmp isdll, 1                               // DLL Check
+je OEPdll
+
+mov tmp1, eip                              // current EIP
+find tmp1, #5?C3#                          // find "pop xxx" "retn"
+mov tmp2, $RESULT
+cmp aver, 4                                // Is it Armadillo Version 4.xx?
+je arma4
+add tmp2, 1
+jmp arma3
+
+arma4:
+add tmp2, 2
+find tmp2, #5?C9C3#                        // find "pop xxx" "leave" "retn"
+mov tmp2, $RESULT
+add tmp2,2
+
+arma3:
+find tmp1, #FFD0#                          // find "call eax"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next01
+cmp tmp3, tmp2
+jb valid1
+
+next01:
+find tmp1, #FFD1#                          // find "call ecx"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next02
+cmp tmp3, tmp2
+jb valid1
+
+next02:
+find tmp1, #FFD2#                          // find "call edx"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next03
+cmp tmp3, tmp2
+jb valid1 
+
+next03:
+find tmp1, #FFD3#                          // find "call ebx"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next04
+cmp tmp3, tmp2
+jb valid1
+
+next04:
+find tmp1, #FFD4#                          // find "call esp"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next05
+cmp tmp3, tmp2
+jb valid1
+
+next05:
+find tmp1, #FFD5#                          // find "call ebp"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next06
+cmp tmp3, tmp2
+jb valid1
+
+next06:
+find tmp1, #FFD6#                          // find "call esi"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next07
+cmp tmp3, tmp2
+jb valid1
+
+next07:
+find tmp1, #FFD7#                          // find "call edi"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next08
+cmp tmp3, tmp2
+jb valid1
+
+next08:
+jmp error3
+
+valid1:
+mov oep1, tmp3
+bp oep1
+mov tmp1, tmp3
+add tmp1, 2
+
+find tmp1, #FFD0#                          // find "call eax"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next09
+cmp tmp3, tmp2
+jb valid2
+
+next09:
+find tmp1, #FFD1#                          // find "call ecx"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next0a
+cmp tmp3, tmp2
+jb valid2
+
+next0a:
+find tmp1, #FFD2#                          // find "call edx"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next0b
+cmp tmp3, tmp2
+jb valid2
+
+next0b:
+find tmp1, #FFD3#                          // find "call ebx"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next0c
+cmp tmp3, tmp2
+jb valid2
+
+next0c:
+find tmp1, #FFD4#                          // find "call esp"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next0d
+cmp tmp3, tmp2
+jb valid2
+
+next0d:
+find tmp1, #FFD5#                          // find "call ebp"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next0e
+cmp tmp3, tmp2
+jb valid2
+
+next0e:
+find tmp1, #FFD6#                          // find "call esi"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next0f
+cmp tmp3, tmp2
+jb valid2
+
+next0f:
+find tmp1, #FFD7#                          // find "call edi"
+mov tmp3, $RESULT
+cmp tmp3, 0
+je next10
+cmp tmp3, tmp2
+jb valid2
+
+next10:
+jmp error3
+
+valid2:
+mov oep2, tmp3
+bp oep2
+erun
+
+jmp OEPFound
+
+OEPdll:
+cmp aver, 4
+jne Continue1
+
+rtr
+sti
+
+Continue1:
+
+rtr
+sti
+
+find eip, #FF15????????#
+mov oep3, $RESULT
+bp oep3
+erun
+
+bc oep3
+
+OEPFound:
+sti
+bc oep1
+bc oep2
+cmt eip, "OEP"
+msg "Script appears to have reached OEP, check log window for additional information, if any."
+jmp end
+
+error1:
+msg "Can't find Import Redirection code!"
+jmp end
+
+error2:
+msg "Unknown Error!"
+jmp end
+
+error3:
+msg "Can't find OEP call!"
+jmp end
+
+error4:
+msg "Unsupported Armadillo Version!"
+jmp end
+
+error5:
+msg "Can't find ArmAccess call fixups!"
+jmp end
+
+error6:
+msg "Can't find end of Import Redirection loop!"
+jmp end
+
+errorv:
+msg "ODBGScript version 1.65 or higher required!"
+jmp end
+
+end:
+ret

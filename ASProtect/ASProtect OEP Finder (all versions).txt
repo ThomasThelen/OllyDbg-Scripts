@@ -1,0 +1,65 @@
+var addra
+var addrb
+var addrc
+var test
+
+run
+eoe checkme
+eob checkme
+
+checkme:
+mov addrb,eip
+add addrb,2
+mov addrb,[addrb]
+cmp addrb,00058f64
+je checklast
+esto
+
+
+checklast:
+
+mov addra,ebp
+sub addra,10
+mov addra,[addra]
+
+cmp addra,400000
+je found
+esto
+
+found:
+eob end
+eoe end
+mov addrc,[40003c]
+add addrc,100
+add addrc,400000
+
+mov addrc,[addrc]
+
+bprm 401000,addrc
+esto
+
+end:
+mov addra,[eip]
+and addra,0000ff
+
+cmp addra,c3
+
+
+jne endmsg
+mov test,[esp]
+
+and test,f00000
+shr test,14
+
+cmp test,9
+
+jae loop
+jmp endmsg
+loop:
+eob endmsg
+eoe endmsg
+esto
+
+endmsg:
+MSG " Please click on k at toolbar,if is not empty double click on the last address within the code section that you see at the bottom,and please rmove analysis if analysis has been done. Thank you!;BriteDream "
+ret

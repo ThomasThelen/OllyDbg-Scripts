@@ -1,0 +1,423 @@
+////////////////////////Château-Saint-Martin///////////////////////////////////////////////////////	
+//                                                                 ///////////////////////////////
+//  FileName    :  VMProtect 1.7 IAT Fix & LOG                     //////////////////////////////
+//  Features    :                                                  /////////////////////////////
+//                 Use it at the OEP and uncheck the custom        ////////////////////////////
+//                 and access violation exceptions before.         ///////////////////////////
+//                 This script fix the whole API´s to directs.     //////////////////////////
+//                 After using this script you have to use the     /////////////////////////
+//                 the new created IAT_LOGGER.txt script.Now use   ////////////////////////
+//                 UIF to fix the API´s to none directs.Now let    ///////////////////////
+//                 run the EDI,ESI & EBX Fixer which repairs all   //////////////////////
+//                 EDI,ESI & EBX directs to none directs.          /////////////////////
+//                 HINT:fill a 0 before the the letter´s.          ////////////////////
+//                                                                 ///////////////////
+//                 1. VMProtect 1.7 IAT Fix & LOG.txt              //////////////////
+//                 2. IAT_LOGGER.txt                               /////////////////
+//                 3. Use UIF                                      ////////////////
+//                 3. VMProtect 1.7 EDI,ESI & EBX Fixer.txt        ///////////////
+//                 4. INSTR_FIX.txt                                //////////////
+//                 5. Dump & Fix                                   /////////////
+//                                                                 ////////////
+//                 HINT:Before you use the INSTR_FIX.txt you       ///////////
+//                 should add a 0 before all - and + instructions  //////////
+//                 like "MOV ECX,DWORD PTR SS:[EBP+0C]" so Olly    /////////
+//                 can´t asm [xxx+C] without a 0 before.           ////////
+//                                                                 ///////
+//                                                                 //////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript v1.65.4          /////
+//  Author      :  LCF-AT                                          ////
+//  Date        :  2009-22-02                                      ///
+//                                                                 //
+//                                                                // 
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!///////////////
+
+
+var AD
+var AF
+var codebase
+var refaddr
+var vmpbase
+var vmpend
+var ptr
+var tmpesp
+var oep
+var tmp
+var codesize
+var isfirst
+var phase
+var sec1
+var magic
+var code
+var temper
+var sFile
+var tFile
+var A1
+var A2
+var A3
+var A4
+var A5
+var A6
+
+msg "Uncheck the memory access violation and custom exception´s NOW!Then let continue the script."
+pause
+
+mov sFile, "IAT_LOGGER.txt"
+wrt sFile, "start:"
+wrta sFile, "\r\n"
+
+mov tFile, "INSTR_FIX.txt"
+wrt tFile, "start:"
+wrta tFile, "\r\n"
+
+lc
+bc
+bpmc
+bphwcall
+mov oep, eip
+GMI eip, CODEBASE
+mov codebase, $RESULT
+mov ptr, codebase
+mov code, ptr
+GMI eip, CODESIZE
+mov codesize, $RESULT
+
+find ptr, #E8??????0090#
+cmp $RESULT, 0
+jne SAM_1
+pause
+
+/////////////////////////
+SAM_1:
+mov tmpesp, esp
+mov eip, $RESULT
+/////////////////////////
+SAM_2:
+sti
+find eip,#c2#,1
+cmp $RESULT,0
+je SAM_2
+mov magic, $RESULT
+gmemi eip, MEMORYBASE
+mov vmpbase, $RESULT
+mov sec1, $RESULT
+gmemi eip, MEMORYSIZE
+mov temper, $RESULT
+add temper, vmpbase
+mov temper, temper
+
+mov vmpend, temper
+mov eip, oep
+jmp SAM_3
+
+Ask  "vmp code base"
+mov vmpbase, $RESULT
+Ask  "vmp code end"
+mov vmpend, $RESULT
+mov tmpesp, esp
+/////////////////////////
+SAM_3:
+/////////////////////////
+next:
+mov esp, tmpesp
+cmp phase, 0
+jne findcall
+find ptr, #E8??????0090#
+jmp check
+/////////////////////////
+findcall:
+find ptr, #E9??????00#
+/////////////////////////
+check:
+cmp $RESULT,0
+je done
+cmp $RESULT, vmpbase
+ja done
+mov ptr, $RESULT
+mov eip, ptr
+inc ptr
+mov  tmp, [ptr]
+add tmp, eip
+cmp tmp, vmpbase
+jb next
+cmp tmp, vmpend
+ja next
+mov refaddr, ptr
+cmp isfirst, 0
+jne sss
+/////////////////////////
+first:
+sti
+find eip,#c2#,1
+cmp $RESULT,0
+je first
+bphws eip, "x"
+bp eip
+inc isfirst
+jmp fix
+/////////////////////////
+sss:
+run
+/////////////////////////
+fix:
+cmp eip, magic
+jne SAM_3
+
+mov eip, refaddr
+mov tmp, eip
+add tmp, 5
+find tmp, #ffd6#, 12
+cmp $RESULT,0
+je fix1
+dec eip
+eval "mov esi, {eax}"
+asm eip, $RESULT
+
+mov AD, eip
+opcode AD
+mov AF, $RESULT_1
+eval "asm {AD}, "{AF}""
+log $RESULT,""
+
+mov A1, eip
+
+GCI A1, SIZE
+mov A6, $RESULT
+cmp A6, 5
+jne w1
+pause
+
+w1:
+mov A3, eip+6
+opcode eip
+mov A2, $RESULT_1
+
+gn eax
+mov A4, $RESULT
+
+eval "asm {A1}, "{A2}" // {A4}"
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+eval "asm {A3}, "NOP""
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+opcode A3
+mov A5, $RESULT_1
+eval "asm {A3}, "{A5}""
+wrta tFile, $RESULT
+wrta tFile, "\r\n"
+
+add ptr, 6
+jmp next
+/////////////////////////
+fix1:
+find tmp, #ffd7#, 12
+cmp $RESULT,0
+je fix2
+dec eip
+eval "mov edi, {eax}"
+asm eip, $RESULT
+
+mov AD, eip
+opcode AD
+mov AF, $RESULT_1
+eval "asm {AD}, "{AF}""
+log $RESULT,""
+
+mov A1, eip
+
+GCI A1, SIZE
+mov A6, $RESULT
+cmp A6, 5
+jne w2
+pause
+
+w2:
+mov A3, eip+6
+opcode eip
+mov A2, $RESULT_1
+
+gn eax
+mov A4, $RESULT
+
+eval "asm {A1}, "{A2}" // {A4}"
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+eval "asm {A3}, "NOP""
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+opcode A3
+mov A5, $RESULT_1
+eval "asm {A3}, "{A5}""
+wrta tFile, $RESULT
+wrta tFile, "\r\n"
+
+add ptr, 6
+jmp next
+/////////////////////////
+fix2:
+find tmp, #ffd3#, 12
+cmp $RESULT,0
+je normalfix
+dec eip
+eval "mov ebx, {eax}"
+asm eip, $RESULT
+
+mov AD, eip
+opcode AD
+mov AF, $RESULT_1
+eval "asm {AD}, "{AF}""
+log $RESULT,""
+
+mov A1, eip
+
+GCI A1, SIZE
+mov A6, $RESULT
+cmp A6, 5
+jne w3
+pause
+
+w3:
+
+mov A3, eip+6
+opcode eip
+mov A2, $RESULT_1
+
+gn eax
+mov A4, $RESULT
+
+eval "asm {A1}, "{A2}" // {A4}"
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+eval "asm {A3}, "NOP""
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+opcode A3
+mov A5, $RESULT_1
+eval "asm {A3}, "{A5}""
+wrta tFile, $RESULT
+wrta tFile, "\r\n"
+
+add ptr, 6
+jmp next
+/////////////////////////
+normalfix:
+sub eax, refaddr
+sub eax, 4
+mov [refaddr], eax, 4
+
+add eax, 4
+add eax, refaddr
+mov AD, refaddr
+dec AD
+opcode AD
+mov AF, $RESULT_1
+eval "asm {AD}, "{AF}""
+log $RESULT,""
+
+mov A1, AD
+mov A3, AD+5
+opcode AD
+mov A2, $RESULT_1
+
+gn eax
+mov A4, $RESULT
+
+eval "asm {A1}, "{A2}" // {A4}"
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+eval "asm {A3}, "NOP""
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+
+add ptr, 5
+//log eip
+jmp next
+/////////////////////////
+done:
+cmp phase, 0
+jne exit
+inc phase
+mov ptr, codebase
+jmp next
+/////////////////////////
+exit:
+mov eip, oep
+jmp SAM_4
+//////////////////////////
+SAM_4:
+wrta sFile, "\r\n"
+wrta sFile, "\r\n"
+wrta sFile, "End:"
+
+wrta tFile, "\r\n"
+wrta tFile, "\r\n"
+wrta tFile, "End:"
+bc
+bphwcall
+
+var NEW_UIFSEC
+var NEW_RVA
+var P_ID
+var CODE_S
+var M_SIZES
+var MSUB
+var MSS1
+var MSS2
+var MSS3
+var MSS4
+var MSS5
+var MSS6
+var MSS7
+var MSS8
+var MSS9
+var MSS10
+mov MSS1, "Hello,so all API´s are fixed now to direct JMP´s CALL´s and mov´s."
+mov MSS2, "Now let run the new IAT_LOGGER.txt writes the API´s again and created one NOP after all mov reg,xxxxxxxx" 
+mov MSS3, "Now use the UIF tool to fix all direct API´s with new addresses.Best way is to create a new section for the IAT"
+mov MSS4, "for this you can enter alloc 1000 in the script window.The new section is red marked.Enter this Address in UIF."
+mov MSS5, "After UIF you have to use VMProtect 1.7 EDI,ESI & EBX Fixer.txt which fixed the direct API addresses to your new section."
+mov MSS6, "Now let run the INSTR_FIX.txt which filled all NOPs with the correct instructions.Before you can on all - and + signs a 0 with Notepad."
+mov MSS7, "So Olly can´t write commands like "xxxxx:[EBP+0C] without a 0 before the letter."
+mov MSS8, "Now you can dump.Now add the new IAT_section to this dump and make a valid rebuild and now fix this dump."
+mov MSS9, "So good luck and remember you can use the new script`s also on a next restart.It writes all what you need."
+mov MSS10, "gRn @ LCF-AT"
+
+eval "{MSS1} \r\n\r\n{MSS2} \r\n\r\n{MSS3} \r\n\r\n{MSS4} \r\n\r\n{MSS5} \r\n\r\n{MSS6} \r\n\r\n{MSS7} \r\n\r\n{MSS8} \r\n\r\n{MSS9} \r\n\r\n{MSS10}"
+log $RESULT
+msg $RESULT
+mov $RESULT, 0
+msgyn "Do you want a new IAT Section?"
+cmp $RESULT, 1
+jne mess
+GPI PROCESSID
+mov P_ID, $RESULT
+alloc 2000
+mov NEW_UIFSEC, $RESULT
+mov NEW_RVA, $RESULT
+GMI eip, CODEBASE
+mov CODE_S, $RESULT
+gmemi eip, MEMORYSIZE
+mov M_SIZES, $RESULT
+add M_SIZES, CODE_S
+
+GMI eip, MODULEBASE
+mov MSUB, $RESULT
+sub NEW_RVA, MSUB
+eval "The new IAT VA is (for UIF) \r\n\r\nVA: {NEW_UIFSEC} \r\n\r\nand in ImpRec & LordPE enter the \r\n\r\nRVA: {NEW_RVA} \r\n\r\nPID: {P_ID} \r\n\r\nCodes Start: {CODE_S} \r\n\r\nCode End: {M_SIZES}"
+msg $RESULT
+log $RESULT, ""
+eval "Now enter the data before in UIF and let it run.Now make a dump and dump the new IAT section VA: {NEW_UIFSEC} (RVA: {NEW_RVA}) and add this to this dump.Make a valid rebuild and now fix with ImpRec and you are done now."
+msg $RESULT
+log $RESULT, ""
+mess:
+msg "Script finished"
+pause 
+pause

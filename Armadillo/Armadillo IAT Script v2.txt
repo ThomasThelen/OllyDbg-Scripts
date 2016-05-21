@@ -1,0 +1,48 @@
+var SalMag
+
+dbh
+eoe LABEL
+ask "Direccion del Salto Magico?"
+cmp $RESULT, 0
+je FIN
+mov SalMag, $RESULT
+msgyn "Preguntar = SI  ||  No preguntar = NO"
+cmp $RESULT, 0
+je NoPreg
+eob BABEL
+jmp PregFin
+
+NoPreg:
+eob BABEL2
+
+PregFin:
+run
+
+BABEL:
+cmp eip, SalMag
+jne FIN
+cmp eax, 1
+jne SIGPAS
+msgyn "Continuar?"
+cmp $RESULT, 1
+je SIGPAS
+jmp FIN
+
+SIGPAS:
+mov !ZF, 1
+run
+jmp SIGPAS
+
+BABEL2:
+cmp eip, SalMag
+jne FIN
+mov !ZF, 1
+run
+jmp BABEL2
+
+FIN:
+ret
+
+LABEL:
+esto
+jmp LABEL

@@ -1,0 +1,208 @@
+/*
+=================================================================
+Armadillo 4.42b1: CopyMem-II script for unpackme
+=================================================================
+*/
+
+var pid
+var wait_buffer
+var oep
+var oep1
+var oep2
+var oep3
+var exception
+var write_buffer
+var original
+var encryptor
+var start
+var end
+var middle
+
+var temp
+
+
+
+msg "Ignore ALL exceptions, delete ALL breakpoints! Script needs WinXP."
+
+//---------------------------------------------------------------------
+dbh //Hide debugger.
+
+gpa "OutputDebugStringA","kernel32.dll" //Kill bug.
+cmp $RESULT,0
+je error
+asm $RESULT,"RETN 4"
+
+gpa "DebugActiveProcess","kernel32.dll" //Get "child" PID.
+cmp $RESULT,0
+je error
+bp $RESULT
+esto
+bc eip
+mov pid,esp
+add pid,4
+mov pid,[pid]
+
+gpa "WaitForDebugEvent","kernel32.dll" //Get WaitForDebugEvent buffer.
+cmp $RESULT,0
+je error
+bp $RESULT
+esto
+bc eip
+mov wait_buffer,esp
+add wait_buffer,4
+mov wait_buffer,[wait_buffer] //Get WaitForDebugEvent buffer.
+
+gpa "WriteProcessMemory","kernel32.dll" //Get memory buffer to patch OEP.
+cmp $RESULT,0
+je error
+bp $RESULT
+esto
+bc eip
+
+mov oep1,wait_buffer
+add oep1,18
+mov oep,[oep1]
+mov oep2,wait_buffer
+add oep2,24
+mov oep3,wait_buffer
+add oep3,28
+mov exception,wait_buffer
+add exception,0c
+
+mov write_buffer,esp
+add write_buffer,0c
+mov write_buffer,[write_buffer]
+
+mov temp,oep
+and temp,0FFF
+add temp,write_buffer
+mov original,[temp]
+mov [temp],#ebfe9090# //Patch "child" OEP in buffer.
+
+rtr
+sti
+rtr
+sti
+
+mov encryptor,eip
+add encryptor,2d0
+mov [encryptor],#9090909090#
+
+
+gpa "ContinueDebugEvent","kernel32.dll"
+cmp $RESULT,0
+je error
+bp $RESULT
+esto
+bc eip
+rtr
+sti
+
+
+sto
+sto
+sto
+sto
+sto
+
+sto
+sto
+sto
+sto
+sto
+
+sto
+sto
+sto
+sto
+sto
+
+sto
+sto
+sto
+sto
+sto
+
+sto
+sto
+sto
+sto
+sto
+
+sto
+sto
+sto
+
+mov [eip],#909090909090909090909090909090909090# //Patch WaitForDebugEvent.
+bp eip
+
+
+
+//--------------------- Decrypting Code section ---------------------------
+ask "Enter start of code (encrypted) section:"
+cmp $RESULT,0
+je error
+mov start,$RESULT
+
+ask "Enter end of code (encrypted) section:"
+cmp $RESULT,0
+je error
+mov end,$RESULT
+
+mov middle,oep
+and middle,0fffff000
+
+
+mov [oep1],start
+sub [oep1],1000
+mov [oep2],start
+sub [oep2],1000
+mov [oep3],start
+sub [oep3],1000
+
+LABEL01:
+add [oep1],1000
+add [oep2],1000
+add [oep3],1000
+cmp [oep1],middle
+je LABEL01
+esto
+cmp [oep1],end
+jne LABEL01
+
+bc eip
+mov temp,eip
+mov [temp],#6890909090# 
+add temp,1
+mov [temp],pid
+sti
+asm eip,"CALL DebugActiveProcessStop"
+
+msg "Pressing F8 will detach processes. Check log for more info. Variable original holds patched 4 bytes in reversed order. Restore them back after attaching to second process."
+
+
+
+//------------------------- LOG ----------------------------
+log " "
+log "ARMADILLO 4.XX - COPYMEM-II DECRYPTOR SCRIPT ©haggar"
+log " "
+log pid
+//log wait_buffer
+log oep
+//log oep1
+//log oep2
+//log oep3
+//log exception
+//log write_buffer
+log original
+//log encryptor
+//log start
+//log end
+//log middle
+
+dbs
+ret
+error:
+dbs
+msg "NOOOOOOOOO!!!!!!!!!! Error occurred "
+ret[QUOTE]

@@ -1,0 +1,57 @@
+var break
+var dire
+var anti
+
+
+start:
+msg "DESTILDA LA EXCEPCION MEMORY ACCESS VIOLATION"
+eoe para
+run
+
+para:
+
+mov anti,eip
+cmp [anti],0c3
+je pasa
+
+bprm 401000,06a000
+eob corre
+esto
+
+corre:
+mov anti,eip
+cmp [anti],0c3
+je pasa
+
+bpmc
+find eip, #8B4424048A4C240880C1508B10880AFF00#
+cmp $RESULT,0
+je fin
+
+mov break, $RESULT
+bp break
+eob sigue
+run
+
+sigue:
+mov anti,eip
+cmp [anti],0c3
+je pasa
+bc break
+bprm 401000,06a000
+eob termina
+run
+
+termina:
+bpmc
+msg "OEP ALCANZADO !"
+ret
+
+fin:
+msg "direccion no encontrada"
+ret
+
+pasa:
+pasa:
+mov [anti],090
+esto

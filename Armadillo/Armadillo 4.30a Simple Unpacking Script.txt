@@ -1,0 +1,105 @@
+/*
+==============================================
+  Armadillo 4.30a - simple unpacking script
+==============================================
+
+This script can unpack Armadillo 4.30a 
+with standard protection enabled.
+
+Features:
+
+- Finds OEP;
+- Prevents import emulation.
+
+Usage:
+- Ignore all exceptions!!!
+- Add to custom C000001E and ignore it.
+==============================================
+*/
+
+
+
+//Defining_variables:
+
+var DebugString
+var TickCount
+var MagicJump
+
+
+//==============================================
+// 1. Fooling Olly debug string exploit
+//==============================================
+
+
+gpa "OutputDebugStringA","kernel32.dll"
+mov DebugString,$RESULT
+bp  DebugString
+esto
+bc eip
+asm eip,"RETN 4"
+
+
+
+//================================================================
+// 2. Finding import redirection procedure and preventing it
+//================================================================
+
+gpa "GetTickCount","kernel32.dll"
+mov TickCount,$RESULT
+bp  TickCount
+esto
+bc  eip
+rtr
+bp  eip
+mov TickCount,eip
+
+
+SearchingPlace:
+esto
+sti
+find eip,#75118B85??????FF8B40??8985??????FFEB02EB??8B85??????FF408985??????FFEB378D8D??????FFE8????????0FB6C0996A??59F7F9#
+cmp $RESULT,0
+je SearchingPlace
+
+bc    TickCount
+mov   MagicJump,$RESULT
+bphws MagicJump,"x"
+esto
+
+bphwc MagicJump
+mov [eip],858B11EB
+
+
+find MagicJump,#8B85??????FF8985??????FFFFB5??????FFE8??????005983BD??????FF000F84??????00#
+bp $RESULT
+esto
+
+bc eip
+mov [MagicJump],858B1175
+
+
+
+
+//================
+// 3. Find OEP 
+//================
+
+gpa "CreateThread","kernel32.dll"
+bp $RESULT
+esto
+bc eip
+rtu
+rtr
+sti
+
+find eip,#FFD18945FC8B45FC5F5EC9C3#
+bp $RESULT
+esto
+bc eip
+sti
+
+
+cmt eip,"OEP found! Fix header by copy-paste before dump."
+ret
+
+

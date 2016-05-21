@@ -1,0 +1,136 @@
+/*
+//////////////////////////////////////////////////
+Назначение скрипта eXePressor Unpacker 1.5.01
+скрипт написан для распаковки самого прота!
+Author : Автор скрипта
+OS : XP SP2 Олька любая патченая + Фантом, Адвансед
+Note : Дополнительная информация
+/////////////////////////////////////////////////
+*/
+var oep
+var mh
+var cb
+var csz
+var mbase
+var em
+var iat
+var E8
+var iat_start
+mov iat_start,0047F740 
+/*
+//////////////////////////////////////////////////
+Выберем пустое место для записи эмуленых функция я выбрал
+чуть выше оригинальной иат! 
+00480000  77DC7883  ADVAPI32.RegQueryValueExA
+00480004  77DC761B  ADVAPI32.RegOpenKeyExA
+00480008  77DEC123  ADVAPI32.RegDeleteKeyA
+0048000C  77DCEBE7  ADVAPI32.RegSetValueExA
+будет примерно так лень было разбирать по библам
+импрек покажет их как инвалидные :) но сделает все правильно
+0047F740  7C810C8F  kernel32.GetFileSize
+0047F744  7C80180E  kernel32.ReadFile
+0047F748  7C810DA6  kernel32.SetFilePointer
+0047F74C  7C80180E  kernel32.ReadFile
+0047F750  77D3E2AE  USER32.SendMessageA
+0047F754  7C809B77  kernel32.CloseHandle
+0047F758  7C80180E  kernel32.ReadFile
+0047F75C  77D3A2DE  USER32.wsprintfA
+0047F760  77D3A2DE  USER32.wsprintfA
+0047F764  7C80B357  kernel32.GetModuleFileNameA
+/////////////////////////////////////////////////
+*/
+mov iat,0047F740
+GMI eip,CODEBASE
+mov cb,$RESULT
+GMI eip,CODESIZE
+mov csz,$RESULT
+GMI eip,ENTRY
+mov oep,$RESULT
+BC oep
+
+gpa "GetProcAddress","kernel32.dll"
+find $RESULT,#5F5BC9C2#
+bp $RESULT+3
+erun
+bc eip
+rtu
+find eip,#595985C0#
+cmp $RESULT,0
+je quit
+mov [$RESULT+4],#9090# // убираем переходники в иат
+run
+mov [eip],#cc# // обходим проверку на дебаг 
+mov mh,[esp+8]
+bp mh
+run
+bc eip
+add mh,10
+bp mh
+run
+bc eip
+add eip,7
+rtr
+sti
+find eip,#586A01585E5B5FC9C3#
+/*
+//////////////////////////////////////////////////
+00B43EF1     8945 D8                  mov dword ptr ss:[ebp-28],eax
+00B43EF4     837D D8 00               cmp dword ptr ss:[ebp-28],0
+00B43EF8     75 07                    jnz short 00B43F01
+получем функу в еах
+00B440EC     C600 E8                  mov byte ptr ds:[eax],0E8
+00B440EF     8B45 E4                  mov eax,dword ptr ss:[ebp-1C]
+00B440F2     40                       inc eax
+и перезаписываем так как нам нужно
+00B44118     8908                     mov dword ptr ds:[eax],ecx
+00B4411A     EB 01                    jmp short 00B4411D
+т.е call 01xxxxxx перепишем на
+call dword ptr ds:[0047FXXX]
+/////////////////////////////////////////////////
+*/
+cmp $RESULT,0
+je quit
+mov oep,$RESULT+8
+bp oep
+GMEMI eip, MEMORYBASE
+mov mbase,$RESULT
+find mbase,#8945D8837DD800750733C0#
+mov em,$RESULT
+bp em
+find em,#C600E88B45E4#
+mov E8,$RESULT
+bp E8
+mov mbase,E8+2C
+bp mbase
+loop:
+erun
+cmp eip,em
+jne oepfind
+mov [iat],eax
+erun
+sti
+mov [eax],#FF15#
+erun
+inc eax
+add eip,2
+mov [eax],iat
+add iat,4
+jmp loop
+
+oepfind:
+bc eip
+sti
+BPRM cb, csz
+run
+BPMC
+bc E8
+bc em
+bc mbase
+CMT eip,"OEP"
+eval "eXePressor Unpacked! Iat fixed, emul api remove!IAT Start: {iat_start}"
+msg $RESULT
+ret
+
+
+
+

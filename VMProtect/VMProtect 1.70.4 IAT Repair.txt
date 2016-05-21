@@ -1,0 +1,80 @@
+//fuck vmp iat by nooby
+//run the script at ep
+//vmp code base = va of .vmp0
+//vmp code size = size of .vmp0
+
+
+var vmpbase
+var vmpsize
+var magic
+var isfirst
+var first
+var decode
+var dllname
+var funcname
+var stackdep
+var sFile
+mov sFile, "iat_log.txt"
+mov isfirst, 0
+
+
+mov magic, 13e76ac
+mov first, 01007412
+mov decode, 113e6c8
+mov stackdep, c
+
+
+Ask  "vmp code base"
+mov vmpbase, $RESULT
+Ask  "vmp code size"
+mov vmpsize, $RESULT
+bphws first, "x"
+bphws magic, "x"
+bphws decode, "x"
+looper:
+esto
+cmp eip, first
+je patch
+cmp eip, magic
+je setbp
+cmp eip, decode
+je patch
+jmp looper
+setbp:
+cmp isfirst, 0
+jne p1
+inc isfirst
+bpwm vmpbase, vmpsize
+wrt sFile, "Fuck VMP IAT\r\n"
+wrta sFile, "VA, DLL.FUNCTION\r\n"
+p1:
+mov tmp, eax
+len [esi]
+readstr [esi], $RESULT
+mov dllname, $RESULT
+len [edi]
+readstr [edi], $RESULT
+mov funcname, $RESULT
+
+esti
+esto
+cmp eip, magic
+je p1
+cmp eip, first
+je patch
+cmp eip, decode
+je patch
+mov edx, tmp
+wrta sFile, eax
+wrta sFile, ", "
+wrta sFile, dllname
+wrta sFile, "."
+wrta sFile, funcname
+wrta sFile, "\r\n"
+
+jmp looper
+patch:
+mov [decode], c3
+
+end:
+ret

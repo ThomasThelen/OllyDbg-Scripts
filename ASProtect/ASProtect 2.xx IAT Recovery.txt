@@ -1,0 +1,181 @@
+// eax = API addr
+// ecx = start IAT
+// edx = end IAT
+// ebx = addr stolen redir
+// esi = current DLL
+// edi = lost DLL
+var LoadLibrary
+
+var scan_start
+var scan_end
+var addr_cur
+var temp
+
+var IAT_start
+var IAT_end
+var DLL_cur
+var DLL_lost
+var addr_finder
+var addr_iat_reb
+var stack
+var counter
+var type_api
+
+var OEP
+
+ask "Enter start IAT:"
+cmp $RESULT,0
+je @halt
+mov IAT_start	,$RESULT
+ask "Enter end IAT:"
+cmp $RESULT,0
+je @halt
+mov IAT_end	,$RESULT
+mov type_api,15
+msgyn "Do you want to use opcod "call" (FF15) for recovering redirector? If you choose "No" will be used opcod "jmp" (FF25)."
+cmp $RESULT,1
+je @init
+mov type_api,25
+
+@init:
+mov counter,0
+mov OEP,eip
+mov temp,eip
+mov scan_start,[eip] 
+mov [eip],#6A00#
+sto
+add temp,4
+mov scan_end,[temp]
+asm eip,"call GetModuleHandleA"
+sto
+mov eip,OEP
+mov [eip],scan_start
+mov [temp],scan_end
+mov scan_start,eax
+add scan_start,1000
+mov scan_end,scan_start
+gmi scan_start,CODESIZE
+add scan_end,$RESULT
+mov eip,scan_start
+sub eip,200
+mov [eip],#60413BCA73138039E875F68B410103C183C0056683F80075E861#
+sto
+mov stack,esp
+mov addr_finder,eip
+mov ecx,scan_start
+dec ecx
+mov edx,scan_end
+add eip,18
+bp eip
+sub eip,18
+@find_aspr_call:
+  mov eip,addr_finder
+  run
+  cmp ecx,edx
+  jae @end
+  cmp eax,7FFE0000
+jae @find_aspr_call
+  mov aspr_call,eax
+  find aspr_call,#EB01#
+  cmp $RESULT,0
+je @find_aspr_call
+  mov temp,$RESULT
+  sub temp,aspr_call
+  cmp temp,10
+jbe @repuild_api_init
+  find aspr_call,#EB02CD20#
+  cmp $RESULT,0
+je @find_aspr_call
+  mov temp,$RESULT
+  sub temp,aspr_call
+  cmp temp,10
+ja @find_aspr_call
+
+@repuild_api_init:
+  bc eip
+  sub eip,18
+  mov [eip],#413BCA73118039E875F68B410103C183C0053BC375EA61#
+  add eip,16
+  bp eip
+  mov addr_cur,scan_start 
+  dec addr_cur
+  inc eip
+  mov addr_iat_reb,eip
+  mov [eip],#5750E8099E407C9083C1043BCA7706390175F5EB0F3BF77409C7010000000083C104890166C703FF00894B02#
+  add eip,2
+  asm eip,"call GetProcAddress"
+  add eip,5
+  bp eip
+  add eip,25
+  bp eip
+  sub eip,4
+  add [eip],type_api
+  
+  gpa "LoadLibraryA","kernel32"
+  findop $RESULT,#C20400#
+  mov LoadLibrary,$RESULT
+  bphws LoadLibrary, "x"
+
+@START:
+mov DLL_lost,00000000
+@repuild_api:
+  mov esp,stack
+  mov eip,addr_finder
+  mov ecx,addr_cur
+  mov edx,scan_end
+  mov ebx,aspr_call
+  run
+  cmp ecx,edx
+  jae @end
+  inc counter
+  mov addr_cur,ecx  
+  mov eip,addr_cur
+  run
+  cmp eip,LoadLibrary
+  jne @ERR_BP_AT_API_NOT_WORK
+  mov DLL_cur,eax
+  mov eip,addr_iat_reb
+  run
+  mov ecx,IAT_start
+  sub ecx,4
+  mov edx,IAT_end
+  mov ebx,addr_cur
+  mov esi,DLL_cur
+  mov edi,DLL_lost
+  bc eip
+  run
+  sub eip,25
+  bp eip
+  mov DLL_lost,DLL_cur
+  cmp ecx,edx
+  jbe @repuild_api
+  mov IAT_end,ecx
+jmp @repuild_api
+
+@end:
+  mov esp,stack
+  mov eip,addr_finder
+  add eip,16
+  bc eip
+  sto
+  mov eip,addr_iat_reb
+  add eip,7
+  bc eip
+  add eip,25
+  bc eip
+  dec addr_finder
+  fill addr_finder,44,00
+  bphwc LoadLibrary
+  mov eip,OEP
+  bp eip
+  ai
+  bc eip
+  eval "Script finished! In total {counter} functions are restored!"
+  msg $RESULT
+@halt:
+pause
+ret
+
+@ERR_BP_AT_API_NOT_WORK:
+msg "[Error!] BreakPoint at 'LoadLibrary' not work!"
+jmp @end

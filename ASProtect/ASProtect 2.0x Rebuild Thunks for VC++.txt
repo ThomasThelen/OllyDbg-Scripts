@@ -1,0 +1,192 @@
+/*
+Is modified from PESpin for ASProtect so don't be confused with notes. It works!
+=======================================================================
+Quick script for rebuilding thunks at VC++ apps protected with PESpin
+=======================================================================
+*/
+
+var addr
+var pointer
+var thunk
+var new
+mov new,4040C0  //Points to start of PESpin section.
+
+//This algo will find all calls that point in table with imports:
+mov addr,401000
+LABEL1:
+find addr,#FF15????????#    //Find CALL DWORD PTR:[constant].
+cmp $RESULT,0
+je END1
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL1
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL1
+END1:
+
+//This algo will find all jumps that point in table with imports:
+mov addr,401000
+LABEL2:
+find addr,#FF25????????#    //Find JMP DWORD PTR:[constant].
+cmp $RESULT,0
+je END2
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL2
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL2
+END2:
+
+// ================================================================================
+==
+//Fixing MOV EBP,API:
+mov addr,401000
+LABEL3:
+find addr,#8B2D????????#
+cmp $RESULT,0
+je END3
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL3
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL3
+END3:
+
+//Fixing MOV EDI,API:
+mov addr,401000
+LABEL4:
+find addr,#8B3D????????#
+cmp $RESULT,0
+je END4
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL4
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL4
+END4:
+
+//Fixing MOV EBX,API:
+mov addr,401000
+LABEL5:
+find addr,#8B1D????????#
+cmp $RESULT,0
+je END5
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL5
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL5
+END5:
+
+//Fixing MOV ECX,API:
+mov addr,401000
+LABEL6:
+find addr,#8B0D????????#
+cmp $RESULT,0
+je END6
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL6
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL6
+END6:
+
+//Fixing MOV EDX,API:
+mov addr,401000
+LABEL7:
+find addr,#8B15????????#
+cmp $RESULT,0
+je END7
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL7
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL7
+END7:
+
+//Fixing MOV ESI,API:
+mov addr,401000
+LABEL8:
+find addr,#8B35????????#
+cmp $RESULT,0
+je END8
+
+add $RESULT,2
+mov addr,$RESULT
+mov pointer,[$RESULT]       //Check is DWORD PTR:[constant] belongs to table.
+
+cmp pointer,500000
+jb LABEL8
+
+mov [$RESULT],new
+mov pointer,[pointer]
+mov [new],pointer
+add new,8
+
+jmp LABEL8
+END8:
+
+ret

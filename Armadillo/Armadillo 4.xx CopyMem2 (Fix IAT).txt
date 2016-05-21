@@ -1,0 +1,186 @@
+//////////////////////////////////////////////////////////
+// FileName    :  Armadillo.fiXed.IT.osc
+// Comment     :  Armadillo V4.X CopyMem-II fiXed IT
+// Environment :  WinXP SP2,OllyDbg V1.10,OllyScript V0.92
+// Author      :  heXer
+// WebSite     :  http://www.unpack.cn
+// Date        :  2005-11-03 13:30
+//////////////////////////////////////////////////////////
+#inc "Get.eXe.PE.Information.osc"
+#log
+dbh
+
+
+var EP
+var temp
+var OpenMutexA 
+var GetPrivateProfileStringA
+var VirtualProtect
+var strchr
+var Patch01
+var Patch02
+var fiXedOver
+var SaveIat
+var IatSize
+var IatFileBin
+var GetTickCount
+mov IatSize,600
+
+
+MSGYN "Plz Clear All BreakPoints  And  Set Debugging Option Ignore All Excepions Options  !"
+cmp $RESULT, 0
+je TryAgain
+
+//OutputDebugStringA！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+gpa "OutputDebugStringA", "KERNEL32.dll"
+mov [$RESULT], #C20400#
+
+
+//Revert Original EP Code！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+MSG "Plz Pree F12,  And Revert Original EP Code !  Follow  resume-> Script"
+esto
+pause
+
+
+//OpenMutexA！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+gpa "OpenMutexA", "KERNEL32.dll"
+mov OpenMutexA,$RESULT
+log OpenMutexA
+eob OpenMutexA
+bp OpenMutexA
+
+esto
+GoOn0:
+esto
+
+OpenMutexA:	
+cmp eip,OpenMutexA
+jne GoOn0
+
+eob KillOpenMutexA
+exec
+mov eax,[ESP+0C]
+pushad
+push eax
+push 0
+push 0
+CALL CreateMutexA
+popad
+jmp OpenMutexA
+ende
+
+KillOpenMutexA:
+bc OpenMutexA
+                                                                    
+                                                                                 
+//VirtualProtect！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！ 
+
+gpa "VirtualProtect", "KERNEL32.dll"                                             
+mov VirtualProtect,$RESULT
+eob VirtualProtect      
+bp VirtualProtect
+
+esto
+GoOn1:    
+esto 
+
+VirtualProtect:                                                                  
+cmp eip,VirtualProtect    
+jne GoOn1                                                                        
+bc VirtualProtect
+
+
+//strchr！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+
+gpa "strchr", "msvcrt.dll"     
+mov strchr,$RESULT                     
+bp strchr                              
+eob strchr           
+esto
+GoOn2:
+esto 
+
+strchr:
+mov temp,[esp]
+ 
+
+//Patch！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+find temp,#8378080074??6800010000#
+cmp $RESULT,0
+je GoOn2
+bc strchr
+
+mov Patch01,$RESULT
+log Patch01
+mov [Patch01],#83780800EB#
+
+
+find temp,#6BC93281C1D00700003BC176#
+cmp $RESULT,0
+je NoFind
+mov Patch02,$RESULT
+log Patch02
+mov [Patch02],#6BC93281C1D00700003BC1EB#
+
+
+find temp,#33D2B910270000F7F18985????????8B85????????8B00#
+cmp $RESULT,0
+je NoFind
+mov fiXedOver,$RESULT
+add fiXedOver,15
+log fiXedOver
+bp fiXedOver
+eob fiXedOver
+esto
+
+fiXedOver:
+bc fiXedOver
+mov [Patch01],#8378080074#
+mov [Patch02],#6BC93281C1D00700003BC176#
+mov SaveIat,eax
+log SaveIat
+eval "SaveIat{SaveIat}.bin"
+mov IatFileBin,$RESULT
+dm SaveIat,IatSize,IatFileBin
+
+
+//VirtualProtect！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+gpa "VirtualProtect", "KERNEL32.dll"
+mov VirtualProtect,$RESULT
+eob VirtualProtect2
+bp VirtualProtect
+
+esto
+GoOn3:
+esto
+
+VirtualProtect2:
+cmp eip,VirtualProtect
+jne GoOn3
+bc VirtualProtect
+rtu
+
+
+//GameOver！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！                                
+                                                      
+OK:                        
+MSG " Plz Continue Fix IT !  Game Over.     "  
+ret                         
+
+NoFind:
+MSG "Error! Don't find.     "
+ret
+
+Only Win2K/XP:
+MSG "Error! This Script only Run on the Win2K/WinXP !   "
+ret
+
+TryAgain:
+MSG " Plz  Try  Again   !   "
+ret

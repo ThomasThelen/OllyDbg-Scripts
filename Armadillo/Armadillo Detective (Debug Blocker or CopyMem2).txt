@@ -1,0 +1,43 @@
+
+// Script for OllyScript plugin by SHaG - http://ollyscript.apsvans.com
+/*
+//////////////////////////////////////////////////////////////
+// Armadillo's Debug Blocker Feature or CopyMEM2 detective
+// Author: hacnho mod from MEPHiST0s - ARMADiLLO DETECTiVE v1.00
+// Email : hacnho@hotmail.com
+// Website: http://tinicat.de/hacnho
+// OS : WinXP Pro SP1, OllyDbg 1.10 Final, OllyScript v0.92
+// DaTe ReLeAsE: 14 July 2005
+/////////////////////////////////////////////////////////////
+*/
+var dbcheck
+var debugblock
+var mem
+var time
+var nono
+
+
+gpa "OpenMutexA", "kernel32.dll"
+mov mem,$RESULT
+bp mem
+esto
+esto
+rtr
+sti
+bc mem
+gpa "time", "MSVCRT.dll"
+mov time,$RESULT
+bp time
+mov dbcheck,[eip]
+and dbcheck,0000FFFF
+cmp dbcheck,0000C085        //checking for debug blocker signal
+je db
+
+db:
+jne nono
+msg "This file is protected with Armadillo's Debug Blocker Feature or CopyMEM2."
+ret
+
+nono:
+msg "This file is not protected with Armadillo's Debug Blocker Feature or CopyMEM2."
+ret

@@ -1,0 +1,12 @@
+find eip,#60# 		// searches for pushad
+cmp eip,$RESULT // compares if we are already at pushad command
+je next 				// jumps sto if we are there
+go $RESULT 		// executes till pushad
+next:
+sto						// step one command
+bphws esp,"r"		// set hardware-breakpoint on ESP-value
+run						// run target
+cob						// wait till break occured
+sto						// step
+sto						// step
+sto						// step

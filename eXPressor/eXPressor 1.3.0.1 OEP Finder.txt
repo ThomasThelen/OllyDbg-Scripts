@@ -1,0 +1,12 @@
+sto
+var x
+mov x,esp
+bphws x,"r"
+run
+bphwc x
+sto
+an eip
+sti
+sti
+cmt eip, "Dump here and rebuild IAT with ImpRec."
+ret

@@ -1,0 +1,94 @@
+//arm 4.4 单进程 密码
+#log
+gpa "strlen","msvcrt.dll"
+cmp $RESULT,0
+je err
+var strlen
+mov strlen,$RESULT
+bp strlen
+var a
+var temp
+
+loo:
+esto
+cmp eip,strlen
+jne loo
+rtu
+mov a,eip
+add a,17
+mov temp,[a]
+cmp temp,0474C084
+jne loo
+add a,4
+mov temp,[a]
+cmp temp,4CEB016A
+jne loo
+bc strlen
+sub a,4
+bp a
+esto
+bc a
+mov a,eax
+or a,1     //饶开密码
+mov eax,a
+
+gpa "GetModuleHandleA","kernel32.dll"
+cmp $RESULT,0
+je err
+var GetModuleHandleA
+mov GetModuleHandleA,$RESULT
+bphws GetModuleHandleA,"x"
+los:
+esto
+cmp eip,GetModuleHandleA
+jne los
+bphwc GetModuleHandleA
+rtu
+find eip,#0F84#
+cmp $RESULT,0
+je err
+var addr
+var magic
+mov addr,$RESULT
+go addr
+mov magic,eip
+add magic,2
+mov magic,[magic]
+mov [eip],#E93001000090#  //magic jmp
+msg "magic jmp"
+sto
+find eip,#0F85#
+cmp $RESULT,0
+je err
+add $RESULT,6
+bp $RESULT
+esto
+bc $RESULT
+mov [addr],#0F84#
+add addr,2
+mov [addr],magic  //还原
+msg "iat 处理完毕"
+
+gpa "CreateThread","kernel32.dll"
+cmp $RESULT,0
+je err
+bp $RESULT
+esto
+bc $RESULT
+ret
+eob cool
+eoe pp
+pp:
+esto
+ret
+
+cool:
+cob
+coe
+
+
+
+ret
+err:
+msg "error"
+ret

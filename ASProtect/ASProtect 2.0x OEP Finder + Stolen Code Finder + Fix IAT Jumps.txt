@@ -1,0 +1,92 @@
+//This one finds OEP, stolen code and clear IAT jumps
+var VirtualAlloc
+var loader_base
+var loader_ep
+var loader_oep
+var first_import
+var second_import
+var stolen_code
+var oep
+var temp
+var temp2
+
+msg "Ignore ALL exceptions and delete ALL breakpoints before start!!!"
+dbh
+//Get to OEP of loader:
+gpa "VirtualAlloc","kernel32.dll"
+cmp $RESULT,0
+je error
+mov VirtualAlloc,$RESULT
+bp VirtualAlloc
+esto
+esto
+bc eip
+rtr
+mov loader_base,eax
+sti
+rtr
+mov loader_ep,[esp]
+sti
+sti
+sti
+mov temp,esp
+bphws temp,"r"
+esto
+bphwc temp
+rtr
+sti
+mov loader_oep,eip
+
+//Patch first import routine:
+mov first_import,loader_base
+add first_import,13780
+mov [first_import],#66C700FF1540408910892A909090909090#
+
+//Patch second import routine:
+mov second_import,loader_base
+add second_import,1CEBE
+mov [second_import],#6890909090C39090#
+mov temp,second_import
+add temp,1
+mov [temp],loader_base
+
+mov temp,loader_base
+mov [temp],#014308892A6890909090C3#
+add temp,6
+mov temp2,loader_base
+add temp2,1CC73
+mov [temp],temp2
+
+//Find OEP and stolen code:
+mov stolen_code,loader_base
+add stolen_code,13767
+bp stolen_code
+esto
+bc eip
+mov oep,ebx
+mov stolen_code,ecx
+bp ecx
+esto
+bc eip
+
+cmt eip,"<-- Stolen code starts here!"
+msg "Script is done! Check log for more information.  "
+dbs
+
+//Logging notes:
+log " "
+log " ASPR2.0 - UNPACKING SCRIPT NOTES"
+log " "
+
+log loader_base
+log loader_ep
+log loader_oep
+log first_import
+log second_import
+log oep
+log stolen_code
+
+ret
+error:
+msg "ERROR! Exiting......"
+ret

@@ -1,0 +1,141 @@
+////////////////////////Château-Saint-Martin/////////////////////////////////////////////////
+//                                                                 /////////////////////////
+//  FileName    :  VMProtect 1.7 EDI,ESI & EBX Fixer               ////////////////////////
+//  Features    :                                                  ///////////////////////
+//                 Use this script to fix all mov register,direct  //////////////////////
+//                 to mov register,dword ptr ds:[ADDRESS], API.    /////////////////////
+//                                                                 ////////////////////
+//                                                                 ///////////////////
+//                 1. VMProtect 1.7 IAT Fix & LOG.txt              //////////////////
+//                 2. IAT_LOGGER.txt                               /////////////////
+//                 3. Use UIF                                      ////////////////
+//                 3. VMProtect 1.7 EDI,ESI & EBX Fixer.txt        ///////////////
+//                 4. INSTR_FIX.txt                                //////////////
+//                 5. Dump & Fix                                   /////////////
+//                                                                 ////////////
+//                 HINT:Before you use the INSTR_FIX.txt you       ///////////
+//                 should add a 0 before all - and + instructions  //////////
+//                 like "MOV ECX,DWORD PTR SS:[EBP+0C]" so Olly    /////////
+//                 can´t asm [xxx+C] without a 0 before.           ////////
+//                                                                 ///////
+//                                                                 //////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript v1.65.4          /////
+//  Author      :  LCF-AT                                          ////
+//  Date        :  2009-22-02                                      ///
+//                                                                 //
+//                                                                // 
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!///////////////
+
+var B1
+var B2
+var B3
+var IB
+var IB2
+var IATSECTION
+var ED
+var ED2
+var ADDRESS
+var ES
+var EB
+
+mov ED, "mov edi,DWORD PTR DS:"
+mov ES, "mov esi,DWORD PTR DS:"
+mov EB, "mov ebx,DWORD PTR DS:"
+
+mov $RESULT, 0
+ask "Enter the address VA of your new IAT section"
+cmp $RESULT, 0
+je endes2
+mov IATSECTION, $RESULT       // New SEC search
+
+gmi eip, CODEBASE
+mov IB, $RESULT
+mov IB2, $RESULT
+
+///////////////////
+R1:
+find IB, #C7C7????????90#   // MOV EDI,const
+cmp $RESULT, 0
+je R2a
+
+mov IB, $RESULT
+add IB, 06
+mov B1, $RESULT
+add B1, 02
+mov B2, [B1]
+
+find IATSECTION, B2
+cmp $RESULT, 0
+jne R1a
+pause
+pause
+
+R1a:
+mov ADDRESS, $RESULT
+sub B1, 02
+eval "{ED}[{ADDRESS}]"
+asm B1, $RESULT
+jmp R1
+///////////////////////
+R2a:
+mov IB, IB2
+
+R2:
+find IB, #C7C6????????90#   // MOV ESI,const
+cmp $RESULT, 0
+je R3a
+
+mov IB, $RESULT
+mov B1, $RESULT
+add B1, 02
+mov B2, [B1]
+
+find IATSECTION, B2
+cmp $RESULT, 0
+jne R1b
+pause
+pause
+
+R1b:
+mov ADDRESS, $RESULT
+sub B1, 02
+eval "{ES}[{ADDRESS}]"
+asm B1, $RESULT
+jmp R2
+
+////////////////////
+R3a:
+mov IB, IB2
+
+R3:
+find IB, #C7C3????????90#   // MOV EBX,const
+cmp $RESULT, 0
+je R4
+
+mov IB, $RESULT
+mov B1, $RESULT
+add B1, 02
+mov B2, [B1]
+
+find IATSECTION, B2
+cmp $RESULT, 0
+jne R1c
+pause
+pause
+
+R1c:
+mov ADDRESS, $RESULT
+sub B1, 02
+eval "{EB}[{ADDRESS}]"
+asm B1, $RESULT
+jmp R3
+
+R4:
+endes:
+msg "Fixing done"
+pause
+pause
+endes2:
+ret
+msg "Nothing fixed!"
+ret

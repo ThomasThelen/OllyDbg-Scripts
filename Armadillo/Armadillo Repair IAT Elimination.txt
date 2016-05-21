@@ -1,0 +1,65 @@
+/*
+=======================================================================
+      Srcipt for repairing Armadillo's IAT Elimination feature
+=======================================================================
+
+This script should help you to rebuild IAT on targets protected
+with Armadillo's IAT Eliminator feature. You will need to modify
+some parts of script to work on your file. First you need to unpack
+your file, and prevent common import redirection and then use this
+script after you found OEP. Read my comments below.
+=======================================================================
+*/
+
+var code        //Code section is one that holds your code.
+var NewPointer  //Base address of new section where thunks will be placed (use some armadillo's).
+var OldPointer
+var Import
+
+ask "Enter base address of code section:" //Ask user to enter base of code section:
+cmp $RESULT,0
+je  exit
+mov code,$RESULT
+
+ask "Enter address of new section for imports:" //Ask user to enter base of new IAT section:
+cmp $RESULT,0
+je  exit
+mov NewPointer,$RESULT
+
+
+
+
+searching:
+findop code,#FF15????A900# //Find calls that points to 00A90000 section. You need to change this.
+cmp $RESULT,0
+je exit
+
+mov code,$RESULT           //Caclulations.
+add $RESULT,2
+mov OldPointer,[$RESULT]
+mov Import,[OldPointer]
+mov [NewPointer],Import
+mov [$RESULT],NewPointer
+add NewPointer,8
+
+jmp searching
+
+
+
+
+
+exit:
+ret
+
+
+
+
+
+
+
+
+
+
+
+
+

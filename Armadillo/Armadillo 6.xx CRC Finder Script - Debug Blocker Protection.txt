@@ -1,0 +1,88 @@
+///////////////////////////////////////////////////
+//	Author: Unregistered !
+//	Homepage: www.reaonline.net
+//	Date: 05/09/2008
+//////////////////////////////////////////////////
+
+
+bc
+bphwc 
+mov Chk,0
+FaCh:
+gpa "OpenMutexA", "kernel32.dll"
+bp $RESULT
+esto
+bc eip
+mov pra3,[esp+0C]
+cmp [pra3+3],41443A3A
+je OMA
+
+OMA: 
+add Chk,1
+findop eip, #C2#
+bp $RESULT
+esto
+bc eip
+sto
+sto
+mov !ZF,0
+cmp Chk,2
+je Con
+jmp FaCh
+
+
+Con:
+gpa "OutputDebugStringA", "KERNEL32.dll" 
+bp $RESULT
+esto
+esto
+bc eip
+
+findop [esp],#3345??#
+cmp $RESULT,0
+bp $RESULT
+esto
+bc eip
+mov Temp,[$RESULT+2]
+and Temp,0FF
+mov lCRC1,0FF
+sub lCRC1,Temp
+add lCRC1,1
+mov bCRC1,eax
+sto
+mov CRC1,eax
+xor CRC1,bCRC1
+
+findop eip,#8D45??#
+cmp $RESULT,0
+je Error
+bp $RESULT
+esto
+bc eip
+mov Temp,[$RESULT+2]
+and Temp,0FF
+mov lCRC2,0FF
+sub lCRC2,Temp
+add lCRC2,1
+mov bCRC1,eax
+sto
+
+mov CRC2,[eax]
+mov CRC3,[eax+4]
+mov CRC4,[eax+8]
+mov CRC5,[eax+0C]
+mov Temp,lCRC2
+sub Temp,4
+mov lCRC3,Temp
+sub Temp,4
+mov lCRC4,Temp
+sub Temp,4
+mov lCRC5,Temp
+
+eval "CRC1 : {CRC1} (EBP - {lCRC1}) \r\nCRC2 : {CRC2} (EBP - {lCRC2}) \r\nCRC3 : {CRC3} (EBP - {lCRC3}) \r\nCRC4 : {CRC4} (EBP - {lCRC4}) \r\nCRC5 : {CRC5} (EBP - {lCRC5}) \r\nTry to fix these CRC Values by hooking OutputDebugStringA at the second execute !"
+msg $RESULT
+ret
+
+Error:
+msg "Error occured ! Script terminated now !"
+ret

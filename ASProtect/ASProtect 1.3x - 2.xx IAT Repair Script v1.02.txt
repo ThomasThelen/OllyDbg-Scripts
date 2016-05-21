@@ -1,0 +1,1002 @@
+/*
+Script written by VolX
+version : v1.02
+Test Environment : OllyDbg 1.1
+                   ODBGScript 1.47 under WINXP
+Thanks : Oleh Yuschuk - author of OllyDbg
+         SHaG - author of OllyScript
+         Epsylon3 - author of ODbgScript
+*/
+//support Asprotect 1.32, 1.33, ,1.35, 2.0, 2.1, 2.11, 2.2beta, 2.2, 2.3
+
+var tmp1            
+var tmp2            
+var tmp3            
+var tmp4            
+var tmp5            
+var tmp6            
+var tmp7            
+var tmp8            
+var tmp9            
+var imgbase
+var 1stsecbase
+var 1stsecsize
+var dllimgbase
+var count
+var transit1
+
+//for IAT fixing
+var patch1
+var patch2
+var patch3
+var ori1
+var ori2
+var ori3
+var ori4
+var iatstartaddr
+var iatendaddr
+var iatsize
+var EBXaddr
+var E8dataloc
+var type3dataloc
+var thunkdataloc
+var thunkpt
+var thunkstop
+var mem1
+var type3count
+var E8count
+var writept1
+var writept2
+var APIpoint1A
+var APIpoint1B
+var APIpoint2
+var APIpoint3
+var calladdr
+var FF15flag
+var stkdataloc
+var oristk
+
+//for stolencode after API
+var SCafterAPIcount
+var APIerror
+var sttypedec
+var cmpsrcpara
+var cmpdestpara
+var movsrcpara
+var movdestpara
+var jmptype
+var cmptype
+var value
+var destaddr
+var cmdcmp
+var cmdjxx
+var exitsec
+var caller
+
+
+dbh
+BPHWCALL                //clear hardware breakpoint
+GMI eip, MODULEBASE     //get imagebase
+mov imgbase, $RESULT
+log imgbase
+mov tmp1, imgbase
+add tmp1, 3C              //40003C
+mov tmp1, [tmp1]
+add tmp1, imgbase         //tmp1=signature VA
+add tmp1, f8              //1st section
+log tmp1
+add tmp1, 8
+mov 1stsecsize, [tmp1]
+log 1stsecsize
+add tmp1, 4
+mov 1stsecbase, [tmp1]
+add 1stsecbase, imgbase
+log 1stsecbase
+gpa "GetSystemTime", "kernel32.dll"
+bp $RESULT
+esto
+bc $RESULT
+rtr
+sti
+GMEMI eip, MEMORYOWNER
+mov dllimgbase, $RESULT
+cmp dllimgbase, 0
+je error
+log dllimgbase
+find dllimgbase, #3135310D0A#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je wrongver
+mov tmp1, dllimgbase
+add tmp1, 010e00
+find tmp1, #8B4B048BD68B45FC#  //search "mov ecx,[ebx+4]" "mov edx,esi" "mov eax,[ebp-4]"
+mov tmp4, $RESULT
+cmp tmp4, 0
+je error31
+bp tmp4
+eob lab3
+eoe lab3
+esto
+
+lab3:
+cmp eip, tmp4
+je lab4
+esto
+
+lab4:
+bc tmp4
+find eip, #807C2408007509#    //search "cmp byte[esp+8]" "jnz xxxxxxx"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je wrongver
+add tmp1, 7
+find tmp1, #807C2408007509#   //search "cmp byte[esp+8]" "jnz xxxxxxx"
+mov thunkstop, $RESULT
+sub thunkstop, 6
+log thunkstop
+bp thunkstop
+find dllimgbase, #45894500#   //search "inc ebp", "mov [ebp],eax"
+mov writept1, $RESULT
+cmp writept1, 0
+je error
+add writept1, 1
+log writept1
+mov tmp2, writept1
+sub tmp2, 28
+mov APIpoint3, tmp2
+log APIpoint3
+find dllimgbase, #40890383C704#
+mov tmp1, $RESULT
+add tmp1, 1
+mov thunkpt, tmp1
+log thunkpt
+bp thunkpt
+find dllimgbase, #33C08A433?3BF0#   //search "xor eax,eax", "mov al, {ebx+3?]", "cmp esi,eax"
+mov patch1, $RESULT
+cmp patch1, 0
+je error
+add patch1, 7
+log patch1
+mov tmp1, dllimgbase
+add tmp1, 100        
+mov thunkdataloc, tmp1
+log thunkdataloc
+
+lab5:
+mov tmp6, thunkdataloc        //use tmp6 as counter
+mov tmp7, 0                   //use tmp7 as a flag
+mov tmp8, thunkdataloc
+sub tmp8, 10                  //location for last thunk
+mov tmp9, tmp8
+sub tmp9, 10                  //loaction for first thunk
+
+lab6:
+cmp eip, thunkpt
+je lab7
+cmp eip, thunkstop
+je lab12
+eob lab6
+eoe lab6
+esto
+
+lab7:
+cmp tmp7, 1              //check flag
+je lab9
+bc thunkpt               //replace breakpoint type
+BPHWS thunkpt, "x"
+mov ori1, [patch1]
+mov ori2, [patch1+4]
+mov tmp1, dllimgbase
+mov [tmp1], #570FB67B353BF775040FB673365F3BF00F8500000000E900000000#
+add tmp1, 10
+mov tmp2, patch1
+add tmp2, 60
+eval "jnz {tmp2}" 
+asm tmp1, $RESULT
+add tmp1, 6
+mov tmp2, patch1
+add tmp2, 5
+eval "jmp {tmp2}"
+asm tmp1, $RESULT
+eval "jmp {dllimgbase}"
+asm patch1, $RESULT
+find patch1, #3B432?74656AFF#  //search "cmp eax,[ebx+2?]","je xxxxxx","push -1"  
+mov patch2, $RESULT
+cmp patch2, 0
+je lab8
+add patch2, 3
+log patch2
+mov ori3, [patch2]
+mov [patch2], #EB#
+
+lab8:
+find patch1, #3B432?741b6AFF#  //search "cmp eax,[ebx+2?]","je xxxxxx","push -1"
+mov patch3, $RESULT
+cmp patch3, 0
+je error
+add patch3, 3
+log patch3
+mov ori4, [patch3]
+mov [patch3], #EB#
+mov tmp7, 1                //set flag
+
+lab9:
+mov tmp1, ebx
+mov tmp2, [tmp1]
+add tmp2, imgbase
+log tmp2
+mov tmp4, tmp2             //first thunk address
+mov [tmp6], tmp2           //store first thunk address 
+mov tmp3, [tmp2-4]
+cmp tmp3, 0
+je lab10
+mov tmp3, tmp2
+sub tmp3, 4
+mov [tmp3], 0             //fill 00 in btw 
+
+lab10:
+add tmp6, 4
+add tmp1, 0A
+mov tmp5, tmp1           //dll name
+log tmp5
+mov [tmp6], tmp5         //store dll name
+add tmp6, 4
+//compare first thunk 
+mov tmp2, [tmp8]
+cmp tmp2, tmp4
+ja lab10_1
+mov tmp3, tmp8
+mov [tmp3], tmp4         //first thunk address 
+add tmp3, 4
+mov [tmp3], tmp5         //dll name
+add tmp3, 4
+mov [tmp3], ebx
+add tmp3, 4
+mov tmp1, ebx
+add tmp1, 4
+mov tmp2, [tmp1]
+log tmp2
+mov [tmp3], tmp2
+
+//find 1st thunk
+lab10_1:
+mov tmp1, [tmp9]
+cmp tmp1, 0
+je lab10_2
+cmp tmp1, tmp4
+jb lab11
+
+lab10_2:
+mov [tmp9], tmp4
+
+lab11:
+eob lab6
+eoe lab6
+esto
+
+lab12:
+bc thunkstop
+bphwc thunkpt
+fill dllimgbase, 20, 00
+mov [patch1], ori1
+mov tmp1, patch1
+add tmp1, 4
+mov [tmp1], ori2
+cmp patch2, 0
+je lab13
+mov [patch2], ori3
+
+lab13:
+mov [patch3], ori4
+
+//checking iatendaddr
+cob
+coe
+mov tmp8, eip
+mov tmp1, dllimgbase
+mov [tmp1], #609C33C0B9000000008B3DF4009000F2AEFF0540009000E302EBF48B0D4000900083E902C1E102A1F000900003C1A344009000C700000000009D619090#
+add tmp1, 5
+mov tmp2, dllimgbase
+add tmp2, FC       //dllimgbase+FC
+mov tmp3, [tmp2]
+sub tmp3, 6
+mov [tmp1], tmp3
+add tmp1, 6
+sub tmp2, 8         //dllimgbase+F4
+mov [tmp1], tmp2
+add tmp1, 8
+mov tmp2, dllimgbase
+add tmp2, 40        //dllimgbase+40
+mov [tmp1], tmp2
+add tmp1, 0A
+mov [tmp1], tmp2
+add tmp1, 0B
+mov tmp3, tmp2
+add tmp3, 0B0       //dllimgbase+F0
+mov [tmp1], tmp3
+add tmp1, 7
+add tmp2, 4         //dllimgbase+44
+mov [tmp1], tmp2
+add tmp1, 0C        //end point
+mov eip, dllimgbase
+bp tmp1
+esto
+bc tmp1
+mov tmp3, [tmp2]
+log tmp3
+mov iatendaddr, tmp3
+log iatendaddr
+mov tmp1, dllimgbase
+add tmp1, 0E0
+mov iatstartaddr, [tmp1]
+log iatstartaddr
+fill dllimgbase, 300, 00
+mov eip, tmp8
+
+alloc 2000
+mov mem1, $RESULT
+log mem1
+mov tmp1, mem1
+add tmp1, 100
+mov E8dataloc, tmp1
+log E8dataloc
+mov tmp1, mem1
+add tmp1, 1000
+mov type3dataloc, tmp1
+log type3dataloc
+find dllimgbase, #8B432C2BC583E805#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 8
+mov writep2, tmp1
+log writep2
+bphws writep2, "x"
+mov tmp1, dllimgbase
+add tmp1, 1000
+find tmp1, #C6463401#    //search "mov byte[esi+34], 1"
+mov tmp2, $RESULT
+cmp tmp2, 0
+je error
+find tmp2, #68????????68????????68#
+mov transit1, $RESULT
+cmp transit1, 0
+je error
+log transit1
+bp transit1
+BPHWS APIpoint3, "x"
+mov tmp6, type3dataloc
+mov tmp7, 0
+eoe lab14
+eob lab14
+esto
+
+lab14:
+cmp eip, APIpoint3
+je lab15
+cmp eip, writep2
+je lab17
+cmp eip, transit1
+je lab19
+esto
+
+lab15:
+cmp EBXaddr, 0
+jne lab16
+mov EBXaddr, ebx
+log EBXaddr
+mov tmp1, [EBXaddr+4A]
+and tmp1, 0FF
+mov FF15flag, tmp1
+log FF15flag
+
+lab16:
+mov tmp1, eax               //store API addresss
+log tmp1
+add type3count, 1
+mov tmp2, ebp               //ebp==Address of call APi
+log tmp2
+mov [tmp6], tmp2            //save caller address
+add tmp6, 4
+mov [tmp6], tmp1            //save API address
+add tmp6, 4
+mov tmp2, [esp+18]
+and tmp2, FF
+log tmp2
+mov [tmp6], tmp2           //save FF flag
+add tmp6, 4
+cob
+coe
+bp writept1
+esto
+bc writept1
+eob lab14
+eoe lab14
+esto
+
+lab17:
+bphwc writep2
+mov tmp2, ebp
+log tmp2
+sti
+sti
+cmp EBXaddr, 0
+jne lab18
+mov EBXaddr, ebx
+log EBXaddr
+mov tmp1, [EBXaddr+4A]
+and tmp1, 0FF
+mov FF15flag, tmp1
+log FF15flag
+
+lab18:
+mov tmp3, tmp2
+mov tmp4, [tmp3+1]
+add tmp3, tmp4
+add tmp3, 5
+mov calladdr, tmp3
+log calladdr
+eob lab14
+eoe lab14
+esto
+
+lab19:
+log type3count
+bphwc APIpoint3
+bc transit1
+cmp type3count, 0
+je lab20
+
+//fix type 3 API
+cob
+coe
+mov tmp6, eip           //save eip
+mov tmp1, dllimgbase
+mov [tmp1], #609C8B3D500090008B0783F80074418B5F04BE00004000391E740D83C60481FE000040007728EBEF#
+add tmp1, 28
+mov [tmp1], #BA0100000066B9FF153B570874056681C1001066890883C00289308305500090000CEBB69090EBFE9D619090#
+mov tmp1, dllimgbase
+mov tmp2, tmp1
+add tmp1, 4
+add tmp2, 60           //dllimgbase+60
+mov [tmp1], tmp2
+add tmp1, 0F           //dllimgbase+13
+mov [tmp1], iatstartaddr
+add tmp1, 0D           //dllimgbase+20
+mov [tmp1], iatendaddr
+add tmp1, 9            //dllimgbase+29
+mov [tmp1], FF15flag
+add tmp1, 1C           //dllimgbase+45
+mov [tmp1], tmp2
+mov [tmp2], type3dataloc
+add tmp1, 0D
+mov tmp5, tmp1          //end point
+mov eip, dllimgbase
+bp tmp5
+esto
+bc tmp5
+mov eip, tmp6          //restore eip
+fill dllimgbase, 70, 00   //clear patch code
+
+//get all call xxxxxxxx
+lab20:
+cmp calladdr, 0
+je lab79
+mov tmp1, dllimgbase
+mov tmp2, tmp1
+add tmp2, 60
+mov [tmp1], #609CBE10004000803EE8751E8B460103C683C0053D00009000750F8B3D600090008937830560009000044681FE0000500072D49D619090#
+add tmp1, 3      //dllimgbase+3
+mov [tmp1], 1stsecbase
+add tmp1, 12     //dllimgbase+15
+mov [tmp1], calladdr
+add tmp1, 8      //dllimgbase+1D
+mov [tmp1], tmp2
+add tmp1, 8      //dllimgbase+25
+mov [tmp1], tmp2
+add tmp1, 8      //dllimgbase+2D
+mov tmp3, 1stsecbase
+add tmp3, 1stsecsize
+mov [tmp1], tmp3
+mov [tmp2], E8dataloc
+add tmp1, 8
+mov tmp4, tmp1
+mov tmp6, eip
+mov eip, dllimgbase
+bp tmp4
+eob lab21
+eoe lab21
+run
+
+lab21:
+cmp eip, tmp4
+je lab22
+run
+
+lab22:
+bc tmp4
+mov eip, tmp6
+mov tmp1, dllimgbase
+add tmp1, 60
+mov tmp2, [tmp1]
+mov tmp3, E8dataloc
+sub tmp2, tmp3
+shr tmp2, 2
+mov E8count, tmp2
+log E8count
+fill dllimgbase, 70, 00
+cmp E8count, 0
+je lab79
+
+//start to save stack data
+mov stkdataloc, mem1       
+add stkdataloc, 1500
+mov oristk, esp
+mov tmp1, esp
+mov tmp3, stkdataloc
+mov tmp4, 100
+
+savestk:
+cmp tmp4, 0
+je lab23
+mov tmp2, [tmp1]
+mov [tmp3], tmp2
+sub tmp1, 4
+sub tmp4, 4
+add tmp3, 4
+jmp savestk
+
+lab23:
+log tmp3
+mov [tmp3], eax
+add tmp3, 4
+mov [tmp3], ecx
+add tmp3, 4
+mov [tmp3], edx
+add tmp3, 4
+mov [tmp3], ebx
+add tmp3, 4
+mov [tmp3], esp
+add tmp3, 4
+mov [tmp3], ebp
+add tmp3, 4
+mov [tmp3], esi
+add tmp3, 4
+mov [tmp3], edi    
+
+lab27:
+find dllimgbase, #3130320D0A#          //search "102"
+mov tmp6, $RESULT
+cmp tmp6, 0
+je error
+find tmp6, #8B80E00000000145FC#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je lab28
+add tmp1, 9
+mov APIpoint1A, tmp1
+log APIpoint1A
+find APIpoint1A, #8B80E00000000145FC#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 9
+mov APIpoint1B, tmp1
+log APIpoint1B
+jmp lab29
+
+lab28:
+find tmp6, #8A404A3A45EF0F85????????#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 0C
+mov APIpoint1A, tmp1
+log APIpoint1A
+find APIpoint1A, #8A404B3A45EF75??#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 8
+mov APIpoint1B, tmp1
+log APIpoint1B
+
+lab29:
+find APIpoint1B, #0255??#    //SEARCH "add dl, byte[ebp-??]"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je lab30
+add tmp1, 3
+mov APIpoint2, tmp1
+log APIpoint2
+jmp lab31
+
+lab30:
+find APIpoint1B, #02D3#    //SEARCH "add dl, bl"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+add tmp1, 2
+mov APIpoint2, tmp1
+log APIpoint2
+
+lab31:
+find APIpoint1B, #837DD?FF74??#
+mov tmp1, $RESULT
+cmp tmp1, 0
+je error
+mov tmp5, [tmp1]
+log tmp5              //stack binary
+
+//write patch code
+mov tmp1, dllimgbase
+mov [tmp1], #64FF35000000008F05D0009000A1E00090008B1883FB007402FFE3FF35D0009000648F05000000009090#
+add tmp1, 2A          //2A
+mov [tmp1], #BFE00090008B078B18837DD4FF740F8B47048B1F8B1B891883C0048947048B5DFCE854000000C6C001#
+add tmp1, 29          //53
+mov [tmp1], #66B9FF153A45EF74056681C100108B078B1883C004890766890B83C3028933FF35D0009000648F0500000000E97CFFFFFF#
+add tmp1, 31          //84
+mov [tmp1], #9090BFE00090008B5C24E8E810000000C6C00166B9FF153AC274C2EBBB909090BE00009000391E740D83C604#
+add tmp1, 2C          //B0
+mov [tmp1], #81FE000090007703EBEFC39090#
+mov tmp1, dllimgbase
+mov tmp2, tmp1
+mov tmp4, tmp1
+add tmp2, 0C0        //dllimgbase+C0
+add tmp4, 0D0        //dllimgbase+D0
+add tmp1, 9          //dllimgbase+09
+mov [tmp1], tmp4
+add tmp1, 5          //dllimgbase+0E
+mov [tmp1], tmp2
+add tmp1, 0F         //dllimgbase+1D
+mov [tmp1], tmp4
+add tmp1, 0E         //dllimgbase+2B
+mov [tmp1], tmp2
+mov [tmp2], E8dataloc
+add tmp2, 4          //C4
+mov tmp3, dllimgbase       
+add tmp3, 200        //dllimgbase+200 -- location of stolen code after API
+mov [tmp2], tmp3
+add tmp1, 8          //dllimgbase+33
+mov [tmp1], tmp5     //stack binary
+add tmp1, 1D         //dllimgbase+50
+eval "mov al, {FF15flag}"
+asm tmp1, $RESULT
+add tmp1, 24         //dllimgbase+74
+mov [tmp1], tmp4
+add tmp1, 13         //dllimgbase+87
+sub tmp2, 4          //C0
+mov [tmp1], tmp2
+add tmp1, 0D         //dllimgbase+94
+eval "mov al, {FF15flag}"
+asm tmp1, $RESULT
+add tmp1, 11         //dllimgbase+A5
+mov [tmp1], iatstartaddr
+add tmp1, 0d         //dllimgbase+B2
+mov [tmp1], iatendaddr
+
+lab32:
+bphws APIpoint1A, "x"
+bphws APIpoint1B, "x"
+bphws APIpoint2, "x"
+mov tmp5, dllimgbase
+add tmp5, 28                //end point
+bp tmp5
+mov tmp6, dllimgbase
+add tmp6, BB                //error point
+bp tmp6
+mov tmp7, eip               //save eip
+mov eip, dllimgbase
+eob lab33
+eoe lab33
+esto
+
+lab33:
+cmp eip, tmp5
+je lab37
+cmp eip, tmp6
+je lab36
+cmp eip, APIpoint1A
+je lab34
+cmp eip, APIpoint1B
+je lab34
+cmp eip, APIpoint2
+je lab35
+run
+
+lab34:
+mov tmp1, dllimgbase
+add tmp1, 2A
+mov eip, tmp1
+run
+
+lab35:
+mov tmp1, dllimgbase
+add tmp1, 86
+mov eip, tmp1
+run
+
+lab36:
+bc tmp5
+bc tmp6
+bphwc APIpoint1A
+bphwc APIpoint1B
+bphwc APIpoint2
+msg "Unexpected termination of the process"
+pause
+jmp end
+
+lab37:
+bc tmp5
+bc tmp6
+bphwc APIpoint1A
+bphwc APIpoint1B
+bphwc APIpoint2
+mov eip, tmp7
+mov tmp1, dllimgbase
+mov tmp3, tmp1
+add tmp1, C4
+mov tmp2, [tmp1]
+add tmp3, 200
+cmp tmp3, tmp2
+je lab77
+sub tmp2, tmp3
+dm tmp3, tmp2, "SCafAPI.bin"
+shr tmp2, 2
+mov SCafterAPIcount, tmp2
+log SCafterAPIcount
+msg "There are stolen code after API and the address of the call xxxxxxxx are saved in the file named SCafAPI.bin "
+pause
+jmp lab77
+
+
+//command=="call xxxxxxxx"
+type4a: 
+
+
+//command=="jmp xxxxxxxx"
+type4b:
+
+
+//command=="cmp dest, src" "jxx xxxxxxxx"
+type4c:
+
+
+//command=="cmp dest, src"
+type4d:
+
+
+//command=="add reg1, value"
+type4f:
+
+
+//command=="mov reg1, reg2"
+type50:
+
+
+//cpmmand=="mov [value], reg "
+type51:
+
+
+//command=="mov [reg1+value], reg2"
+type52:
+
+//restore stack data
+lab77:
+mov esp, oristk             //retore stack data
+mov tmp1, esp
+mov tmp3, stkdataloc
+mov tmp4, 100
+
+restorestk:
+cmp tmp4, 0
+je lab78
+mov tmp2, [tmp3]
+mov [tmp1], tmp2
+sub tmp1, 4
+sub tmp4, 4
+add tmp3, 4
+jmp restorestk
+
+lab78:
+mov eax, [tmp3]
+add tmp3, 4
+mov ecx, [tmp3]
+add tmp3, 4
+mov edx, [tmp3]
+add tmp3, 4
+mov ebx, [tmp3]
+add tmp3, 4
+mov esp, [tmp3]
+add tmp3, 4
+mov ebp, [tmp3]
+add tmp3, 4
+mov esi, [tmp3]
+add tmp3, 4
+mov edi, [tmp3]                //retore stack data completed
+fill dllimgbase, 500, 00
+
+lab79:
+mov tmp1, iatendaddr
+sub tmp1, iatstartaddr
+add tmp1, 4
+mov iatsize, tmp1
+log iatstartaddr
+log iatsize
+mov tmp1, type3count
+add tmp1, E8count
+mov tmp2, [EBXaddr+18]
+cmp tmp1, tmp2
+je lab80
+msg "Warning, there are some API not resolved!"
+pause
+jmp lab81
+
+lab80:
+msg "Import table is fixed, you can dump the file now or later. check the address and size of IAT in log window"
+pause
+
+lab81:
+mov tmp1, dllimgbase
+add tmp1, 1000
+find tmp1, #3135330D0A#     //search ASCII"153"
+mov tmp2, $RESULT
+sub tmp2, 40
+find tmp2, #5?C3#
+mov tmp3, $RESULT
+cmp tmp3, 0
+je error
+add tmp3, 1
+bp tmp3
+eob lab82
+eoe lab82
+esto
+
+lab82:
+cmp eip, tmp3
+je lab83
+esto
+
+lab83:
+bc tmp3
+mov tmp1, dllimgbase
+add tmp1, 1000
+find tmp1, #3130330D0A#     //search ASCII"103"
+mov tmp2, $RESULT
+cmp tmp2, 0
+je wrongver
+find tmp2, #8D00C3#        //search "lea eax,[eax]" "ret"
+mov tmp1, $RESULT
+cmp tmp1, 0
+je wrongver
+bphws tmp1, "x"
+eob lab84
+eoe lab84
+esto
+
+lab84:
+cmp eip, tmp1
+je lab85
+esto
+
+lab85:
+bphwc tmp1
+cob
+coe
+mov tmp1, [esp+8]
+cmp tmp1, 0
+jne lab85_1
+mov tmp1, [esp+C]
+cmp tmp1, 0
+je lab85_2
+jmp lab86
+
+lab85_1:
+mov tmp1, [esp+10]
+cmp tmp1, 0
+jne lab86
+
+lab85_2: 
+bprm 1stsecbase, 1stsecsize
+esto
+bpmc
+msg "OEP found, no stolen code at the OEP!"
+pause
+jmp end
+
+lab86:
+bp tmp1
+esto
+bc tmp1
+msg "Stolen code start, press OK button to add comments"
+mov tmp5, eip
+find eip, #0000000000000000#
+mov tmp2, $RESULT
+mov tmp1, tmp2
+add tmp1, 8
+mov tmp4, 10
+
+loop16:
+cmp tmp4, 0
+je notfound
+mov tmp2, [tmp1]
+and tmp2, ff
+cmp tmp2, 0
+jne lab87
+add tmp1, 1
+sub tmp4, 1
+jmp loop16
+
+lab87:
+add tmp1, 3
+mov tmp2, [tmp1]
+and tmp2, ff
+cmp tmp2, 0
+jne error
+sub tmp1, b
+mov tmp6, tmp1
+sub tmp1, 4
+mov tmp4, 200
+mov count, 0
+
+loop17:
+cmp tmp4, 0
+je notfound
+mov tmp2, [tmp1]
+cmp tmp2, 00000000
+je lab88
+sub tmp1, 8
+sub tmp4, 8
+jmp loop17
+
+lab88:
+cmp count, 1
+je lab89
+add count, 1
+sub tmp1, 8
+sub tmp4, 8
+jmp loop17
+
+lab89:
+mov tmp4, tmp1
+add tmp4, 4
+
+loop18:
+cmp tmp4, tmp6
+jae lab90
+mov tmp1, [tmp4]
+add tmp1, imgbase
+eval "{tmp1}"
+add tmp4, 4
+mov tmp2, [tmp4]
+add tmp2, tmp5             //tmp2== address to put comment
+cmt tmp2, $RESULT
+add tmp4, 4
+jmp loop18
+
+lab90:
+msg "Comments are added"
+pause
+jmp end
+
+error:
+msg "Error!"
+pause
+jmp end
+
+wrongver:
+msg "Unsupported Aspr version or it is not packed with Aspr?"
+pause
+jmp end
+
+error31:
+msg "Error 31!"
+pause
+jmp end
+
+notfound:
+msg "Not found"
+pause
+
+end:
+ret

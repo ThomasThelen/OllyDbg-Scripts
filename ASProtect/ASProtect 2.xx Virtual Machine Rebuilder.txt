@@ -1,0 +1,1213 @@
+// Скрипт необходимо запускать стоя на виртуальной точке входа
+// Скрипт восстанавливает украденые инструкции и записывает их в конце текущей
+// области памяти. Автор: PE_Kill
+//----------------------------------------------------------------------------------
+var call_VM
+var call_cur
+//----------------------------------------------------------------------------------
+var scan_start
+var scan_end
+//----------------------------------------------------------------------------------
+var base_old
+var base_new
+//----------------------------------------------------------------------------------
+var table_of_jcc
+var table_of_jcc_base
+var type_of_jcc
+//----------------------------------------------------------------------------------
+var emule_swich
+var emule_last_jamp
+
+var emule_type_jcc_temp
+var emule_jcc_temp
+
+var emule_type_jcc
+var emule_jcc
+
+var emule_cmp_size
+var emule_cmp_get_arg1
+var arg1_num
+var arg1_display
+
+var emule_cmp_get_arg2
+var arg2_num
+var arg2_display
+
+var emule_type_cmp
+var type_of_cmp
+var emule_cmp
+
+var emule_cmp_jcc
+var emule_cmp_type_jcc
+//----------------------------------------------------------------------------------
+var str1
+var str2
+var str3
+//----------------------------------------------------------------------------------
+var oep
+var temp
+var Info
+var addr_cur
+var iter
+var trace_call
+//----------------------------------------------------------------------------------
+log ""
+log "____________________________________"
+log ""
+log "Virtual Machine Rebuilder by PE_Kill"
+log "____________________________________"
+log ""
+log "Inicialize..."
+//jmp @init_hand
+  ////////////////////////////////////////////////////////////////////////////////////////
+  // Автонастройка скрипта								//
+  ////////////////////////////////////////////////////////////////////////////////////////
+mov oep,eip			// Сохраняем eip для последующего восстановления
+mov addr_cur,eip		// Получаем текущий eip
+and addr_cur,FFFFF000		// Выравниваем на 1000h
+mov eip,addr_cur		// Переходим на получившийся адрес
+mov scan_start,eip		//!Текущий адрес скорее всего будет начальной границей сканирования
+mov base_old,eip		//!Текущий адрес будет также базой спертого кода
+  //====================================================================================//
+  // Цикл поиска келла, ведущего в VM. Отличительной особенностью такого келла является //
+  // то, что он выровнен на 1000h. Но мы еще перестрахуемся.				//
+  //====================================================================================//
+@init_find_VM_call:		
+  find addr_cur,#E8#		// Ищем опкод "call"
+    cmp $RESULT,0		// Нашли что нибудь?
+    je ERR_VM_CALL_NOT_FOUND	// Нет :( Солодовников опять нас перехитрил :( Генерим ошибку и уходим
+  mov addr_cur,$RESULT		// Да! Заносим найденый адрес в переменную
+  inc addr_cur			// Смещаем указатель непосредственно на адрес келла VM (отбрасываем E8)
+  mov call_VM,[addr_cur]	// Заносим в переменную смещение келла VM
+  add call_VM,addr_cur		// Вычисляем абсолютный адрес call_VM
+  add call_VM,4			//!Корректировка относительно текущего келла.
+  mov call_cur,call_VM		// Задействуем другую переменную. Эта останется константой для основного скрипта
+  and call_cur,00000FFF		// Обнуляем первые 5 цифр. Получаем выравнивание келла
+  cmp call_cur,00000000		// Если он выровнен на 1000h байт, то будем пока считать, что это наш call_VM
+jne @init_find_VM_call		// Иначе продолжим поиск
+//end @init_find_VM_call
+  //====================================================================================//
+dec addr_cur			// Смещаем указатель на начало call_VM
+mov eip,addr_cur		// Встаем на найденый адрес  call_VM
+inc addr_cur			// Увеличиваем указатель на случай, если это не call_VM и придется продолжать поиск
+mov trace_call,eip		// Запоминаем текущий адрес для последующей трассировки
+sti				// Step into. Заходим в найденый келл.
+//======================================================================================//
+// call_VM ведет в область памяти, где выполняется инициализация данных перед эмуляцией.//
+// Нам эта функция не нужна, но после нее идет прыжок во вторую часть VM. Вот адрес 	//
+// второй части VM нам и надо получить. Для этого будем трассировать до тех пор, пока	//
+// не войдем в какой либо келл (он долженбыть один) либо пока счетчик проходов не станет//
+// равным 300h (тогда это не VM)							//
+//======================================================================================//
+mov iter,0			// Обнуляем счетчик
+@init_trace_prefix:		
+  inc iter			// Увеливаем на 1
+  cmp iter,300			// Уже 300-я итерация?
+  je @init_find_VM_call		// Да, начинаем все сначала.
+//!![ Далее, чтобы не засорять скрипт лишними переменными я использую переменные ]!!//
+//!![ основного скрипта, так что никакой смысловой нагрузки они не несут.	 ]!!//
+  mov call_cur,eip		// Запоминаем текущий адрес
+  sti				// Делаем один шаг
+  mov temp,[esp]		// Получаем верхнее значение стека
+  sub temp,2			// Отнимаем 2, келл, в который мы должны войти: call exx, т.е. 2 байта
+  cmp temp,call_cur		// Сравниваем сохраненный адрес с предполагаемым адресом возврата-2
+jne @init_trace_prefix		// Не равны? Значит мы еще в области инициализации
+//and @init_trace_prefix
+//======================================================================================//
+
+//======================================================================================//
+// В этой области опять происходит инициализация данных, сравнение хешей и другое,	//
+// не интересующее нас дерьмо. Но опять же из этой области управление переходит уже 	//
+// непосредственно в ядро виртуальной машины. Переход осуществляется последним келлом	//
+// цикла перебора хешей. Если хешь не будет найден, АСПР выдаст ошибку 111, а переход в	//
+// ядро VM находится чуть выше келла, выдающего ошибку. Его и будем искать.		//
+//======================================================================================//
+mov iter,eip			// запоминаем eip
+mov addr_cur,eip		// запоминаем eip
+@init_find_error111:		// ищем келл, выдающий ошибку 111
+  find addr_cur,#68#		// ищем PUSH XXXXXXXX
+    cmp $RESULT,0		// не найден?
+    je @ERR_INIT_FAILED		// генерим ошибку и уходим
+  mov addr_cur,$RESULT		// получаем адрес найденого PUSH'a
+  inc addr_cur			// отбрасываем опкод PUSH
+  mov call_cur,[addr_cur]	// получаем, значение, которое заносится в стек
+  mov temp,[call_cur]		// если это то, что мы ищем, то это указатель на строку "111"
+  cmp temp,0D313131		// проверяем, так ли это
+jne @init_find_error111		// нет, это не указатель, ищем дальше
+//end @init_find_error111
+
+@init_find_emulate_instr:	// теперь будем подниматься вверх, пока не найдем опкод call
+  dec addr_cur			// или не дойдем до адреса, с которого начали искать (тогда облом)
+  cmp addr_cur,iter		// проверяем, не дошли ли до адреса, откуда пришли
+  je @ERR_INIT_FAILED		// если да, генерим ошибку и уходим
+  mov temp,[addr_cur]		// получаем, то что нашли
+  and temp,FF000000		// обнуляем все байты, кроме первого
+  cmp temp,E8000000		// сравниваем первый байт с опкодом call
+jne @init_find_emulate_instr	// если не равен, продолжим поиск
+//end @init_find_emulate_instr
+add addr_cur,3			// корректируем указатель на келл
+bp addr_cur			// ставим бряк на адрес найденого келла
+run				// запускаем программу
+bc addr_cur			// прерываемся и убираем бряк
+cmp eip,addr_cur		// проверяем правильно ли приземлились
+  jne @ERR_INIT_FAILED		// если нет, генерим ошибку и уходим
+sti				// Step into. Входим в келл.
+//======================================================================================//
+
+//======================================================================================//
+// Ищем инструкции:									//
+// SUB AL,2										//
+// JB SHORT ХХХХХХХХ									//
+// JE SHORT ХХХХХХХХ									//
+// Так определяется ощий вид эмулируемой(ых) инструкции(й)				//
+//======================================================================================//
+
+find eip,#2C027212743D#		// собственно поиск
+cmp $RESULT,0			// найдены?
+je @ERR_INIT_FAILED		// нет, генерим ошибку и уходим
+bp $RESULT			// найдены! ставим бряк на найденый адрес
+run				// запускаем программу
+bc $RESULT			// прерываемся и убираем бряк
+cmp eip,$RESULT			// проверяем правильно ли приземлились
+  jne @ERR_INIT_FAILED		// если нет, генерим ошибку и уходим
+mov emule_swich,eip		//!запоминаем, понадобится в основном скрипте
+find eip,#FF6020#		// теперь ищем инструкцию JMP DWORD PTR DS:[EAX+20]
+cmp $RESULT,0			// нашли?
+je @ERR_INIT_FAILED		// нет, генерим ошибку и уходим
+add eip,16			// прыгаем на 16 байт вперед (аля эмуляция JB SHORT ХХХХХХХХ)
+bp $RESULT			// ставим бряк на найденый адрес
+run				// запускаем программу
+bc $RESULT			// прерываемся и убираем бряк
+cmp eip,$RESULT			// проверяем правильно ли приземлились
+  jne @ERR_INIT_FAILED		// если нет, генерим ошибку и уходим
+mov emule_last_jamp,eax		// получаем значение eax
+add emule_last_jamp,20		// ...
+mov emule_last_jamp,[emule_last_jamp]
+mov eip,trace_call
+bp emule_swich
+run
+bc emule_swich
+add eip,43
+@init_find_emule_type_jcc:
+  mov temp,eip
+  sti
+  mov call_cur,[esp]
+  mov addr_cur,call_cur
+  sub call_cur,2
+  cmp temp,call_cur
+  jne @init_find_emule_type_jcc
+bp addr_cur
+run
+bc addr_cur
+mov emule_type_jcc,eip			//!!!!
+find eip,#84C07417#
+  cmp $RESULT,0
+  je @ERR_INIT_FAILED
+mov emule_jcc,$RESULT
+
+mov eip,trace_call
+bp emule_swich
+run
+bc emule_swich
+add eip,90
+@init_find_emule_cmp:
+  mov temp,eip
+  sti
+  mov call_cur,[esp]
+  mov addr_cur,call_cur
+  sub call_cur,5
+  cmp temp,call_cur
+jne @init_find_emule_cmp
+bp addr_cur
+mov iter,0
+@init_find_emule_cmp_get_arg1:
+  mov temp,eip
+  sti
+  mov call_cur,[esp]
+  mov addr_cur,call_cur
+  sub call_cur,2
+  cmp temp,call_cur
+jne @init_find_emule_cmp_get_arg1
+bp addr_cur
+run
+bc addr_cur
+inc iter
+cmp iter,2
+jb @init_find_emule_cmp_get_arg1
+mov emule_cmp_get_arg1,eip		//!!!!
+
+mov iter,0
+@init_find_emule_cmp_get_arg2:
+  mov temp,eip
+  sti
+  mov call_cur,[esp]
+  mov addr_cur,call_cur
+  sub call_cur,5
+  cmp temp,call_cur
+  jne @init_arg1_ret
+    bp addr_cur
+    run
+    bc addr_cur
+  @init_arg1_ret:
+  add call_cur,3
+  cmp temp,call_cur
+jne @init_find_emule_cmp_get_arg2
+bp addr_cur
+run
+bc addr_cur
+inc iter
+cmp iter,2
+jb @init_find_emule_cmp_get_arg2
+mov emule_cmp_get_arg2,eip		//!!!!
+
+@init_find_emule_type_cmp:
+  mov temp,eip
+  sti
+  mov call_cur,[esp]
+  mov addr_cur,call_cur
+  sub call_cur,5
+  cmp temp,call_cur
+  jne @init_arg2_ret
+    bp addr_cur
+    run
+    bc addr_cur
+  @init_arg2_ret:
+  add call_cur,3
+  cmp temp,call_cur
+jne @init_find_emule_type_cmp
+bp addr_cur
+run
+bc addr_cur
+sti
+mov emule_type_cmp,eip			//!!!!
+mov eax,4
+run
+bc eip
+
+@init_find_emule_cmp_type_jcc:
+  mov temp,eip
+  sti
+  mov call_cur,[esp]
+  mov addr_cur,call_cur
+  sub call_cur,2
+  cmp temp,call_cur
+jne @init_find_emule_cmp_type_jcc
+bp addr_cur
+run
+bc addr_cur
+mov emule_cmp_type_jcc,eip		//!!!!
+find eip,#84C07417#
+  cmp $RESULT,0
+  je @ERR_INIT_FAILED
+mov emule_cmp_jcc,$RESULT		//!!!!
+mov eip,oep
+bp oep
+ai
+bc oep
+////////////////////////
+mov addr_cur,eip
+@find_empty_space:
+  find addr_cur,#00000000000000000000000000#
+    cmp $RESULT,0
+    je @end
+  mov table_of_jcc,$RESULT
+  mov addr_cur,$RESULT
+  mov temp,$RESULT
+  add temp,1A
+  find temp,#00000000000000000000000000#
+    cmp $RESULT,0
+    je @end
+  mov addr_cur,$RESULT
+  cmp temp,$RESULT
+jne @find_empty_space
+////////////////////////
+
+mov scan_end,FFFFFFFF
+ask "Enter new base of this code"
+cmp $RESULT,0
+je @ERR_INIT_FAILED
+mov base_new, $RESULT //006D1000
+jmp @init_skip
+ret
+////////////////////////
+@init_hand:
+mov oep,eip				// сохраняем eip, чтобы потом восстановить
+mov call_VM	   	,00C00000	// !адрес келла виртуальной машины
+mov scan_start	   	,00B70CA1	// !начальный адрес сканирования (поиска VM келлов)
+mov scan_end	   	,00B73FFE	// !соответственно конец области сканирования
+mov base_old	   	,00B70000	// !база кода, где распалагается виртуальная точка входа
+mov base_new	   	,0049A000	// !база созданой нами секции, там будет восстаноленый код
+mov table_of_jcc   	,00B72A00	// !адрес пустой области памяти, куда будем писать восстановленые jcc
+mov emule_swich	   	,00AA88DA	// !адрес команды "SUB AL,2" для определения ощего типа эмуляции (jmp,call,...)
+mov emule_type_jcc 	,00AA892D	// !адрес после келла, определяющего тип эмулируемого джампа
+mov emule_jcc	   	,00AA893C	// !адрес команды "TEST AL,AL" для jcc
+mov emule_cmp_get_arg1	,00AA8786	// !адрес после келла, определяюжего - по регистру или по константе сравниваем (аргумент1)
+mov emule_cmp_get_arg2	,00AA87C2	// !адрес после келла, определяюжего - по регистру или по константе сравниваем (аргумент2)
+mov emule_type_cmp	,00AA8805	// !адрес после келла+3 (CMP EAX,4) определяющего тип эмулируемой "CMP" 
+mov emule_cmp_type_jcc	,00AA898D	// !адрес после келла, определяющего тип эмулируемого джампа (после cmp) 
+mov emule_cmp_jcc	,00AA899C	// !адрес команды "TEST AL,AL" для jcc (после CMP)
+
+mov emule_last_jamp	,00C10000	// !адрес заалоченой памяти, где находится "JMP DWORD PTR SS:[ESP-4]"
+@init_skip:
+find emule_last_jamp,#FF6424FC#
+cmp $RESULT,0
+je @ERR_EMULE_LAST_JAMP_NOT_FOUND
+mov emule_last_jamp,$RESULT
+
+eval "Find VM call at [{scan_start}..{scan_end}].."
+mov Info,$RESULT
+log Info
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+//Данная процедура пытается найти все функции AsProtect'а эмулирующие нормальные инструкции//
+/////////////////////////////////////////////////////////////////////////////////////////////
+@find_VM_call:			// цикл поиска VM келлов
+  cmp scan_start,scan_end	// проверяем, не достигли ли границы сканирования
+  ja @end			// если достигли, то заканчиваем поиск
+  find scan_start,#E8#		// ищем опкод "call"
+  cmp $RESULT,0			// если ничего не нашли, завершаем поиск
+  je @end
+  mov addr_cur,$RESULT		// получаем адрес найденого опкода
+  inc addr_cur			// увеличиваем на один, чтобы получить смещение на келл
+  mov scan_start,addr_cur	// устанавливаем начальную границу сканирования, для следующей итерации
+  mov temp,[addr_cur]		// получаем смещение на келл
+  add temp,addr_cur		// вычисляем абсолютный адрес
+  add temp,4			// корректируем относительно нашего келла
+  cmp temp,call_VM		// сравниваем адрес найденого келла и искомого
+  jne @find_VM_call		// если не равны, продолжаем поиск
+  dec addr_cur			// корректируем указатель на келл
+  /////////[ DEBUG INFO ]/////////
+  eval "Call found at {addr_cur}"
+  mov Info,$RESULT
+  log Info
+  ////////////////////////////////
+  mov eip,addr_cur		// устанавливаем eip на начало VM келла
+  ////////////////////////////////
+  cmp eip,00E41906
+  jne @n
+  //msg "pause!"
+  @n:
+  ////////////////////////////////
+  jmp @rebuild_VM_call		// прыгаем в процедуру восстановления келлов
+//end @find_VM_call
+//////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
+// Данная процедура определяет тип эмулируемой команды, и в зависимости //
+// от этого передаёт управление соответствующей процедуре восстановления//
+//////////////////////////////////////////////////////////////////////////
+@rebuild_VM_call:
+  sub addr_cur,5		// смещаемся на 5 байт выше нашего келла
+  mov temp,[addr_cur]		// читаем, что там лежит
+  and temp,000000FF		// нам необходимо проверить только 1 байт, остальным присваеваем 0
+  cmp temp,00000068		// сравниваем с опкодом 'PUSH'
+  je @rebuild_push		// если равно, необходимо преобразовать под новую базу
+  add addr_cur,5		// восстанавливаем указатель на VM келл
+ @trace_VM: 
+  bp emule_swich		// ставим бряк на узел определения емулируемой команды
+  run				// запускаем программу
+  bc emule_swich		// прерываемся, убираем бряк
+  cmp eip,emule_swich		// проверяем, правильно ли приземлились
+  jne @ERR_BP_AT_SWICH_NOT_WORK	// если нет, генерируем ошибку и уходим
+
+  mov emule_type_jcc_temp,emule_type_jcc
+  mov emule_jcc_temp,emule_jcc
+  mov table_of_jcc_base,table_of_jcc
+
+  mov temp,eax			// получаем тип эмулируемой команды
+  cmp temp,0			// 0 - эмулится call
+  je @trace_call_or_jmp		// переходим на восстановление келла
+  cmp temp,1			// 1 - эмулится jmp
+  je @trace_call_or_jmp		// переходим на восстановление джампа
+  cmp temp,2			// 2 - эмулится 1 из 16 условных джампов
+  je @trace_jcc			// переходим на восстановление jcc (jxx)
+  cmp temp,3			// 3 - эмулятся сразу 2е команды - cmp + jcc
+  je @trace_cmp_and_jcc		// переходим на восстановление cmp + jcc
+  msg "[Error!] Unknown emule command!"	// Иначе что-то идет не так генерим ошибку
+  jmp @find_VM_call		// и ищем следующий келл
+//end @rebuild_VM_call
+//////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////
+// Данная процедура переопределяет базу в адресе, который //
+// заносится с помощью PUSH'а в качестве адреса возврата  //
+////////////////////////////////////////////////////////////
+@rebuild_push:
+  inc addr_cur				// смещаем указатель на адрес
+  mov temp,[addr_cur]			// получаем адрес
+  //////[ DEBUG INFO ]//////
+  eval "found PUSH {temp}"		
+  mov Info,$RESULT
+  log Info
+  //////////////////////////
+  sub temp,base_old			// вычитаем из адреса старую базу
+  add temp,base_new			// прибавляем новую базу
+  /////////[ DEBUG INFO ]//////////
+  eval "converted to PUSH {temp}"
+  mov Info,$RESULT
+  log Info
+  /////////////////////////////////
+  mov [addr_cur],temp			// записыаем измененный адрес на место
+  add addr_cur,4			// корректируем указатель
+  jmp @trace_VM				// прыгаем назад, в проц. восстановления келлов
+//end @rebuild_push
+////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
+// Данная процедура восстанавливает эмулируемые команды "jmp" и "call"  //
+//////////////////////////////////////////////////////////////////////////
+@trace_call_or_jmp:			
+  bp emule_last_jamp			// ставим бряк на последний джамп VM
+  run					// запускаем программу
+  bc emule_last_jamp			// остановились, убрали бряк	
+  cmp eip,emule_last_jamp		// проверяем, правильно ли прервались
+  jne @ERR_BP_AT_EMULE_LAST_JAMP_NOT_WORK // если нет, генерим ошибку и выходим
+  mov temp,esp				// получаем указатель на стек
+  sub temp,4				// поднимаемся выше (esp-4)
+  mov call_cur,[temp]			// получаем адрес перехода
+  /////[ DEBUG INFO ]/////
+  eval "Recovering 'jmp {call_cur}'..." 
+  mov Info,$RESULT
+  log Info
+  ////////////////////////
+  mov temp,addr_cur			// в темп кладем адрес перехода
+  cmp call_cur,base_old			// проверяем, далекий это адрес или нет
+  jae @short_call			// если нет, то не преобразовываем
+    sub temp,base_old			// отнимаем от адреса текущюю базу
+    add temp,base_new			// и прибавляем базу, которая будет в дампе
+  @short_call:
+  sub call_cur,temp			// отнимаем от адреса перехода адрес VM келла
+  sub call_cur,5			// корректируем
+  /// Debug!!!
+  mov eip,addr_cur
+  ////////////////
+  //[ вписываем вместо call 00XX0000 -> jmp XXXXXXXX ]//
+  mov [addr_cur],E9			
+  inc addr_cur				 
+  mov [addr_cur],call_cur
+  //////////////////////////////////////////////////////
+  jmp @find_VM_call
+//end @trace_call_or_jmp
+//////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////
+// Данная процедура восстанавливает эмулируемые команды "jcc" (всего 16) //
+///////////////////////////////////////////////////////////////////////////
+@trace_jcc:
+  bp emule_type_jcc_temp		// ставим бряк на узел получения типа емул. джампа
+  run					// запускаем программу
+  bc emule_type_jcc_temp		// прерываемся, и убираем бряк
+    cmp eip,emule_type_jcc_temp		// проверяем, правильно ли приземлились
+    jne @ERR_BP_AT_EMULE_TYPE_JCC_NOT_WORK// если нет, генерим ошибку и уходим
+  mov type_of_jcc,eax		// сохраняем тип эмулируемого джампа
+  bp emule_jcc_temp			// ставим бряк на эмулятор джампа
+  run					// запускаем программу
+  bc emule_jcc_temp			// прерываемся, убираем джамп
+    cmp eip,emule_jcc_temp		// проверяем правильно ли приземлились
+    jne @ERR_BP_AT_EMULE_JCC_NOT_WORK	// если нет, генерим ошибку и уходим
+  mov eax,1				// в eax вбиваем единицу, чтобы обмануть эмулятор
+  bp emule_last_jamp			// в зависимости от того, что в еах формируется переход
+  run					// ставим бряк на последний джамп эмуля и запускаем прогу
+  bc emule_last_jamp			// прерываемся и убираем бряк
+    cmp eip,emule_last_jamp		// проверяем, правильно ли прервались
+    jne @ERR_BP_AT_EMULE_LAST_JAMP_NOT_WORK // если нет, генерим ошибку и выходим
+  mov temp,esp				// получаем указатель на стек
+  sub temp,4				// поднимаемся выше (esp-4)
+  mov call_cur,[temp]			// получаем адрес перехода
+  					//
+  cmp call_cur,base_old			// проверяем, далекий это адрес или нет
+  jae @short_jcc			// если нет, пропускаем преобразование
+    mov temp,base_new			// в темп новую базу
+    sub temp,call_addr			// отнимаем от новой базы нужный адрес, получаем смещение
+    add temp,base_old			// и прибавляем к смещению старую базу
+    mov call_cur,temp			// перезаписываем найденый келл
+  @short_jcc:
+    
+//////////////////////////
+// Данный блок команд   //
+//  ищет эмулируемый    //
+//   джамп по типу      //
+//////////////////////////
+  cmp type_of_jcc,0	//
+  mov temp,"jo"		//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,1	//
+  mov temp,"jno"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,2	//
+  mov temp,"jb"		//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,3	//
+  mov temp,"jnb"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,4	//
+  mov temp,"je"		//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,5	//
+  mov temp,"jnz"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,6	//
+  mov temp,"jpe"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,7	//
+  mov temp,"jpo"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,8	//
+  mov temp,"js"		//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,9	//
+  mov temp,"jns"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,A	//
+  mov temp,"jbe"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,B	//
+  mov temp,"ja"		//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,C	//
+  mov temp,"jl"		//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,D	//
+  mov temp,"jge"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,E	//
+  mov temp,"jle"	//
+  je @patch_table	//
+//////////////////////////
+  cmp type_of_jcc,F	//
+  mov temp,"jg"		//
+  je @patch_table	//
+//////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////
+  // Так, как все эмулируемые джампы короткие (2 байта), а наша таблица   //
+  // переходов находится довольно далеко, необходимо преобразовывать      //
+  // эти джампы и пересчитывать смещения, а мне лень, поэтому, благодаря  //
+  // команде EVAL я склеиваю нужную ассемблерную команду и с помощью      //
+  // команды ASM я прошу OllyDbg самому сделать это за меня. Пока ни разу //
+  // не отказал :)........................................................//
+  //////////////////////////////////////////////////////////////////////////
+
+  @patch_table:			
+  eval "{temp} {call_cur}"
+  asm table_of_jcc,$RESULT	// Заполняем нашу таблицу джампов
+  
+  add table_of_jcc,6		// Длинна внесенного джампа = 6 байт
+  mov eip,addr_cur		// вновь встаем на VM келл, чтобы найти второй адресс
+
+/////////////////////////////////////////////////
+cmp emule_type_jcc_temp,emule_cmp_type_jcc
+  jne @recover_jcc
+////////////////////////
+  bp emule_type_cmp
+  run
+  bc emule_type_cmp
+    cmp eip,emule_type_cmp
+    jne @ERR_BP_AT_EMULE_TYPE_CMP_NOT_WORK
+  mov ebp,00400000
+  add esp,10
+  mov [esp],00400000
+  sub esp,10
+////////////////////////
+  ////////////////////////////////////////////////////
+ @recover_jcc:
+  bp emule_jcc_temp			// сразу ставим бряк на эмулятор джампа
+  run					// запускаем программу
+  bc emule_jcc_temp			// прерываемся убираем бряк
+  cmp eip,emule_jcc_temp		// проверяем правильно ли приземлились
+  jne @ERR_BP_AT_EMULE_JCC_NOT_WORK	// если нет генерим ошибку и уходим
+  mov eax,0				// в еах 0, чтобы получить второй адрес
+  bp emule_last_jamp			// ставим бряк на последний джамп эмуля
+  run					// запускаем прогу
+  bc emule_last_jamp			// прерываемся и убираем бряк
+  cmp eip,emule_last_jamp		// проверяем, правильно ли прервались
+  jne @ERR_BP_AT_EMULE_LAST_JAMP_NOT_WORK // если нет, генерим ошибку и выходим
+  mov temp,esp				// получаем указатель на стек
+  sub temp,4				// поднимаемся выше (esp-4)
+  mov call_cur,[temp]			// получаем адрес перехода
+
+  cmp call_cur,base_old			// проверяем, далекий это адрес или нет
+  jae @short_jmp			// если нет, пропускаем преобразование
+    mov temp,base_new			// в темп новую базу
+    sub temp,call_addr			// отнимаем от новой базы, найденый адрес
+    add temp,base_old			// и прибавляем полученое смещение к старой базе
+    mov call_cur,temp			// перезаписываем найденый адрес преобразованым
+  @short_jmp:
+  eval "jmp {call_cur}"			// склеиваим нужную ассемблерную команду
+  asm table_of_jcc,$RESULT		// ассемблируем инструкцию (добавляем переходник)
+  
+  /// Debug!!!
+  mov eip,addr_cur
+  /////////////
+  mov temp,table_of_jcc_base		// получаем текущее смещение в таблице переходов
+  sub temp,addr_cur			// вычисляем смещение относительно VM келла
+  sub temp,5				// корректировка
+  mov [addr_cur],E9			// вместо call VM вписываем jmp
+  inc addr_cur				// встаем на смещение VM
+  mov [addr_cur],temp			// вписываем вместо VM смещения адрес табл. переходов
+  dec addr_cur				// \ восстанавливаем
+  add table_of_jcc,5			// / указатели
+  //////////////////////////////////////////////////////
+jmp @find_VM_call
+//end @trace_jcc
+//////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////
+// Процедура восстанавливает эмулируемые команды сравнения (CMP) всего 5 //
+///////////////////////////////////////////////////////////////////////////
+@trace_cmp_and_jcc:
+  
+  mov table_of_jcc_base,table_of_jcc		// Запоминаем текущюю базу таблицы переходов
+  bp emule_cmp_get_arg1				// Ставим бряк после келла, вычисляющего первый аргумент сравнения
+  run						// Запускаем программу
+  bc emule_cmp_get_arg1				// Брякаемся и убираем бряк
+   cmp eip,emule_cmp_get_arg1			// Проверяем, правильно ли приземлились
+   jne @ERR_BP_AT_EMULE_CMP_GET_ARG1_NOT_WORK	// Если нет, генерим ошибку и уходим
+  mov arg1_num,eax				// Запоминаем первый аргумент
+		
+  bp emule_cmp_get_arg2				// Ставим бряк после келла, вычисляющего второй аргумент сравнения
+  run						// Запускаем программу
+  bc emule_cmp_get_arg2				// Брякаемся и убираем бряк
+   cmp eip,emule_cmp_get_arg2			// Проверяем, правильно ли приземлились
+   jne @ERR_BP_AT_EMULE_CMP_GET_ARG1_NOT_WORK	// Если нет, генерим ошибку и уходим
+  mov arg2_num,eax				// Запоминаем второй аргумент
+  bp emule_type_cmp				// Ставим бряк на проверку типа сравнения
+  run						// Запускаем программу
+  bc emule_type_cmp				// Брякаемся и убираем бряк
+    cmp eip,emule_type_cmp			// Проверяем, правильно ли приземлились
+    jne @ERR_BP_AT_EMULE_TYPE_CMP_NOT_WORK	// Если нет, генерим ошибку и уходим
+  mov type_of_cmp,eax				// Запоминаем тип CMP
+
+ // CMP DWORD PTR DS:[????????],????????
+ @case0:
+  cmp type_of_cmp,0
+  jne @case1
+  mov str1,"cmp dword ptr ds:["  
+  mov str2,"],"
+  mov str3,""
+
+  mov arg1_display,"eax"
+  mov emule_cmp_size,2
+  cmp arg1_num,0
+  je  @0_calc_arg2
+
+  mov arg1_display,"ecx"
+  mov emule_cmp_size,2
+  cmp arg1_num,1
+  je  @0_calc_arg2
+
+  mov arg1_display,"edx"
+  mov emule_cmp_size,2
+  cmp arg1_num,2
+  je  @0_calc_arg2
+
+  mov arg1_display,"ebx"
+  mov emule_cmp_size,2
+  cmp arg1_num,3
+  je  @0_calc_arg2
+
+  mov arg1_display,"esp"
+  mov emule_cmp_size,3
+  cmp arg1_num,4
+  je  @0_calc_arg2
+
+  mov arg1_display,"ebp"
+  mov emule_cmp_size,3
+  cmp arg1_num,5
+  je  @0_calc_arg2
+
+  mov arg1_display,"esi"
+  mov emule_cmp_size,2
+  cmp arg1_num,6
+  je  @0_calc_arg2
+  
+  mov arg1_display,"edi"
+  mov emule_cmp_size,2
+  cmp arg1_num,7
+  je  @0_calc_arg2
+
+  mov arg1_display,ebp
+  mov emule_cmp_size,6
+ @0_calc_arg2:
+  mov arg2_display,"eax"
+  cmp arg2_num,0
+  je  @end_switch
+  
+  mov arg2_display,"ecx"
+  cmp arg2_num,1
+  je  @end_switch
+
+  mov arg2_display,"edx"
+  cmp arg2_num,2
+  je  @end_switch
+
+  mov arg2_display,"ebx"
+  cmp arg2_num,3
+  je  @end_switch
+
+  mov arg2_display,"esp"
+  inc emule_cmp_size
+  cmp arg2_num,4
+  je  @end_switch
+  dec emule_cmp_size
+
+  mov arg2_display,"ebp"
+  inc emule_cmp_size
+  cmp arg2_num,5
+  je  @end_switch
+  dec emule_cmp_size
+
+  mov arg2_display,"esi"
+  cmp arg2_num,6
+  je  @end_switch
+
+  mov arg2_display,"edi"
+  cmp arg2_num,7
+  je  @end_switch
+
+  mov arg2_display,esp
+  add arg2_display,10
+  mov arg2_display,[arg2_display]
+  add emule_cmp_size,4
+ 
+  jmp @end_switch
+ // CMP ????????,DWORD PTR DS:[????????]
+ @case1:  
+  cmp type_of_cmp,1
+  jne @case2
+  mov str1,"cmp "  
+  mov str2,",dword ptr ds:["
+  mov str3,"]"
+
+  mov arg1_display,"eax"
+  mov emule_cmp_size,2
+  cmp arg1_num,0
+  je  @1_calc_arg2
+
+  mov arg1_display,"ecx"
+  mov emule_cmp_size,2
+  cmp arg1_num,1
+  je  @1_calc_arg2
+
+  mov arg1_display,"edx"
+  mov emule_cmp_size,2
+  cmp arg1_num,2
+  je  @1_calc_arg2
+
+  mov arg1_display,"ebx"
+  mov emule_cmp_size,2
+  cmp arg1_num,3
+  je  @1_calc_arg2
+
+  mov arg1_display,"esp"
+  mov emule_cmp_size,2
+  cmp arg1_num,4
+  je  @1_calc_arg2
+
+  mov arg1_display,"ebp"
+  mov emule_cmp_size,2
+  cmp arg1_num,5
+  je  @1_calc_arg2
+
+  mov arg1_display,"esi"
+  mov emule_cmp_size,2
+  cmp arg1_num,6
+  je  @1_calc_arg2
+  
+  mov arg1_display,"edi"
+  mov emule_cmp_size,2
+  cmp arg1_num,7
+  je  @1_calc_arg2
+
+  mov arg1_display,ebp
+  mov emule_cmp_size,6
+ @1_calc_arg2:
+  mov arg2_display,"eax"
+  cmp arg2_num,0
+  je  @end_switch
+  
+  mov arg2_display,"ecx"
+  cmp arg2_num,1
+  je  @end_switch
+
+  mov arg2_display,"edx"
+  cmp arg2_num,2
+  je  @end_switch
+
+  mov arg2_display,"ebx"
+  cmp arg2_num,3
+  je  @end_switch
+
+  mov arg2_display,"esp"
+  cmp arg2_num,4
+  je  @end_switch
+  
+  mov arg2_display,"ebp"
+  cmp arg2_num,5
+  je  @end_switch
+  
+  mov arg2_display,"esi"
+  cmp arg2_num,6
+  je  @end_switch
+
+  mov arg2_display,"edi"
+  cmp arg2_num,7
+  je  @end_switch
+
+  mov arg2_display,esp
+  add arg2_display,10
+  mov arg2_display,[arg2_display]
+  add emule_cmp_size,4
+  jmp @end_switch
+  // CMP BYTE PTR DS:[????????],??
+ @case2:
+  cmp type_of_cmp,2
+  jne @case3
+  mov str1,"cmp byte ptr ds:["  
+  mov str2,"],"
+  mov str3,""
+
+  mov arg1_display,"eax"
+  mov emule_cmp_size,2
+  cmp arg1_num,0
+  je  @2_calc_arg2
+
+  mov arg1_display,"ecx"
+  mov emule_cmp_size,2
+  cmp arg1_num,1
+  je  @2_calc_arg2
+
+  mov arg1_display,"edx"
+  mov emule_cmp_size,2
+  cmp arg1_num,2
+  je  @2_calc_arg2
+
+  mov arg1_display,"ebx"
+  mov emule_cmp_size,2
+  cmp arg1_num,3
+  je  @2_calc_arg2
+
+  mov arg1_display,"esp"
+  mov emule_cmp_size,4
+  cmp arg1_num,4
+  je  @2_calc_arg2
+
+  mov arg1_display,"ebp"
+  mov emule_cmp_size,4
+  cmp arg1_num,5
+  je  @2_calc_arg2
+
+  mov arg1_display,"esi"
+  mov emule_cmp_size,2
+  cmp arg1_num,6
+  je  @2_calc_arg2
+  
+  mov arg1_display,"edi"
+  mov emule_cmp_size,2
+  cmp arg1_num,7
+  je  @2_calc_arg2
+
+  mov arg1_display,ebp
+  mov emule_cmp_size,6
+ @2_calc_arg2:
+  mov arg2_display,"al"
+  cmp arg2_num,0
+  je  @end_switch
+  
+  mov arg2_display,"cl"
+  cmp arg2_num,1
+  je  @end_switch
+
+  mov arg2_display,"dl"
+  cmp arg2_num,2
+  je  @end_switch
+
+  mov arg2_display,"bl"
+  cmp arg2_num,3
+  je  @end_switch
+
+  mov arg2_display,"??"
+  cmp arg2_num,4
+  je  @ERR_EMULE_ARG
+  
+  mov arg2_display,"??"
+  cmp arg2_num,5
+  je  @ERR_EMULE_ARG
+  
+  mov arg2_display,"??"
+  cmp arg2_num,6
+  je  @ERR_EMULE_ARG
+
+  mov arg2_display,"??"
+  cmp arg2_num,7
+  je  @ERR_EMULE_ARG
+
+  mov arg2_display,esp
+  add arg2_display,10
+  mov arg2_display,[arg2_display]
+  add emule_cmp_size,1
+  jmp @end_switch
+  // CMP ??,BYTE PTR DS:[????????]
+ @case3:
+  cmp type_of_cmp,3
+  jne @case4
+  mov str1,"cmp "  
+  mov str2,",byte ptr ds:["
+  mov str3,"]"
+
+  mov arg1_display,"al"
+  mov emule_cmp_size,2
+  cmp arg1_num,0
+  je  @3_calc_arg2
+
+  mov arg1_display,"cl"
+  mov emule_cmp_size,2
+  cmp arg1_num,1
+  je  @3_calc_arg2
+
+  mov arg1_display,"dl"
+  mov emule_cmp_size,2
+  cmp arg1_num,2
+  je  @3_calc_arg2
+
+  mov arg1_display,"bl"
+  mov emule_cmp_size,2
+  cmp arg1_num,3
+  je  @3_calc_arg2
+
+  mov arg1_display,"??"
+  mov emule_cmp_size,2
+  cmp arg1_num,4
+  je  @3_calc_arg2
+
+  mov arg1_display,"??"
+  mov emule_cmp_size,2
+  cmp arg1_num,5
+  je  @3_calc_arg2
+
+  mov arg1_display,"??"
+  mov emule_cmp_size,2
+  cmp arg1_num,6
+  je  @3_calc_arg2
+  
+  mov arg1_display,"??"
+  mov emule_cmp_size,2
+  cmp arg1_num,7
+  je  @3_calc_arg2
+
+  mov arg1_display,ebp
+  mov emule_cmp_size,6
+ @3_calc_arg2:
+  mov arg2_display,"eax"
+  cmp arg2_num,0
+  je  @end_switch
+  
+  mov arg2_display,"ecx"
+  cmp arg2_num,1
+  je  @end_switch
+
+  mov arg2_display,"edx"
+  cmp arg2_num,2
+  je  @end_switch
+
+  mov arg2_display,"ebx"
+  cmp arg2_num,3
+  je  @end_switch
+
+  mov arg2_display,"esp"
+  cmp arg2_num,4
+  je  @end_switch
+  
+  mov arg2_display,"ebp"
+  cmp arg2_num,5
+  je  @end_switch
+  
+  mov arg2_display,"esi"
+  cmp arg2_num,6
+  je  @end_switch
+
+  mov arg2_display,"edi"
+  cmp arg2_num,7
+  je  @end_switch
+
+  mov arg2_display,esp
+  add arg2_display,10
+  mov arg2_display,[arg2_display]
+  add emule_cmp_size,1
+  jmp @end_switch
+  // CMP ????????,????????
+ @case4:
+  cmp type_of_cmp,4
+  jne @ERR_UNKNOWN_TYPE_CMP
+  mov str1,"cmp "  
+  mov str2,","
+  mov str3,""
+
+  mov arg1_display,"eax"
+  mov emule_cmp_size,2
+  cmp arg1_num,0
+  je  @4_calc_arg2
+
+  mov arg1_display,"ecx"
+  mov emule_cmp_size,2
+  cmp arg1_num,1
+  je  @4_calc_arg2
+
+  mov arg1_display,"edx"
+  mov emule_cmp_size,2
+  cmp arg1_num,2
+  je  @4_calc_arg2
+
+  mov arg1_display,"ebx"
+  mov emule_cmp_size,2
+  cmp arg1_num,3
+  je  @4_calc_arg2
+
+  mov arg1_display,"esp"
+  mov emule_cmp_size,2
+  cmp arg1_num,4
+  je  @4_calc_arg2
+
+  mov arg1_display,"ebp"
+  mov emule_cmp_size,2
+  cmp arg1_num,5
+  je  @4_calc_arg2
+
+  mov arg1_display,"esi"
+  mov emule_cmp_size,2
+  cmp arg1_num,6
+  je  @4_calc_arg2
+  
+  mov arg1_display,"edi"
+  mov emule_cmp_size,2
+  cmp arg1_num,7
+  je  @4_calc_arg2
+
+  mov arg1_display,ebp
+  mov emule_cmp_size,5
+ @4_calc_arg2:
+  mov arg2_display,"eax"
+  cmp arg2_num,0
+  je  @end_switch
+  
+  mov arg2_display,"ecx"
+  cmp arg2_num,1
+  je  @end_switch
+
+  mov arg2_display,"edx"
+  cmp arg2_num,2
+  je  @end_switch
+
+  mov arg2_display,"ebx"
+  cmp arg2_num,3
+  je  @end_switch
+
+  mov arg2_display,"esp"
+  cmp arg2_num,4
+  je  @end_switch
+  
+  mov arg2_display,"ebp"
+  cmp arg2_num,5
+  je  @end_switch
+  
+  mov arg2_display,"esi"
+  cmp arg2_num,6
+  je  @end_switch
+
+  mov arg2_display,"edi"
+  cmp arg2_num,7
+  je  @end_switch
+
+  mov arg2_display,esp
+  add arg2_display,10
+  mov arg2_display,[arg2_display]
+  add emule_cmp_size,4
+ 
+  jmp @end_switch
+//////////////////////////////////////////////////////////////////////////////////////
+ @end_switch:
+  eval "{str1}{arg1_display}{str2}{arg2_display}{str3}"
+  asm table_of_jcc,$RESULT
+  add table_of_jcc,emule_cmp_size
+  ///////////////
+  mov ebp,00400000
+  add esp,10
+  mov [esp],00400000
+  sub esp,10
+  
+  mov emule_type_jcc_temp,emule_cmp_type_jcc
+  mov emule_jcc_temp,emule_cmp_jcc
+  jmp @trace_jcc
+  ///////////////
+  pause  
+
+@end:
+mov eip,oep
+log "____________________________________"
+ret
+
+@ERR_BP_AT_SWICH_NOT_WORK:
+msg "[Error!] BreakPoint at emule_swich not work!"
+jmp @end
+
+@ERR_BP_AT_EMULE_LAST_JAMP_NOT_WORK:
+msg "[Error!] BreakPoint at emule_last_jamp not work!"
+jmp @end
+
+@ERR_BP_AT_EMULE_TYPE_JCC_NOT_WORK:
+msg "[Error!] BreakPoint at emule_type_jcc not work!"
+jmp @end
+
+@ERR_BP_AT_EMULE_JCC_NOT_WORK:
+msg "[Error!] BreakPoint at emule_jcc not work!"
+jmp @end
+
+@ERR_BP_AT_EMULE_CMP_GET_ARG1_NOT_WORK:
+msg "[Error!] BreakPoint at emule_cmp_get_argX not work!"
+jmp @end
+
+@ERR_BP_AT_EMULE_TYPE_CMP_NOT_WORK:
+msg "[Error!] BreakPoint at emule_type_cmp not work!"
+jmp @end
+
+@ERR_BP_AT_EMULE_CMP_NOT_WORK:
+msg "[Error!] BreakPoint at emule_cmp not work!"
+jmp @end
+
+@ERR_BP_AT_EMULE_CMP_TYPE_JCC_NOT_WORK:
+msg "[Error!] BreakPoint at emule_cmp_type_jcc not work!"
+jmp @end
+
+@ERR_EMULE_LAST_JAMP_NOT_FOUND:
+msg "[Error!] Command 'JMP DWORD PTR SS:[ESP-4]' not found!"
+jmp @end
+
+@ERR_VM_CALL_NOT_FOUND:
+msg "[Error!] VM call not found!"
+jmp @end
+
+@ERR_INIT_FAILED:
+msg "[Error!] Init failed!"
+jmp @end
+
+@ERR_EMULE_ARG:
+msg "[Error!] Register not found!"
+jmp @end
+
+@ERR_UNKNOWN_TYPE_CMP:
+msg "[Error!] Unknown type of cmp instruction!"
+jmp @end

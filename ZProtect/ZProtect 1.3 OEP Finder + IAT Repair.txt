@@ -1,0 +1,201 @@
+/*
+OllyDbg & Fantom 
+*/
+var iat_st
+var iat_end
+var func
+var chek
+var chj
+var oep
+var jf
+var pf
+var iat_sz
+var scopy
+var ocopy
+var chj
+var diff
+var lbase
+var ch2b
+var srh
+var masc
+var mjp
+
+mov srh,401000
+var espval
+gpa  "VirtualAlloc","kernel32.dll"
+bp $RESULT
+mov espval,esp-4
+erun
+erun
+bc eip
+bphws espval,"r"
+erun
+mov oep,ebx
+bphwc espval
+bphws oep, "x"
+erun
+bphwc oep
+
+cmt eip, "<---OEP"
+MSGYN "Oep Faund! Fix Import Continue?"
+cmp $RESULT,0
+je quitno
+
+
+Alloc 10000
+Cmp $RESULT,0 
+Je abort 
+mov iat_stall ,$RESULT
+mov scopy,iat_stall
+
+
+mov oep,eip
+
+mov iat_st,460814
+mov ocopy,iat_st
+
+mov iat_end,460f28
+mov iat_sz,iat_end
+sub iat_sz,iat_st
+mov pf,[iat_st]
+
+mov srh,401000
+
+mov pf,00E76509
+/*
+00E76505    894C24 2C       MOV DWORD PTR SS:[ESP+2C],ECX <----point write edit for you
+00E76509    E9 DD000000     JMP 00E765EB
+00E7650E    CD 8B           INT 8B
+
+00E50000  4D 5A 90 00 03 00 00 00 04 00 00 00 FF FF 00 00  MZ.......ÿÿ.. < --base engine
+00E50010  B8 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00  ¸.......@.......
+00E50020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+00E50030  00 00 00 00 00 00 00 00 00 00 00 00 E8 00 00 00  ............è...
+00E50040  0E 1F BA 0E 00 B4 09 CD 21 B8 01 4C CD 21 54 68  º.´.Í!¸LÍ!Th
+00E50050  69 73 20 70 72 6F 67 72 61 6D 20 63 61 6E 6E 6F  is program canno
+00E50060  74 20 62 65 20 72 75 6E 20 69 6E 20 44 4F 53 20  t be run in DOS
+*/
+
+mov [iat_stall],ecx//eax
+add iat_stall,4
+add iat_st,4
+
+
+loop:
+cmp iat_end,iat_st
+je quit
+
+cmp [iat_st],0
+je nextf
+mov chj,[iat_st]
+cmp chj,00E5FDD0
+je gmh
+cmp chj,003Ac430
+je gpra
+and chj,FFFF0000
+cmp chj,460000
+je iprrep
+and chj,FFFF0000
+cmp chj,FA0000
+je iprstels
+
+add iat_st,4
+jmp loop
+
+iprrep:
+mov masc,0
+mov mjp,0
+mov masc,[iat_st]
+mov mjp,masc
+eval "call {masc}"
+mov masc,$RESULT
+
+lr:
+FINDCMD srh, masc
+cmp $RESULT,0
+jne rep
+
+lrj:
+
+eval "jmp {mjp}"
+mov mjp,$RESULT
+lrjn:
+FINDCMD srh, mjp
+cmp $RESULT,0
+jne repj
+ipr:
+mov eip,[iat_st]
+bp pf
+
+erun
+
+
+mov [iat_stall],ecx//eax
+add iat_stall,4
+add iat_st,4
+
+jmp loop
+
+nextf:
+cmp [iat_st+4],0
+je scz
+add iat_stall,4
+add iat_st,4
+jmp loop
+scz:
+add iat_st,4
+jmp nextf
+
+gmh:
+gpa  "GetModuleHandleA","kernel32.dll"
+mov [iat_stall],$RESULT
+add iat_stall,4
+add iat_st,4
+jmp loop
+
+gpra:
+gpa  "GetProcAddress","kernel32.dll"
+mov [iat_stall],$RESULT
+add iat_stall,4
+add iat_st,4
+jmp loop
+
+
+quit:
+pause
+
+
+MEMCPY ocopy,scopy,iat_sz
+mov eip,oep
+ret
+quitno:
+ret
+
+rep:
+mov [$RESULT],#FF15#
+mov [$RESULT+2],iat_st
+jmp lr
+
+iprstels:
+mov masc,0
+mov masc,[iat_st]
+add masc,3
+mov masc,[masc]
+
+eval "push {masc}"
+mov masc,$RESULT
+FINDCMD 46c000, masc
+cmp $RESULT,0
+je ipr
+mov masc,0
+mov mjp,0
+mov masc,$RESULT
+mov mjp,masc
+eval "call {masc}"
+mov masc,$RESULT
+jmp lr
+
+repj:
+mov [$RESULT],#FF25#
+mov [$RESULT+2],iat_st
+jmp lrjn

@@ -1,0 +1,394 @@
+/*
+DETACH FARTHER - METHOD TENKETSU - VER 0.1
+AUTHOR: BENINA
+Modified hipu' Script by BENINA (HTTP://REAONLINE.NET/FORUM)
+
+Armadillo script - detach parent from client and unpack (1000 bytes method tenketsu) 
+
+Debugging Option: Ignore custom exceptions: 0EEDFDE;C0000001..C0009898;80000004
+
+hipu said:
+
+MAKE SURE ALL BREAKPOINTS ARE DELETED BEFORE EXECUTING THE SCRIPT!!! 
+
+ALSO: since im using the IsDebuggerPresent plugin, i didnt do IsDebuggerPresent patch.
+do whatever is needed if u dont use the plugin...
+
+Thanz to Ricardo,Tenketsu and hipu
+
+*/
+
+
+//////////////////////////
+// To declare vars
+/////////////////////////
+
+var WaitForDebugEvent
+var WriteProcessMemory
+var pDebugEvent
+var pBuffer
+var child_ProcID
+var oep_offset1
+var oep_offset2
+var oep_offset3
+var crypto_proc
+var child_OEP
+var patched_line1
+var imgbase
+var rdata_begin
+var text_begin
+var text_patch
+var tb_report1
+var tb_report2
+var tb_report3
+var tb_report4
+var tb_report5
+var tb_report6
+var addr_1000
+var buffer_1000
+var temp
+var temp1
+var temp2
+var temp3
+var temp4
+
+//////////////////////////////////////
+// Find rdata_begin or (data_begin)
+/////////////////////////////////////
+
+gmi eip,MODULEBASE
+mov imgbase, $RESULT 
+mov rdata_begin, imgbase
+find rdata_begin, #4441544100#  //find "DATA" string
+cmp $RESULT,0
+jne lbcontinue
+
+find rdata_begin, #2E726461746100#  //find ".rdata" string
+cmp $RESULT,0
+jne lbcontinue
+
+find rdata_begin, #2E6461746100#  //find ".data" string
+cmp $RESULT,0
+jne lbcontinue
+jmp no_run_script
+lbcontinue:
+mov rdata_begin, $RESULT 
+add rdata_begin, 0c
+mov rdata_begin, [rdata_begin]
+add rdata_begin, imgbase
+log rdata_begin
+
+/////////////////////////////////
+// Find text_begin
+////////////////////////////////
+
+
+gmi eip,MODULEBASE
+mov imgbase, $RESULT 
+mov text_begin, imgbase
+find text_begin, #434F444500#  //find "CODE" string
+cmp $RESULT,0
+jne lbcontinue2
+
+find text_begin, #2E7465787400#  //find ".text" string
+cmp $RESULT,0
+jne lbcontinue2
+jmp no_run_script
+
+lbcontinue2:
+
+mov text_begin, $RESULT 
+add text_begin, 0c
+mov text_begin, [text_begin]
+add text_begin, imgbase
+log text_begin
+
+
+/////////////////////////////////////////////////////
+//eob found_WaitForDebugEvent WriteProcessMemory
+////////////////////////////////////////////////////
+
+gpa "WaitForDebugEvent", "kernel32.dll" 
+mov WaitForDebugEvent, $RESULT
+gpa "WriteProcessMemory", "kernel32.dll" 
+mov WriteProcessMemory, $RESULT
+
+
+///////////////////////////////////////
+//Armadillo check bp first 5 bytes so:
+///////////////////////////////////////
+
+
+add WriteProcessMemory,5
+bp WriteProcessMemory
+run
+bc WriteProcessMemory
+sub WriteProcessMemory,5
+
+
+//////////////////////////////////////////////
+//Get infomation at bp Call WaitForDebugEvent
+/////////////////////////////////////////////
+
+
+bp WaitForDebugEvent
+run
+bc WaitForDebugEvent
+
+
+mov pDebugEvent, esp
+add pDebugEvent, 04
+mov pDebugEvent, [pDebugEvent]
+log pDebugEvent
+
+mov oep_offset1, pDebugEvent
+add oep_offset1, 18
+mov oep_offset2, pDebugEvent
+add oep_offset2, 24
+mov oep_offset3, pDebugEvent
+add oep_offset3, 28
+
+
+
+////////////////////////////////////////
+// Find Child_ProcID and child_OEP
+///////////////////////////////////////
+
+bp WriteProcessMemory
+run
+bc WriteProcessMemory
+
+
+
+mov child_ProcID, pDebugEvent
+add child_ProcID, 4
+mov child_ProcID, [child_ProcID]
+mov child_OEP, [oep_offset1]
+
+///////////////////////////////////
+//Save info Table report 
+///////////////////////////////////
+
+
+mov tb_report1,[pDebugEvent]
+
+mov tb_report2,pDebugEvent
+add tb_report2,4
+mov tb_report2,[tb_report2]
+
+mov tb_report3,pDebugEvent
+add tb_report3,8
+mov tb_report3,[tb_report3]
+
+mov tb_report4,pDebugEvent
+add tb_report4,C
+mov tb_report4,[tb_report4]
+
+mov tb_report5,pDebugEvent
+add tb_report5,10
+mov tb_report5,[tb_report5]
+
+mov tb_report6,pDebugEvent
+add tb_report6,14
+mov tb_report6,[tb_report6]
+
+////////////////////////////////////////////////////
+//Get info in stack at bp Call WriteProcessMemory
+///////////////////////////////////////////////////
+
+
+mov addr_1000,esp
+add addr_1000,8
+mov addr_1000,[addr_1000]
+log addr_1000
+
+mov buffer_1000,esp
+add buffer_1000,C
+mov buffer_1000,[buffer_1000]
+log buffer_1000
+
+/////////////////////////////////
+//Patch OEP of Son to EBFE 
+/////////////////////////////////
+
+mov temp,child_OEP
+sub temp,addr_1000
+add temp,buffer_1000
+mov temp1,[temp]
+and temp1,FFFF
+
+eval "Bytes patched at OEP of Son (to invert the bytes order)  : {temp1}"
+msg $RESULT
+log $RESULT
+
+fill temp,1,eb
+add temp,1
+fill temp,1,fe
+
+
+
+///////////////////////////
+// FIND ENCRYPTOR
+///////////////////////////
+
+mov crypto_proc, esp
+add crypto_proc, 128
+mov crypto_proc, [crypto_proc]
+add crypto_proc, 2d0
+mov [crypto_proc], #9090909090#
+rtr	//ctrl-f9
+sto	//f8
+
+
+///////////////////////
+//Log info to win log
+//////////////////////
+
+log "crypto_proc was nopped..."
+log "patched OEP of child process to EBFE"
+log child_ProcID
+log child_OEP
+
+
+
+
+log "press script/resume when ready"
+eval "Patched successful OEP={child_OEP} of child process (PID= {child_ProcID}) to EBFE !!!!.More Info in Window Log.Press button OK to continues!"
+msg $RESULT
+
+
+////////////////////////////////////////////////////////////////
+//Patch jump to section .text and call WaitForDebugEvent
+///////////////////////////////////////////////////////////////
+
+bp WaitForDebugEvent
+run
+bc WaitForDebugEvent
+
+mov patched_line1, [esp]
+mov temp,patched_line1
+sub temp,11
+fill temp,1,01
+add temp,1
+fill temp,1,00
+
+eval "jmp {text_begin}"
+asm patched_line1,$RESULT
+
+add patched_line1,5
+
+fill patched_line1,3,90
+
+
+
+//////////////////////////////////////
+//Patch in section .text (or CODE)
+//////////////////////////////////////
+
+mov text_patch, text_begin
+mov temp2,pDebugEvent
+
+eval "mov dword [{temp2}],{tb_report1}"
+asm text_patch,$RESULT
+
+add temp2,4
+add text_patch,A
+eval "mov dword [{temp2}],{tb_report2}"
+asm text_patch,$RESULT
+
+add temp2,4
+add text_patch,A
+eval "mov dword [{temp2}],{tb_report3}"
+asm text_patch,$RESULT
+
+add temp2,4
+add text_patch,A
+eval "mov dword [{temp2}],{tb_report4}"
+asm text_patch,$RESULT
+
+add temp2,4
+add text_patch,A
+eval "mov dword [{temp2}],{tb_report5}"
+asm text_patch,$RESULT
+
+add temp2,4
+add text_patch,A
+eval "mov dword [{temp2}],{tb_report6}"
+asm text_patch,$RESULT
+
+add text_patch,A
+mov temp3,text_patch
+eval "add dword [{oep_offset1}],1000"
+asm text_patch,$RESULT
+
+add text_patch,A
+eval "add dword [{oep_offset2}],1000"
+asm text_patch,$RESULT
+
+add text_patch,A
+eval "add dword [{oep_offset3}],1000"
+asm text_patch,$RESULT
+/////////////////////////////////////////////////
+add text_patch,A
+eval "cmp dword [{oep_offset3}],{addr_1000}"
+asm text_patch,$RESULT
+
+add text_patch,A
+eval "je {temp3}"
+asm text_patch,$RESULT
+
+add text_patch,2
+eval "cmp dword [{oep_offset3}],{rdata_begin}"
+asm text_patch,$RESULT
+
+add text_patch,A
+eval "jnz {patched_line1}"
+asm text_patch,$RESULT
+
+add text_patch,6
+eval "push {child_ProcID}"
+asm text_patch,$RESULT
+
+add text_patch,5
+eval "CALL DebugActiveProcessStop"
+asm text_patch,$RESULT
+
+add text_patch,5
+eval "NOP"
+asm text_patch,$RESULT
+
+
+//////////////////////////////
+//Patch in Table report at :
+//////////////////////////////
+
+sub text_begin,1000
+mov [oep_offset1], text_begin
+mov [oep_offset2], text_begin
+mov [oep_offset3], text_begin
+
+//////////////////////////////////
+//go [esp](New origin here)
+///////////////////////////////////
+mov eip, [esp]
+
+
+//////////////////////////
+// Set bp F2 at
+/////////////////////////
+
+bp text_patch
+run
+bc text_patch
+
+msg "Successful!.Close OllyDbg, execute again and attach to your newely created process.More Info in Window Log. Have fun."
+jmp theend
+
+//////////////////////////////////
+no_run_script:
+msg "This srcipt don't run with this file. Plz Close Olly.Sorry!"
+
+
+///////////////////////////////
+theend:
+ret

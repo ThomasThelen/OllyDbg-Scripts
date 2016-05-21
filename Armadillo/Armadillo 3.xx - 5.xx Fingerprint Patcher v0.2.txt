@@ -1,0 +1,965 @@
+////////////////////////Château-Saint-Martin/////////////////////////////////////////////////
+//                                                                 /////////////////////////
+//  FileName    :  Armadillo v3.x-v5.x Finger-Print-Patcher 0.2    ////////////////////////
+//  Features    :                                                  ///////////////////////
+//                 This script can store the new HWID information  //////////////////////
+//                 permanently on your system.Unpacking of HWID    /////////////////////
+//                 targets is not more required.                   ////////////////////
+//                                                                 ///////////////////
+//-----------++++--Armadillo_v5.42                                 //////////////////
+//-----------++++--Armadillo_v5.40                                 /////////////////
+//-----------++++--Armadillo_v5.20                                 ////////////////
+//-----------++++--Armadillo_v5.02                                 ///////////////
+//-----------++----Armadillo_v4.54                                 //////////////
+//-----------++----Armadillo_v4.44                                 /////////////
+//-----------++----Armadillo_v4.42                                 ////////////
+//-----------++++--Armadillo_v4.40                                 ///////////
+//-----------++----Armadillo_v4.30a                                //////////
+//-----------++----Armadillo_v3.78                                 /////////
+//-----------++----Armadillo_v3.77                                 //////// 
+//-----------++----Armadillo_v3.70a                                ///////
+//                                                                 //////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript V1.62.3          /////
+//  Author      :  LCF-AT                                          ////
+//  Date        :  2008-04-05                                      ///
+//                                                                 //
+//                                                                // 
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!///////////////  
+
+
+var Armadillo_v3.x_v5.x_Finger_Print_Patcher_0.2
+var 
+var gRn
+var 
+var written
+var
+var by
+var 
+var LCF_AT
+var 
+var 
+var OutputDebugStringA
+var OpenMutexA
+var GetSystemTime
+var VirtualProtect
+var address1
+var address2
+var RegValue
+var NewPrint
+var a1
+var a2
+var a3
+var a4
+var a5
+var Reger
+var abc1
+var T1
+var T2
+var T3
+var DFG
+var mers
+
+dbh
+mov mers, 0
+
+mov $RESULT, 0
+ask "Enter 1 for Method 1 / or 2 for Method 2 / or 3 for Method 3!"
+cmp $RESULT,0
+je ende
+
+cmp $RESULT, 2
+je ezz
+
+mov abc1, $RESULT
+
+mov DFG, $RESULT
+
+jmp verlo
+
+ezz:
+
+mov abc1, 0
+
+mov DFG, $RESULT
+
+
+verlo:
+
+mov Reger, 65E6C08A
+
+gpa "OutputDebugStringA", "kernel32.dll"
+mov OutputDebugStringA, $RESULT
+mov [OutputDebugStringA], #C20400#
+
+gpa "OpenMutexA", "kernel32.dll"
+mov OpenMutexA, $RESULT
+
+find OpenMutexA, #C20C00#
+mov OpenMutexA, $RESULT
+
+gpa "GetSystemTime", "kernel32.dll"
+mov GetSystemTime, $RESULT
+
+find GetSystemTime, #C20400#
+mov GetSystemTime, $RESULT
+
+
+gpa "VirtualProtect", "kernel32.dll"
+mov VirtualProtect, $RESULT
+
+find VirtualProtect, #C21000#
+mov VirtualProtect, $RESULT
+
+
+bphws OpenMutexA, "x"
+bp OpenMutexA
+esto
+sti
+mov eax, 1
+
+
+bphws VirtualProtect, "x"
+bp VirtualProtect
+
+esto
+
+cmp eip, VirtualProtect
+je malsa
+
+
+
+malsa2:
+bphwc VirtualProtect
+bc VirtualProtect
+
+
+sti
+mov eax, 1
+
+bphwc OpenMutexA
+bc OpenMutexA
+jmp malsa5
+
+
+malsa:
+var mers
+inc mers
+jmp malsa6
+
+malsa5:
+sti
+mov eax, 1
+
+malsa6:
+
+bphwc OpenMutexA
+bc OpenMutexA
+bphwc VirtualProtect
+bc VirtualProtect
+
+cmp DFG, 1
+je hota
+cmp DFG, 2
+je hota
+
+
+cmp mers, 1
+je malsa3
+
+
+bphws VirtualProtect, "x"
+bp VirtualProtect
+esto
+bc VirtualProtect
+bphwc VirtualProtect
+
+malsa3:
+
+
+mov T1, [esp+4]
+
+jmp TTTT
+
+hota:
+
+
+bphws GetSystemTime, "x"
+bp GetSystemTime
+esto
+bc GetSystemTime
+bphwc GetSystemTime
+
+sti
+jmp Mazo
+///////////////////////////////////////////////////
+TTTT:
+
+Armadillo_3.xx:
+
+var z1
+var z2
+var z3
+var z4
+var NewPrint
+var NewPrintS
+
+ask "Enter New Fingerprint without - like 1234ABCD"
+cmp $RESULT,0
+je ende
+mov NewPrint, $RESULT
+mov NewPrintS, $RESULT
+
+
+mov z1,T1
+
+var M0
+
+
+find T1, #8B??????????8B??????8B??????3381????????#
+cmp $RESULT,0
+je palo
+
+mov z1, $RESULT
+mov M0, $RESULT
+
+add z1, 0E
+
+eval "mov eax, {NewPrint}"
+asm z1, $RESULT
+
+add M0, 0A
+bp M0
+
+
+///////////////////////////////////////////////////
+palo:
+
+var b1
+var b2
+
+find z1, #8B44B718358AC0E665#
+cmp $RESULT,0
+je palA
+
+go $RESULT
+
+mov b1, esi
+mov b2, 4
+mul b1, b2
+mov b2, b2
+add b1, edi
+add b1, 18
+mov b1, b1
+mov b2, b1
+sub b2, 4
+
+xor NewPrintS, Reger
+mov NewPrintS, NewPrintS
+
+mov [b1], NewPrintS
+mov [b2], NewPrintS
+
+jmp pal1
+///////////////////////////////////////////////////
+palA:
+
+
+find z1, #8B448118358AC0E665#
+cmp $RESULT,0
+je pal1
+
+go $RESULT
+
+mov b1, eax
+mov b2, 4
+mul b1, b2
+mov b2, b2
+add b1, ecx
+add b1, 18
+mov b1, b1
+mov b2, b1
+sub b2, 4
+
+xor NewPrintS, Reger
+mov NewPrintS, NewPrintS
+
+mov [b1], NewPrintS
+mov [b2], NewPrintS
+
+
+///////////////////////////////////////////////////
+pal1:
+
+var M1
+var M2
+var M3
+var M4
+
+find z1, #8B??????????8B??????8B??????3381????????#
+cmp $RESULT,0
+je pal2
+
+mov z1, $RESULT
+mov M1, $RESULT
+
+add z1, 0E
+
+eval "mov eax, {NewPrint}"
+asm z1, $RESULT
+
+add M1, 0A
+bp M1
+
+
+pal2:
+
+find T1, #8B??????????8B??????????3381????????C20400#
+cmp $RESULT,0
+je pal3
+
+mov z1, $RESULT
+mov M2, $RESULT
+
+add z1, 0C
+
+eval "mov eax, {NewPrint}"
+asm z1, $RESULT
+
+add M2, 6
+bp M2
+
+cmt M2, "M2"
+
+
+pal3:
+find z1, #8B??????????8B??????????3381????????C20400#
+cmp $RESULT,0
+je pal4
+
+mov z1, $RESULT
+mov M3, $RESULT
+
+add z1, 0C
+
+eval "mov eax, {NewPrint}"
+asm z1, $RESULT
+
+add M3, 6
+bp M3
+
+cmt M3, "M3"
+
+
+
+pal4:
+
+
+find T1, #8B????8954B118#
+cmp $RESULT,0
+je HFG
+
+mov z2, $RESULT
+add z2, 03
+
+bp z2
+
+////////////////////////////////////////////////////
+HFG:
+
+esto
+
+
+cmp eip, z2
+je walla
+
+///////////////-----------------------------------------
+var v1
+var v2
+var v3
+var v4
+
+mov v3, "MOV EAX,DWORD PTR DS:[EAX+118]"
+mov v4, "MOV EAX,DWORD PTR DS:[EAX+11C]"
+
+bc M0
+bc M1
+
+
+
+cmp eip, M2
+je bert1
+jmp bert2
+
+bert1:
+
+bc M2
+opcode eip
+mov v2,$RESULT_1        // "MOV EAX,DWORD PTR DS:[EAX+118]"
+cmp v3, v2
+bp M2
+je bert1a
+jmp HFG
+
+bert1a:
+
+
+mov g1, eax
+add g1, 118
+mov g1 ,g1
+mov [g1], NewPrint
+
+bc M2
+
+
+
+
+
+jmp HFG
+bert2:
+bc M3
+opcode eip
+mov v2,$RESULT_1        // "MOV EAX,DWORD PTR DS:[EAX+11C]"
+cmp v4, v2
+bp M3
+je bert2a
+jmp HFG
+
+bert2a:
+
+mov g2, eax
+add g2, 11C
+mov g2 ,g2
+mov [g2], NewPrint
+
+bc M3
+
+
+
+
+jmp HFG
+///////////////////////////////////////////////////
+walla:
+mov edx, NewPrintS
+
+jmp HFG
+
+ret
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+Mazo:
+
+var bac1
+
+mov bac1,eip
+findop bac1,#E8#
+go $RESULT
+sti
+
+
+folkas3:
+/////////////////////////
+
+mov bac1,eip
+findop bac1,#E8#
+go $RESULT
+sti
+
+Golkas3:
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+Armadillo_5.xx:
+var v1
+var v2
+var v3
+mov v3, "MOV EDX,DWORD PTR DS:[ECX+EAX+205C]"
+
+
+
+find eip,#C1E0??8B????8B??????????????????EB??#
+cmp $RESULT,0
+je Armadillo_4.xx
+go $RESULT
+sti
+sti
+
+opcode eip
+mov v1,$RESULT          //  "0F952B"
+mov v2,$RESULT_1        // "MOV EDX,DWORD PTR DS:[ECX+EAX+205C]"
+cmp v3, v2
+je Murks
+
+
+jmp ende
+
+
+Murks:
+
+
+mov address1,ecx
+add address1,eax
+add address1,205C
+
+
+mov address2,address1
+sub address2, 4
+mov address2, address2
+
+
+find eip, #0FB64DF7#
+cmp $RESULT,0
+je ende2
+go $RESULT
+
+mov RegValue, eax
+
+var NewPrintS
+
+
+ask "Enter New Fingerprint without - like 1234ABCD"
+cmp $RESULT,0
+je ende
+mov NewPrint, $RESULT
+mov NewPrintS, $RESULT
+
+///////////////////////////////////////////////////
+cmp abc1,1
+je vcl2
+
+jmp vcl1
+
+
+
+vcl2:
+
+xor NewPrint,RegValue
+mov NewPrint, NewPrint
+
+mov [address1],NewPrint
+mov [address2],NewPrint
+
+
+esto
+ret
+///////////////////////////////////////////////////
+vcl1:
+
+
+find eip, #FF15????????8B45????8BE55DC20800#
+cmp $RESULT,0
+je marta1
+
+var hag1
+var hag2
+
+mov hag1, $RESULT+6
+bp hag1
+
+
+///////////////////////////////////////////////////
+marta1:
+esto
+
+marta2:
+
+var sam2
+mov sam2, ebp-4
+
+mov sam2, [sam2]
+
+
+
+xor sam2,NewPrintS
+
+mov NewPrintS, sam2
+
+
+mov [address1],NewPrintS
+mov [address2],NewPrintS
+
+bc hag1
+
+erun
+
+ret
+
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+
+rtr
+sti
+
+var sam1
+mov sam1, ebp-c
+mov [sam1], NewPrint
+
+
+esto
+jmp marta2
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+mov eax, NewPrintS
+
+ret
+
+///////////////////////////////////////////////////
+Armadillo_4.xx:
+
+var bac1
+var wet
+
+
+mov bac1,eip
+
+gmemi eip, MEMORYBASE
+mov wet, $RESULT
+mov wet, wet
+
+find wet, #8B9481C8190000#
+cmp $RESULT,0
+ja twin1
+
+
+find eip ,#6A01E8#
+cmp $RESULT,0
+ja twin2
+
+///////////////////////////////////////////////////
+twin1:
+
+
+
+find wet, #8B9481C8190000#
+cmp $RESULT, 0
+je ende
+
+go $RESULT
+
+mov RegValue, esi
+
+mov a1, eax
+mov a2, 4
+mul a1, a2
+mov a1, a1
+add a1, 19C8
+mov a3, ecx
+add a1, a3
+mov a1, a1
+mov a2, a1
+sub a2, 4
+mov a2, a2
+
+
+ask "Enter New Fingerprint without - like 1234ABCD"
+cmp $RESULT,0
+je ende
+mov NewPrint, $RESULT
+mov NewPrintS, $RESULT
+
+
+xor NewPrint,RegValue
+mov NewPrint, NewPrint
+
+mov [a1],NewPrint
+mov [a2],NewPrint
+
+esto ret
+
+///////////////////////////////////////////////////
+twin2:
+go $RESULT
+sto
+
+Holkas3:
+///////////////////////////////////////////////////
+var v1
+var v2
+var v3
+var v4
+var a1
+var a2
+var a3
+
+
+
+cmp abc1,1                    // ENTSCHEIDUNG
+je wert
+
+cmp abc1,0
+je zert
+
+
+zert:
+var v6
+
+find eip, #338660200000#
+cmp $RESULT, 0
+je ende
+
+
+bp $RESULT
+mov v6, $RESULT
+
+sto
+
+cmp eip, v6
+je hansel1
+
+run
+bc eip
+jmp hansel2
+
+
+hansel1:
+
+bc eip
+
+hansel2:
+mov RegValue, eax
+
+
+
+mov v3, "XOR EAX,DWORD PTR DS:[ESI+2060]"
+
+
+ask "Enter New Fingerprint without - like 1234ABCD"
+cmp $RESULT,0
+je ende
+mov NewPrint, $RESULT
+mov NewPrintS, $RESULT
+
+
+xor NewPrint,RegValue
+mov NewPrint, NewPrint
+
+mov a1, esi+2060
+mov a2 ,a1
+sub a2 ,4
+mov address1,a1
+mov address2,a2
+
+mov [address1],NewPrint
+mov [address2],NewPrint
+
+esto
+erun
+erun
+erun
+
+ret
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+wert:
+
+sti
+find eip,#358AC0E665#
+cmp $RESULT,0
+je ende2
+
+mov a1, $RESULT-4
+go a1
+
+mov v3, "MOV EAX,DWORD PTR DS:[EDI+ESI*4+18]"
+
+
+opcode eip
+mov v1,$RESULT          //  "0F952B"
+mov v2,$RESULT_1        // "MOV EAX,DWORD PTR DS:[EDI+ESI*4+18]"
+cmp v3, v2
+je Murks2
+
+var 4
+
+mov v4, "MOV EAX,DWORD PTR DS:[ECX+EAX*4+18]"
+
+opcode eip
+mov v1,$RESULT          //  "0F952B"
+mov v2,$RESULT_1        // "MOV EAX,DWORD PTR DS:[ECX+EAX*4+18]"
+cmp v4, v2
+
+je Ram
+jmp ende
+
+Ram:
+
+bp a1
+
+var a4
+var a5
+
+mov a5, 04
+
+mov a2, eax
+mul a2, a5
+mov a2, a2
+add a2, ecx
+add a2, 18
+mov a2, a2   //address
+
+
+mov $RESULT, 0
+ask "Enter New Fingerprint without - like 1234ABCD"
+cmp $RESULT,0
+je ende
+mov NewPrint, $RESULT
+
+xor NewPrint,Reger
+mov NewPrint, NewPrint
+
+mov [a2],NewPrint
+
+
+
+loop2:
+
+esto
+var a3
+var a4
+var a5
+
+mov a4, 04
+
+
+mov a3, eax
+mul a3, a5
+mov a3, a3
+add a3, ecx
+add a3, 18
+mov a3, a3   //address
+
+
+var zar
+
+inc zar
+cmp zar,4
+je faka2
+
+
+
+cmp [a3],NewPrint
+je loop2
+
+
+mov [a3],NewPrint
+
+
+jmp loop2
+
+faka2:
+
+bc a1
+esto
+
+ende:
+ret
+
+///////////////////////////////////////////////////
+jmp ende
+
+
+
+
+Murks2:
+
+bp a1
+
+mov a2, esi
+mul a2, 4
+mov a2, a2
+add a2, edi
+add a2, 18
+mov a2, a2   //address
+
+
+Malka:
+
+mov $RESULT, 0
+ask "Enter New Fingerprint without - like 1234ABCD"
+cmp $RESULT,0
+je ende
+mov NewPrint, $RESULT
+
+xor NewPrint,Reger
+mov NewPrint, NewPrint
+
+mov [a2],NewPrint
+
+
+///////////////////////////////////////////////////
+
+find eip, #C20800#
+go $RESULT
+sti
+
+
+
+mov v3, "XOR EAX,DWORD PTR DS:[ESI+2060]"
+
+
+find eip, #338660200000#
+cmp $RESULT, 0
+je ende
+
+
+go $RESULT
+
+mov a1, esi+2060
+mov a2 ,a1
+sub a2 ,4
+mov address1,a1
+mov address2,a2
+
+mov [address1],0
+mov [address2],0
+
+
+///////////////////////////////////////////////////
+loop:
+
+esto
+
+
+mov a3, esi
+mul a3, 4
+mov a3, a3
+add a3, edi
+add a3, 18
+mov a3, a3   //address
+
+
+var zar
+
+inc zar
+cmp zar,40
+je faka
+
+
+
+cmp [a3],NewPrint
+je loop
+
+
+mov [a3],NewPrint
+
+
+jmp loop
+
+faka:
+
+bc a1
+esto
+
+ende:
+ret
+
+ende2:
+MSG "Maybe No Armadillo 5.xx!!!"
+ret

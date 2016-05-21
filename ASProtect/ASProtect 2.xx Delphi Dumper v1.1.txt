@@ -1,0 +1,598 @@
+/*
+Script written by VolX
+Script   : Aspr2.XX_DIT_v1.1
+Debugging options : In Exceptions page leave all the item unticked, except 
+                   "Ignore memory access violation in kernel32".
+Test Environment : 1.OllyDbg 1.1
+                   2.ODBGScript 1.53 under WINXP
+Thanks : Oleh Yuschuk - author of OllyDbg
+         SHaG - author of OllyScript
+         Epsylon3 - author of ODbgScript
+Note : Use it at your own risk ! no support from me.
+*/
+
+var j
+var k
+var l
+var m
+var n
+var z
+var dllimgbase
+var imgbase
+var crcpoint1
+var transit1
+var storeaddr
+var stepstone
+var exitentry
+var dataaddr
+var dataendaddr
+var countaddr
+var decryptaddr
+var 1stsecbase
+var 1stsecsize
+var regeax
+var regebx
+var regecx
+var regedx
+var regedi
+var regesi
+var regebp
+var regesp
+var range
+
+gmi eip,MODULEBASE     //get imagebase
+mov imgbase,$RESULT
+log imgbase
+mov j, imgbase
+add j, 3C              //40003C
+mov j, [j]
+add j, imgbase         //j=signature VA
+add j, f8              //1st section
+mov k, j
+add k, 8
+mov 1stsecsize, [k]
+log 1stsecsize
+add k, 4
+mov 1stsecbase, [k]
+add 1stsecbase, imgbase
+log 1stsecbase
+gpa "GetSystemTime", "kernel32.dll"
+bp $RESULT
+esto
+bc $RESULT
+rtr
+sti
+mov j, eip
+add j, 20
+mov k, [j]
+mov [j], #33C0# 
+rtr
+mov [j], k
+GMEMI eip, MEMORYOWNER
+mov j, $RESULT
+cmp j, 0
+je error
+mov dllimgbase, j
+log dllimgbase 
+find dllimgbase, #0036300D0A#
+mov n, $RESULT
+cmp n, 0
+je error
+mov l, n
+sub l, 90
+find l, #C600??#
+mov k, $RESULT
+cmp k, 0
+je lab1
+cmp k, n
+jb lab1_1
+
+lab1:
+find l, #C700D?000000#
+mov k, $RESULT
+cmp k, 0
+je error
+cmp k, n
+ja error
+
+lab1_1:
+find k, #74??#
+mov m, $RESULT
+cmp m, 0
+je error
+cmp m, n
+ja error
+mov transit1, m
+bp transit1
+find dllimgbase, #0F318901895104#      //check rdtsc trick
+mov j, $RESULT
+cmp j, 0
+je lab2_2
+sub j, 80
+find j, #558BEC#
+mov j, $RESULT
+cmp j, 0
+je error
+bp j
+eob lab2
+eoe lab2
+esto
+
+lab2:
+cmp eip, j
+je lab2_1
+esto
+
+lab2_1:
+bc j
+mov eip, [esp]
+add esp, 4
+
+lab2_2:
+find n, #68????????68????????68????????68????????#
+mov k, $RESULT
+mov j, k
+add j, 14
+mov l, [j], 2
+cmp l, 35FF
+je lab2_6
+
+lab2_3:
+mov crcpoint1, j
+bp crcpoint1
+eob lab2_4
+eoe lab2_4
+esto
+
+lab2_4:
+cmp eip, crcpoint1
+je lab2_5
+cmp eip, transit1
+je lab3_1
+esto
+
+lab2_5:
+cob
+coe
+bc crcpoint1
+bc transit1
+rtr
+sti
+bp transit1
+eob lab3
+eoe lab3
+esto
+
+lab2_6:
+eob lab3
+eoe lab3
+esto
+
+lab3:
+cmp eip, transit1
+je lab3_1
+esto
+
+lab3_1:
+bc transit1
+cmp !zf, 0
+jne notrick
+sti
+sti
+sti
+mov countaddr, [eax]
+add countaddr, imgbase
+log countaddr, "Delphi initialization table address "
+find dllimgbase, #55FFD784C07504#
+mov j, $RESULT
+cmp j, 0
+je error
+find j, #837D0?0075E5#
+mov l, $RESULT
+cmp l, 0
+je error
+sub l, 2
+mov k, dllimgbase
+bp l
+mov m, 0          
+eob lab3_2
+eoe lab3_2
+esto
+
+lab3_2:
+cmp eip, l
+je lab3_3
+esto
+
+lab3_3:
+mov [k], edx
+cmp m, 2
+je lab3_4
+add k, 4
+add m, 1
+esto
+
+lab3_4:
+bc l
+cob
+coe
+rtr
+sti
+rtr
+sti
+rtr
+mov decryptaddr, [dllimgbase+8]
+log decryptaddr
+find dllimgbase, #68????????68????????68????????68????????#
+mov z, $RESULT
+cmp z, 0
+je error
+bp z
+eob lab3_5
+eoe lab3_5
+esto
+
+lab3_5:
+cmp eip, z
+je lab4
+esto
+
+lab4:
+cob
+coe
+bc z
+rtr
+sti
+mov range, 1stsecsize
+mov j, 1stsecbase
+add j, 1stsecsize
+find j, #558BEC#
+cmp $RESULT, 0
+jne lab5
+find j, #33C0#
+cmp $RESULT, 0
+je lab6
+
+lab5:
+GMEMI j, MEMORYSIZE
+log $RESULT
+add range, $RESULT
+
+lab6:
+alloc 4000
+mov j, $RESULT
+add j, 100
+mov dataaddr, j
+log dataaddr
+mov storeaddr, j
+log storeaddr
+bp decryptaddr
+eob lab7
+eoe lab7
+esto
+
+lab7:
+cmp eip, decryptaddr
+je lab8
+esto
+
+lab8:
+bc decryptaddr
+mov j, [esp+14]
+find j, #C3#
+mov stepstone, $RESULT
+log stepstone
+bp stepstone
+mov j, [esp]
+find j, #FF15#
+mov exitentry, $RESULT
+bp exitentry
+log exitentry
+find eip, #FFD0#
+mov z, $RESULT
+cmp z, 0
+je hexfind1
+log z
+mov regeax, 1
+bphws z, "x"
+jmp lab8_1
+
+hexfind1:
+mov j, eip
+mov m, 300
+
+loop2:
+cmp m, 0
+je error
+mov k, [j]
+and k, f0ff
+log k
+cmp k, 0000D0ff
+je found
+sub m, 1
+add j, 1
+jmp loop2
+
+found:
+log j
+mov z, j
+log z
+bphws z, "x"
+opcode z
+mov k, $RESULT
+cmp k, FFD0
+je calleax
+cmp k, FFD1
+je callecx
+cmp k, FFD2
+je calledx
+cmp k, FFD3
+je callebx
+cmp k, FFD4
+je callesp
+cmp k, FFD5
+je callebp
+cmp k, FFD6
+je callesi
+cmp k, FFD7
+je calledi
+jmp error
+
+calleax:
+mov regeax, 1
+jmp lab8_1
+
+callebx:
+mov regebx, 1
+jmp lab8_1
+
+callecx:
+mov regecx, 1
+jmp lab8_1
+
+calledx:
+mov regedx, 1
+jmp lab8_1
+
+callesi:
+mov regesi, 1
+jmp lab8_1
+
+calledi:
+mov regedi, 1
+jmp lab8_1
+
+callesp:
+mov regesp, 1
+jmp lab8_1
+
+callebp:
+mov regebp, 1
+
+lab8_1:
+eob lab9
+eoe lab9
+run
+
+lab9:
+cmp eip, z
+je lab10
+cmp eip, stepstone
+je lab12
+esto
+
+lab10:
+cmp regeax, 1
+je lab10_1
+cmp regebx, 1
+je lab10_2
+cmp regecx, 1
+je lab10_3
+cmp regedx, 1
+je lab10_4
+cmp regesi, 1
+je lab10_5
+cmp regedi, 1
+je lab10_6
+cmp regesp, 1
+je lab10_7
+cmp regebp, 1
+je lab10_8
+
+lab10_1:
+mov j, eax
+jmp lab10_9
+
+lab10_2:
+mov j, ebx
+jmp lab10_9
+
+lab10_3:
+mov j, ecx
+jmp lab10_9
+
+lab10_4:
+mov j, edx
+jmp lab10_9
+
+lab10_5:
+mov j, esi
+jmp lab10_9
+
+lab10_6:
+mov j, edi
+jmp lab10_9
+
+lab10_7:
+mov j, esp
+jmp lab10_9
+
+lab10_8:
+mov j, ebp
+
+lab10_9:
+mov l, j
+sub j, 1stsecbase
+cmp j, range
+jae verify
+mov j, l
+jmp logdata
+
+verify:
+log l
+msg "verify"
+pause
+jmp error
+
+logdata:
+mov k, storeaddr
+mov [k], j
+add k, 8
+mov storeaddr, k
+esto
+
+lab12:
+bphwc z
+bc stepstone
+eoe lab12_1
+eob lab12_1
+esto
+
+lab12_1:
+cmp eip, exitentry
+je lab13
+esto
+
+lab13:
+bc exitentry
+sti
+bphws z, "x"
+find eip, #C20C00#
+mov m, $RESULT
+log m
+bphws m, "x"
+log storeaddr
+mov k, storeaddr
+add k, 4
+mov dataendaddr, k
+mov storeaddr, k
+log dataendaddr
+eoe lab14
+eob lab14
+esto
+
+lab14:
+cmp eip, z
+je lab15
+cmp eip, m
+je lab16
+esto
+
+lab15:
+cmp regeax, 1
+je lab15_1
+cmp regebx, 1
+je lab15_2
+cmp regecx, 1
+je lab15_3
+cmp regedx, 1
+je lab15_4
+cmp regesi, 1
+je lab15_5
+cmp regedi, 1
+je lab15_6
+cmp regesp, 1
+je lab15_7
+cmp regebp, 1
+je lab15_8
+
+lab15_1:
+mov j, eax
+jmp lab15_9
+
+lab15_2:
+mov j, ebx
+jmp lab15_9
+
+lab15_3:
+mov j, ecx
+jmp lab15_9
+
+lab15_4:
+mov j, edx
+jmp lab15_9
+
+lab15_5:
+mov j, esi
+jmp lab15_9
+
+lab15_6:
+mov j, edi
+jmp lab15_9
+
+lab15_7:
+mov j, esp
+jmp lab15_9
+
+lab15_8:
+mov j, ebp
+
+lab15_9:
+mov l, j
+sub j, 1stsecbase
+cmp j, range
+jae exitverify
+mov j, l
+jmp exitlog
+
+exitverify:
+log l
+msg "exitverify"
+pause
+jmp error
+
+exitlog:
+mov k, storeaddr
+mov [k], j
+sub k, 8
+mov storeaddr, k
+esto
+
+lab16:
+bphwc z
+bphwc m
+mov j, dataaddr      //prepare to copy data
+mov k, dataendaddr
+sub k, j
+mov m, k
+add m, c
+shr k, 3   
+add k, 1             //k=count
+mov j, dataaddr
+sub j, 8
+mov [j], k
+log countaddr
+add j, 4
+mov l, countaddr
+add l, 8
+mov [j], l
+mov j, dataaddr
+sub j, 8
+log j
+log m
+eval "initable_{countaddr}.bin"
+mov k, $RESULT
+dm j, m, k
+msg "Data is dumped "
+pause
+jmp end
+
+notrick:
+msg "No Delphi initialization table trick"
+jmp end
+
+error:
+msg "error!"
+
+end:
+ret

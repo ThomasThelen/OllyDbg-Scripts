@@ -1,0 +1,180 @@
+/////////////////////////////////////////////////////////////
+// FileName    :  Armadillo V4.0-V4.42.CopyMem-II.DeCode.osc
+// Comment     :  Armadillo V4.X CopyMem-II.DeCode
+// Environment :  WinXP SP2,OllyDbg V1.10,OllyScript V0.92
+// Author      :  fly
+// WebSite     :  http://www.unpack.cn
+// Date        :  2006-04-11 12:00
+/////////////////////////////////////////////////////////////
+#log
+dbh
+
+var T0
+var T1
+var Temp
+var OEP
+var XXX
+var DeCodeStart
+var DeCodeOver
+var WaitForDebugEvent
+
+
+MSGYN "Script Needs Win2K/XP.Plz Clear All BreakPoints  And  Set Debugging Option Ignore All Excepions Options  And  Add C000001D..C000001E in custom exceptions !"
+cmp $RESULT, 0
+je TryAgain
+
+
+//OutputDebugStringA————————————————————————————————
+
+gpa "OutputDebugStringA", "KERNEL32.dll"
+mov [$RESULT], #C20400#
+
+
+//WaitForDebugEvent————————————————————————————————
+
+gpa "WaitForDebugEvent", "KERNEL32.dll"
+find $RESULT,#C9C20800#
+add $RESULT,1
+mov WaitForDebugEvent,$RESULT
+eob WaitForDebugEvent
+bp WaitForDebugEvent
+
+esto
+GoOn0:
+esto
+
+WaitForDebugEvent:
+cmp eip,WaitForDebugEvent
+jne GoOn0
+
+bc WaitForDebugEvent
+sti
+
+mov Temp,esp
+sub Temp,8
+mov OEP,[Temp]
+log OEP
+
+
+//XXX————————————————————————————————  
+
+/*
+0057B89A     83BD CCF5FFFF 00   cmp dword ptr ss:[ebp-A34],0
+0057B8A1     0F8C A8020000      jl 0057BB4F
+0057B8A7     8B8D CCF5FFFF      mov ecx,dword ptr ss:[ebp-A34]
+0057B8AD     3B0D 24645B00      cmp ecx,dword ptr ds:[5B6424]
+0057B8B3     0F8D 96020000      jge 0057BB4F
+0057B8B9     8B95 40F6FFFF      mov edx,dword ptr ss:[ebp-9C0]
+0057B8BF     81E2 FF000000      and edx,0FF
+0057B8C5     85D2               test edx,edx
+0057B8C7     0F84 AD000000      je 0057B97A
+0057B8CD     6A 00              push 0
+*/
+
+
+find eip,#83BD????????000F8C????????8B8D????????3B0D????????0F8D????????8B95????????81E2????????????0F84????????6A00#
+cmp $RESULT,0
+je NoFind
+mov XXX,$RESULT
+eob XXX
+bp XXX
+
+esto
+GoOn1:
+esto
+
+XXX:
+cmp eip,XXX
+jne GoOn1
+bc XXX
+
+mov Temp,XXX
+log ebp
+mov T0,ebp
+add Temp,2
+mov T1, [Temp]
+add T0,T1
+mov [T0],0
+
+add Temp,7
+mov T1, [Temp]
+add T1,Temp
+add T1,4
+mov DeCodeOver,T1
+
+add Temp,C
+mov T1, [Temp]
+add T1,4
+
+
+//DeCode————————————————————————————————  
+
+/*
+0057B96A     83C4 0C            add esp,0C
+0057B96D     25 FF000000        and eax,0FF
+0057B972     85C0               test eax,eax
+0057B974     0F84 D5010000      je 0057BB4F
+0057B97A     837D D8 00         cmp dword ptr ss:[ebp-28],0
+0057B97E     75 27              jnz short 0057B9A7
+*/
+
+find XXX,#25FF00000085C0#
+cmp $RESULT,0
+je NoFind
+mov DeCodeStart,$RESULT
+
+eval "inc dword ptr ss:[{T0}]"
+log $RESULT
+asm DeCodeStart, $RESULT
+mov Temp,DeCodeStart
+add Temp,$RESULT
+eval "mov dword ptr ss:[{T1}],1"
+asm Temp, $RESULT
+add Temp,$RESULT
+eval "jmp {XXX}"
+asm Temp, $RESULT
+
+
+//DeCodeOver———————————————————————————————— 
+
+eob DeCodeOver
+bp DeCodeOver
+
+esto
+GoOn2:
+esto
+
+DeCodeOver:
+cmp eip,DeCodeOver
+jne GoOn2
+bc DeCodeOver
+
+
+//OEP———————————————————————————————— 
+
+/*
+0012ED7C  01 00 00 00 0C 09 00 00 DC 08 00 00 01 00 00 80
+0012ED8C  00 00 00 00 00 00 00 00 78 D6 50 00 02 00 00 00
+0012ED9C  00 00 00 00 78 D6 50 00 78 D6 50 00 01 00 00 00
+*/
+
+add OEP,18
+mov OEP,[OEP]
+eval " Child Process OEP  =  {OEP}  !   "
+MSG $RESULT
+
+
+//GameOver————————————————————————————————  
+
+log eip
+cmt eip, "DeCode Over !  By : fly "                                                                  
+MSG "DeCode Over !  Plz Dump Child Process and Continue Fix.  Good Luck     "
+ret                       
+
+NoFind:
+MSG "Error! Don't find. Mabye It's not Armadillo V4.0-V4.42.CopyMem-II    "
+ret
+
+TryAgain:
+MSG " Plz  Try  Again   !   "
+ret

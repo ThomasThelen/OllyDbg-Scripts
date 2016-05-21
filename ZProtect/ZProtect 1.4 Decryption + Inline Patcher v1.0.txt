@@ -1,0 +1,2361 @@
+////////////////////////Château-Saint-Martin//////////////////////////////////////////////////////////////////////////
+//                                                                      /////////////////////////////////////////////
+//  FileName    :  ZProtect 1.4 DeCryption & InLine Patcher 1.0         ////////////////////////////////////////////
+//  Features    :                                                       ///////////////////////////////////////////
+//                 With this script you can get the DeCrypt string      //////////////////////////////////////////
+//                 which allow you to bypass the HWID reg sheme         /////////////////////////////////////////
+//                 without to have a valid HWID Name and Key.This       ////////////////////////////////////////
+//                 script also support's a InLine technic to patch      ///////////////////////////////////////
+//                 your new DeCrypt string permanently in your target.  //////////////////////////////////////
+//                 It find and re-calc also the old & new CRC DWORD.    /////////////////////////////////////
+//                 Dll files are also possible to patch.                ////////////////////////////////////
+//                                                                      ///////////////////////////////////
+//                  *************************************************** //////////////////////////////////
+//               ( 1.) DeCrypt String Find & Patching / Break at OEP  * /////////////////////////////////
+//                                                                    * ////////////////////////////////
+//               ( 2.) DeCrypt InLine Patching                        * ///////////////////////////////
+//                                                                    * //////////////////////////////
+//               ( 3.) Double API Hook Patching                       * /////////////////////////////
+//                                                                    * ////////////////////////////
+//               ( 4.) Creating a fast & short DeCrypt Script         * ///////////////////////////
+//                                                                    * //////////////////////////
+//               ( 5.) New & Old CRC DWORD Calculation  x3            * /////////////////////////
+//                                                                    * ////////////////////////
+//               ( 6.) DLL DeCrypt Patch & Dynamic ImageBase Support  * ///////////////////////
+//                                                                    * //////////////////////
+//               ( 7.) ZProtect 1.4.x Support Only                    * /////////////////////
+//                                                                    * ////////////////////
+//                 How to Use Information's | Step List Choice        * ///////////////////
+//                  *************************************************** //////////////////
+//                  You have 3 Steps | Choose this way | 1. 2. 3.     * /////////////////
+//                                                                    * ////////////////
+//                  *1 <- Let patch & LOG the new DeCrypt Infos       * ///////////////
+//                  *2 <- Add a new section called .MaThiO            * //////////////
+//                  *3 <- Add 3 API Imports                           * /////////////
+//                  *4 <- Let write the DeCrypt InLine Template /save * ////////////
+//                  *5 <- Change EP / Set section to writabe          * ///////////
+//                  *6 <- Find new CRC DWORD / save                   * //////////
+//                  *7 <- Done!                                       * /////////
+//                  *************************************************** ////////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript v1.77.3,              ///////
+//                 Import Adder Tool - LordPE, SecAdd Tool              //////
+//                                                                      /////                                                                    /////
+//  Author      :  LCF-AT                                               ////
+//  Date        :  2010-01-09 | September                               ///
+//                                                                      //
+//                                                                     // 
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!////////////////////
+BC
+BPMC
+BPHWC
+call VARS
+pause
+LC
+////////////////////
+GPI EXEFILENAME
+mov EXEFILENAME, $RESULT
+len EXEFILENAME
+mov EXEFILENAME_COUNT, $RESULT
+sub EXEFILENAME_COUNT, 03
+alloc 1000
+mov testsec, $RESULT
+mov [testsec], EXEFILENAME
+add testsec, EXEFILENAME_COUNT
+scmpi [testsec], "exe"
+je FOUNDEND
+scmpi [testsec], "EXE"
+je FOUNDEND
+scmpi [testsec], "dll"
+je FOUNDEND
+scmpi [testsec], "DLL"
+je FOUNDEND
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nYour loaded file is no DLL or Exe so fix this and try it again! \r\n\r\nChange to dll or exe! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+jmp FULL_END
+pause
+ret
+////////////////////
+FOUNDEND:
+readstr [testsec], 03
+str $RESULT
+mov CHAR, $RESULT
+sub testsec, EXEFILENAME_COUNT
+free testsec
+////////////////////
+////////////////////
+GPI PROCESSID
+mov PROCESSID, $RESULT
+GPI PROCESSNAME
+mov PROCESSNAME, $RESULT
+mov PROCESSNAME_2, $RESULT
+len PROCESSNAME
+mov PROCESSNAME_COUNT, $RESULT
+buf PROCESSNAME_COUNT
+alloc 1000
+mov PROCESSNAME_FREE_SPACE, $RESULT
+mov PROCESSNAME_FREE_SPACE_2, $RESULT
+mov EIP_STORE, eip
+mov eip, PROCESSNAME_FREE_SPACE
+mov [PROCESSNAME_FREE_SPACE], PROCESSNAME
+////////////////////
+PROCESSNAME_CHECK:
+cmp [PROCESSNAME_FREE_SPACE],00
+je PROCESSNAME_CHECK_02
+cmp [PROCESSNAME_FREE_SPACE],#20#, 01
+je PROCESSNAME_CHECK_01
+cmp [PROCESSNAME_FREE_SPACE],#2E#, 01
+je PROCESSNAME_CHECK_01
+inc PROCESSNAME_FREE_SPACE
+jmp PROCESSNAME_CHECK
+////////////////////
+PROCESSNAME_CHECK_01:
+mov [PROCESSNAME_FREE_SPACE], #5F#, 01
+jmp PROCESSNAME_CHECK
+////////////////////
+PROCESSNAME_CHECK_02:
+readstr [PROCESSNAME_FREE_SPACE_2], 08
+mov PROCESSNAME, $RESULT
+str PROCESSNAME
+mov eip, EIP_STORE
+free PROCESSNAME_FREE_SPACE
+/////
+refresh eip
+GMA PROCESSNAME, MODULEBASE
+cmp $RESULT, 0
+jne MODULEBASE
+pause
+pause
+////////////////////
+MODULEBASE:
+mov MODULEBASE, $RESULT
+mov PE_HEADER, $RESULT
+GPI CURRENTDIR
+mov CURRENTDIR, $RESULT
+////////////////////
+gmemi PE_HEADER, MEMORYSIZE
+mov PE_HEADER_SIZE, $RESULT
+add CODESECTION, MODULEBASE
+add CODESECTION, PE_HEADER_SIZE
+GMI MODULEBASE, MODULESIZE
+mov MODULESIZE, $RESULT
+add MODULEBASE_and_MODULESIZE, MODULEBASE
+add MODULEBASE_and_MODULESIZE, MODULESIZE
+////////////////////
+gmemi CODESECTION, MEMORYSIZE
+mov CODESECTION_SIZE, $RESULT
+add PE_HEADER, 03C
+mov PE_SIGNATURE, PE_HEADER
+sub PE_HEADER, 03C
+mov PE_SIZE, [PE_SIGNATURE]
+add PE_INFO_START, PE_HEADER
+add PE_INFO_START, PE_SIZE
+////////////////////
+mov PE_TEMP, PE_INFO_START
+////////////////////
+////////////////////
+mov SECTIONS, [PE_TEMP+06], 01
+itoa SECTIONS, 10.
+mov SECTIONS, $RESULT
+mov ENTRYPOINT, [PE_TEMP+028]
+mov BASE_OF_CODE, [PE_TEMP+02C]
+mov IMAGEBASE, [PE_TEMP+034]
+mov SIZE_OF_IMAGE, [PE_TEMP+050]
+mov TLS_TABLE_ADDRESS, [PE_TEMP+0C0]
+mov TLS_TABLE_SIZE, [PE_TEMP+0C4]
+mov IMPORT_TABLE_ADDRESS, [PE_TEMP+080]
+mov IMPORT_TABLE_SIZE, [PE_TEMP+084]
+mov IMPORT_ADDRESS_TABLE, [PE_TEMP+0D8]
+mov IATSTORE, [PE_TEMP+0D8]
+add ENTRYPOINT, IMAGEBASE
+mov KULI,01
+eval "{PROCESSNAME_2}_Some_Infos.txt"
+mov sFileA, $RESULT
+wrta sFileA, $RESULT
+wrta sFileA, " "
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nPress >>> YES <<< to find and patch the new CRC DWORD <<<-- 3 Step = LAST STEP\r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+je START_OF_CRCCHECK
+cmp $RESULT, 00
+je EIP_CHECK
+pause
+pause
+////////////////////
+////////////////////
+EIP_CHECK:
+cmp CHAR, "exe"
+je EIP_CHECK_IN
+cmp CHAR, "EXE"
+je EIP_CHECK_IN
+jmp START
+////////////////////
+EIP_CHECK_IN:
+mov KULI, 00
+cmp ENTRYPOINT, eip
+je START
+bphws ENTRYPOINT, "x"
+bp ENTRYPOINT
+esto
+bphwc
+bc
+jmp EIP_CHECK_IN
+////////////////////
+START:
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nPress >>> YES <<< to find & patch & create the new DeCrypt string  <<<-- 1 Step \r\n\r\nPress >>> NO <<< for patching the DeCrypt InLine Template  <<<-- 2 Step \r\n\r\n{points} \r\n{ME}"                          
+msgyn $RESULT
+cmp $RESULT, 00
+je START_OF_INLINE
+cmp $RESULT, 01
+je START_2S
+pause
+pause
+ret
+////////////////////
+START_2S:
+mov 1ESP, eip
+cmp [eip], #60#, 01
+je STI_TEST
+sti
+jmp START_2S
+////////////////////
+STI_TEST:
+sti
+cmp eip, 1ESP
+je STI_TEST
+////////////////////
+ESP_TRICK:
+mov ESP_OEP, esp
+bphws ESP_OEP, "r"
+////////////////////
+ESP_TRICK_2:
+bphws VirtualAlloc, "x"
+esto
+cmp eip, VirtualAlloc
+jne CODESECTION_STOP_CHECK
+rtr
+mov ZPSEC, eax
+mov ZPSEC_SIZE, [esp+08]
+bphws DialogBoxIndirectParamA, "x"
+esto
+cmp eip, DialogBoxIndirectParamA
+je NEW_HERE
+cmp eip, VirtualAlloc
+jne CODESECTION_STOP_CHECK
+rtr
+bphwc VirtualAlloc
+find ZPSEC, #7?????????????????3D2C230000#
+cmp $RESULT, 00
+je BOX
+mov SIGN, $RESULT
+bphwc DialogBoxIndirectParamA
+mov [SIGN], #EB#, 01
+mov TONNE, 01
+jmp FIND
+////////////////////
+BOX:
+esto
+////////////////////
+NEW_HERE:
+// esto
+bphwc VirtualAlloc
+cmp eip, DialogBoxIndirectParamA
+jne CODESECTION_STOP_CHECK
+bphwc DialogBoxIndirectParamA
+mov TONNE, 01
+mov eip, DialogRet
+mov eax, 232C
+////////////////////
+FIND:
+bphws CODESECTION, "w"
+esto
+bphwc CODESECTION
+gmemi eip, MEMORYBASE
+mov DECR, $RESULT
+////////////////////
+A1:
+find DECR, #8360140083601000C70001234567C7400489ABCDEFC74008FEDCBA98C7400C76543210C3#
+cmp $RESULT, 00
+je A2
+jmp A_AUS
+////////////////////
+A2:
+find DECR, #C70001234567C7400489ABCDEFC74008FEDCBA98C7400C76543210#
+cmp $RESULT, 00
+je Not_Found
+mov other, 01
+////////////////////
+A_AUS:
+mov P1, $RESULT
+bphws P1, "x"
+bp P1
+esto
+bc
+cmp eip, P1
+jne No_Break
+bphwc P1
+rtr
+sto
+rtr
+sto
+mov check, eip
+bphws check, "x"
+bp check
+eval "{PROCESSNAME_2}_Session_Infos.txt"
+mov sFile, $RESULT
+wrt sFile, $RESULT
+wrt sFile, " "
+mov check_add, check
+gmemi check, MEMORYBASE
+sub check_add, $RESULT
+eval ":{check_add}"
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+findop check, #C3#
+cmp $RESULT, 00
+jne RET_FOUND
+pause
+pause
+////////////////////
+RET_FOUND:
+mov RETURNER, $RESULT
+gmemi RETURNER, MEMORYBASE
+sub RETURNER, $RESULT
+eval ":{RETURNER}"
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+eval ":{ZPSEC_SIZE}"
+wrta sFile, $RESULT
+wrta sFile, "\r\n"
+mov DC1, esp
+readstr [DC1], 10
+mov DC1_IN, $RESULT
+buf DC1_IN
+cmp other, 01
+je R1
+mov SEC_A, ebx
+mov SEC_A_SIZE, [esp+1C]
+add SEC_A_SIZE, SEC_A
+jmp R1A
+////////////////////
+R1:
+mov SEC_A, edi
+mov SEC_A_SIZE, ebx
+add SEC_A_SIZE, SEC_A
+////////////////////
+R1A:
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+mov DC2, esp
+readstr [DC2], 10
+mov DC2_IN, $RESULT
+buf DC2_IN
+cmp other, 01
+je R2
+mov SEC_B, ebx
+jmp R2A
+////////////////////
+R2:
+mov SEC_B, edi
+////////////////////
+R2A:
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+cmp other, 01
+je R3
+mov SEC_C, ebx
+mov SEC_ALL, ebx
+mov SEC_C_SIZE, [esp+1C]
+add SEC_C_SIZE, SEC_C
+mov SEC_ALL_SIZE, SEC_C_SIZE
+jmp R3A
+////////////////////
+R3:
+mov SEC_C, edi
+mov SEC_ALL, edi
+mov SEC_C_SIZE, ebx
+add SEC_C_SIZE, SEC_C
+mov SEC_ALL_SIZE, SEC_C_SIZE
+////////////////////
+R3A:
+mov TAMAX, SEC_C_SIZE
+mov $RESULT, TAMAX
+gmemi eip, MEMORYBASE
+cmp $RESULT, 00
+jne NAK
+pause
+pause
+////////////////////
+NAK:
+mov SAUER, $RESULT
+find SAUER, #891437E?#
+cmp $RESULT, 00
+je KEK
+mov APILOG, $RESULT
+// bphws APILOG, "x"
+bp APILOG
+////////////////////
+KEK:
+find SAUER, #890C3AE?#  // ecx
+cmp $RESULT, 00
+je NAK_2A
+mov APILOG_2, $RESULT
+// bphws APILOG_2, "x"
+bp APILOG_2
+mov HAMMER, 01
+jmp NAK_2A
+////////////////////
+NAK_2A:
+find SAUER, #890C02E?#  // ecx
+cmp $RESULT, 00
+je ZERO
+mov APILOG_3, $RESULT
+// bphws APILOG_3, "x"
+bp APILOG_3
+mov HAMMER, 01
+jmp ZERO
+////////////////////
+MAK_1:
+cmp other, 01
+je R4
+mov SEC_D, ebx
+mov SEC_ALL, ebx
+mov SEC_D_SIZE, [esp+1C]
+add SEC_D_SIZE, SEC_D
+mov SEC_ALL_SIZE, SEC_D_SIZE
+jmp R4A
+////////////////////
+R4:
+mov SEC_D, edi
+mov SEC_ALL, edi
+mov SEC_D_SIZE, ebx
+add SEC_D_SIZE, SEC_D
+mov SEC_ALL_SIZE, SEC_D_SIZE
+////////////////////
+R4A:
+mov TAMAX, SEC_D_SIZE
+mov $RESULT, TAMAX
+jmp ZERO
+//////////////////////////////
+MAK_2:
+cmp other, 01
+je R7
+mov SEC_E, ebx
+mov SEC_ALL, ebx
+mov SEC_E_SIZE, [esp+1C]
+add SEC_E_SIZE, SEC_E
+mov SEC_ALL_SIZE, SEC_E_SIZE
+jmp R7A
+////////////////////
+R7:
+mov SEC_E, edi
+mov SEC_ALL, edi
+mov SEC_E_SIZE, ebx
+add SEC_E_SIZE, SEC_E
+mov SEC_ALL_SIZE, SEC_E_SIZE
+////////////////////
+R7A:
+mov TAMAX, SEC_E_SIZE
+mov $RESULT, TAMAX
+jmp ZERO
+////////////////////
+ZERO:
+mov $RESULT, TAMAX
+mov ENDOF, $RESULT
+mov ENDOF_2, $RESULT
+sub ENDOF_2, 20 // 10
+sub ENDOF, 20   // 10
+readstr [ENDOF], 10
+mov STRING_A, $RESULT
+buf STRING_A
+cmp heller, 01
+je NEW_SEARCH
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nPress >>> YES <<< to use the DeCrypt Method 1 <<<-- Use this first! \r\n\r\nPress >>> NO <<< to use the DeCrypt Method 2 <<<-- Use this second! \r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+mov heller, $RESULT
+cmp heller, 01
+je NEW_SEARCH
+cmp heller, 00
+je SECWAY
+pause
+pause
+////////////////////
+SECWAY:
+sub ENDOF, 10
+cmp [ENDOF], STRING_A ,10
+jne NEW_SEARCH
+sub ENDOF, 10
+cmp [ENDOF], STRING_A ,10
+jne NEW_SEARCH
+sub ENDOF, 10
+cmp [ENDOF], STRING_A ,10
+jne NEW_SEARCH
+jmp ZERO_2
+////////////////////
+NEW_SEARCH:
+alloc 1000
+mov TEST_SEC, $RESULT
+mov TEST_SEC_BAK, $RESULT
+mov TEST_SEC_BAK_2, $RESULT
+add TEST_SEC_BAK,   50
+add TEST_SEC_BAK_2, 50
+mov [TEST_SEC], #60B8AAAAAAAAB9BBBBBBBB8338007433813890909090742B8B103950107524395020751F395030751A8B580439581475128B5808395818750A8B580C39581C750233DB83C0103BC172C161909090#
+mov [TEST_SEC+02], SEC_ALL
+mov [TEST_SEC+07], SEC_ALL_SIZE
+bp TEST_SEC+4B
+bp TEST_SEC+41
+mov eip, TEST_SEC
+mov TEST_END,   TEST_SEC+4B
+mov TEST_FOUND, TEST_SEC+41
+////////////////////
+NEW_SEARCH_2:
+run
+cmp eip, TEST_FOUND
+jne NOTHING_IN
+mov NSTRING_A, eax
+mov ENDOF_2, eax
+readstr [eax], 10
+mov AA, $RESULT
+buf AA
+mov [TEST_SEC_BAK], AA
+add TEST_SEC_BAK, 10
+inc COUNT
+cmp COUNT, 06
+jb NEW_SEARCH_2
+bc TEST_FOUND
+run
+////////////////////
+NEW_SEARCH_3:
+bc TEST_END
+bc TEST_FOUND
+sub TEST_SEC_BAK, 10
+readstr [TEST_SEC_BAK_2], 10
+mov C1, $RESULT
+buf C1
+readstr [TEST_SEC_BAK], 10
+mov C2, $RESULT
+buf C2
+cmp C2, C1
+je IN_THERE
+pause
+pause
+je NOTHING_IN_2
+////////////////////
+IN_THERE:
+cmp [ENDOF_2], C1, 10
+je IN_THERE_2
+find ebx, C1
+cmp $RESULT, 00
+jne INSERT
+pause
+pause
+////////////////////
+INSERT:
+mov ENDOF_2, $RESULT
+////////////////////
+IN_THERE_2:
+mov eip, check
+free TEST_SEC
+jmp ZERO_2
+////////////////////
+NOTHING_IN:
+bc TEST_FOUND
+cmp COUNT, 00
+jne NEW_SEARCH_3
+////////////////////
+NOTHING_IN_2:
+bc TEST_END
+bc TEST_FOUND
+mov eip, check
+free TEST_SEC
+mov COUNT, 00
+jmp NO_SAME
+jmp ZERO_2
+//////////////////////////////
+sub ENDOF, 10
+cmp [ENDOF], STRING_A ,10
+jne NO_SAME
+sub ENDOF, 10
+cmp [ENDOF], STRING_A ,10
+jne NO_SAME
+////////////////////
+ZERO_2:
+sto
+esto
+readstr [ENDOF_2], 10
+mov RECALC, $RESULT
+buf RECALC
+mov SP1, [ENDOF_2]
+mov SP2, [ENDOF_2+04] 
+mov SP3, [ENDOF_2+08]
+mov SP4, [ENDOF_2+0C]
+eval "{PROCESSNAME_2}_String.txt"
+mov sFile, $RESULT
+wrt sFile, $RESULT
+wrt sFile, " "
+eval "{RECALC}"
+wrta sFile, $RESULT
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+cmp SEC_D, 00
+jne SEMPA
+cmp other, 01
+je R5
+mov SEC_D, ebx
+mov SEC_ALL, ebx
+mov SEC_D_SIZE, [esp+1C]
+add SEC_D_SIZE, SEC_D
+mov SEC_ALL_SIZE, SEC_D_SIZE
+jmp R5A
+////////////////////
+R5:
+mov SEC_D, edi
+mov SEC_ALL, edi
+mov SEC_D_SIZE, ebx
+add SEC_D_SIZE, SEC_D
+mov SEC_ALL_SIZE, SEC_D_SIZE
+////////////////////
+R5A:
+////////////////////
+SEMPA:
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+cmp other, 01
+je R6
+mov SEC_E, ebx
+mov SEC_ALL, ebx
+mov SEC_E_SIZE, [esp+1C]
+add SEC_E_SIZE, SEC_E
+mov SEC_ALL_SIZE, SEC_E_SIZE
+jmp R6A
+////////////////////
+R6:
+mov SEC_E, edi
+mov SEC_ALL, edi
+mov SEC_E_SIZE, ebx
+add SEC_E_SIZE, SEC_E
+mov SEC_ALL_SIZE, SEC_E_SIZE
+////////////////////
+R6A:
+sto
+esto
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+cmp other, 01
+je R8
+mov SEC_F, ebx
+mov SEC_ALL, ebx
+mov SEC_F_SIZE, [esp+1C]
+add SEC_F_SIZE, SEC_F
+mov SEC_ALL_SIZE, SEC_F_SIZE
+jmp R8A
+////////////////////
+R8:
+mov SEC_F, edi
+mov SEC_ALL, edi
+mov SEC_F_SIZE, ebx
+add SEC_F_SIZE, SEC_F
+mov SEC_ALL_SIZE, SEC_F_SIZE
+////////////////////
+R8A:
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+sto
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+jmp CODESECTION_STOP_CHECK
+////////////////////
+NO_SAME:
+sto 
+esto
+mov H1, 00
+mov H2, 00
+mov H3, 00
+mov H4, 00
+mov H5, 00
+mov SEC_HELP, SEC_ALL_SIZE
+sub SEC_HELP, 10
+readstr [SEC_HELP], 10
+mov H1, $RESULT
+buf H1
+sub SEC_HELP, 10
+readstr [SEC_HELP], 10
+mov H2, $RESULT
+buf H2
+sub SEC_HELP, 10
+readstr [SEC_HELP], 10
+mov H3, $RESULT
+buf H3
+sub SEC_HELP, 10
+readstr [SEC_HELP], 10
+mov H4, $RESULT
+buf H4
+sub SEC_HELP, 10
+readstr [SEC_HELP], 10
+mov H5, $RESULT
+buf H5
+sto 
+esto
+cmp eip, check
+jne CODESECTION_STOP_CHECK
+cmp SEC_D, 00
+je MAK_1
+cmp SEC_E, 00
+je MAK_2
+jmp MAK_2
+pause
+pause
+////////////////////
+No_Break:
+bphwc
+bc
+bprm CODESECTION, CODESECTION_SIZE
+esto
+bpmc
+cmt eip, "OEP & ZProtect 1.6 are not supported!"
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nZProtect 1.6 are not supported! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+jmp FULL_END
+pause
+ret
+////////////////////
+Not_Found:
+pause
+pause
+////////////////////
+CODESECTION_STOP_CHECK:
+cmp eip, check
+jne TA_1
+bc check
+bphwc check
+esto
+////////////////////
+TA_1:
+cmp eip, APILOG
+je TA_4
+////////////////////
+TA_2:
+cmp eip, APILOG_2
+je TA_5
+////////////////////
+TA_3:
+cmp eip, APILOG_3
+je TA_6
+jne CODESECTION_STOP_CHECK_2
+////////////////////
+TA_4:
+// bc APILOG
+// bphwc APILOG
+jmp TAA
+////////////////////
+TA_5:
+bc APILOG_2
+bphwc APILOG_2
+jmp TAA
+////////////////////
+TA_6:
+bc APILOG_3
+bphwc APILOG_3
+jmp TAA
+////////////////////
+TAA:
+alloc 1000
+mov SECTION_T, $RESULT
+mov SECTION_T_BAK, $RESULT
+////////////////////
+APIROUND:
+// bc APILOG
+// bphwc APILOG
+gopi eip, 1, ADDR
+mov [SECTION_T], $RESULT
+add SECTION_T, 04
+cmp eip, APILOG
+je REG_0
+cmp eip, APILOG_2
+je REG_1
+cmp eip, APILOG_3
+je REG_1
+pause
+pause
+////////////////////
+REG_0:
+mov [SECTION_T], edx
+jmp REG_2
+////////////////////
+REG_1:
+mov [SECTION_T], ecx
+////////////////////
+REG_2:
+add SECTION_T, 04
+sto
+// bphws APILOG, "x"
+// bp APILOG
+esto
+cmp eip, APILOG
+je APIROUND
+cmp eip, APILOG_2
+je APIROUND
+cmp eip, APILOG_3
+je APIROUND
+jmp CODESECTION_STOP_CHECK_2
+////////////////////
+CODESECTION_STOP_CHECK_2:
+bphwc
+bc
+gmemi eip, MEMORYBASE
+cmp CODESECTION, $RESULT
+je OEP
+bprm CODESECTION, CODESECTION_SIZE
+esto
+bpmc
+jmp CODESECTION_STOP_CHECK
+////////////////////
+////////////////////
+OEP:
+cmt eip, "OEP / Near at OEP!"
+mov OEP, eip
+cmp TONNE, 01
+je OVER_OEP
+cmp SIGN, 01
+je OVER_OEP
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nFound nothing to DeCrypt! \r\n\r\nNo HWID used! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+jmp FULL_END
+pause
+pause
+////////////////////
+OVER_OEP:
+mov CODESECTION_bak, CODESECTION
+mov SEC_2, CODESECTION
+add SEC_2, CODESECTION_SIZE
+////////////////////
+DECRYPT:
+cmp RECALC, 00
+jne DECRYPT_2
+cmp DC1_IN, DC2_IN
+jne DECRYPT_GONE
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe DeCrypt String has not changed! \r\n\r\nSo in this case your target should not need a DeCrypt String! \r\n\r\nUse this now!Press "YES" to use this. \r\n\r\n{DC1_IN} \r\n\r\n{points} \r\n\r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 00
+je DECRYPT_GONE
+mov RECALC, DC1_IN
+eval "{PROCESSNAME_2}_String.txt"
+mov sFile, $RESULT
+wrt sFile, $RESULT
+wrt sFile, " "
+eval "{RECALC}"
+wrta sFile, $RESULT
+jmp DECRYPT_2
+////////////////////
+DECRYPT_GONE:
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe script has not found the real decrypt string so in this case you have to choose between 1-5 \r\n\r\nNow just enter 1 for string 1 or 2 or 3 or 4 or 5 \r\n\r\nIf it this time not works then choose a other nummber on the next round.\r\n\r\n{points} \r\n\r\n1.) {H1} \r\n2.) {H2} \r\n3.) {H3} \r\n4.) {H4} \r\n5.) {H5} \r\n\r\nIn some cases there is no DeCrypt string needed!So try just to run the app now!\r\n\r\n{ME}"
+msg $RESULT
+mov KULI, 01
+eval "The script has not found the real decrypt string so in this case you have to choose between 1-5"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "Now just enter 1 for string 1 or 2 or 3 or 4 or 5"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "If it this time not works then choose a other nummber on the next round."
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "1.) {H1}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "2.) {H2}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "3.) {H3}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "4.) {H4}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "5.) {H5}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+eval "In some cases there is no DeCrypt string needed!So try just to run the app now!"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+mov $RESULT, 00
+mov KARA, 01
+////////////////////
+ASKME:
+ask "Now enter the nummber for on string"
+cmp $RESULT, 00
+je ASKME
+cmp $RESULT, 01
+jne AS_2
+mov RECALC, H1
+jmp ASKME_END
+////////////////////
+AS_2:
+cmp $RESULT, 02
+jne AS_3
+mov RECALC, H2
+jmp ASKME_END
+////////////////////
+AS_3:
+cmp $RESULT, 03
+jne AS_4
+mov RECALC, H3
+jmp ASKME_END
+////////////////////
+AS_4:
+cmp $RESULT, 04
+jne AS_5
+mov RECALC, H4
+jmp ASKME_END
+AS_5:
+cmp $RESULT, 05
+jne ASKME
+mov RECALC, H5
+jmp ASKME_END
+////////////////////
+ASKME_END:
+cmp KARA, 00
+je DECRYPT_2
+eval "{PROCESSNAME_2}_String.txt"
+mov sFile, $RESULT
+wrt sFile, $RESULT
+wrt sFile, " "
+eval "{RECALC}"
+wrta sFile, $RESULT
+////////////////////
+DECRYPT_2:
+find SAUER, #5633F683E801740F83E8017514B8????????89040A5E#
+cmp $RESULT, 00
+je DECRYPT_2_A
+mov SAUER_2, $RESULT
+add SAUER_2, 0D
+mov SAUER_2, [SAUER_2+01]
+find CODESECTION, SAUER_2
+cmp $RESULT, 00
+je DECRYPT_2_A
+mov GMHA, $RESULT
+////////////////////
+DECRYPT_2_A:
+alloc 1000
+mov NSECTION, $RESULT
+mov [NSECTION],    DC2_IN
+mov [NSECTION+10], RECALC
+mov [NSECTION+30], CODESECTION
+mov [NSECTION+34], SEC_C
+mov eip, NSECTION+40
+mov [eip], #60B8AAAAAAAAB9BBBBBBBBBACCCCCCCCBDDDDDDDDDBF000000008B1A3E8B75003118313083C00483C20483C504473BC17409770783FF0474D2EBDF619090#
+////////////////////
+FILL_UP:
+mov [eip+02], SEC_A       // CODESECTION_bak
+mov [eip+07], SEC_A_SIZE  // SEC_C
+mov [eip+0C], NSECTION
+add NSECTION, 10
+mov [eip+11], NSECTION
+sub NSECTION, 10
+bp eip+3C
+esto
+bc
+cmp SEC_C, 00
+je DECRYPT_END
+sub eip, 3C
+mov [eip+02], SEC_C
+mov [eip+07], SEC_C_SIZE 
+bp eip+3C
+esto
+bc
+cmp SEC_D, 00
+je DECRYPT_END
+sub eip, 3C
+mov [eip+02], SEC_D
+mov [eip+07], SEC_D_SIZE 
+bp eip+3C
+esto
+bc
+cmp SEC_E, 00
+je DECRYPT_END
+sub eip, 3C
+mov [eip+02], SEC_E
+mov [eip+07], SEC_E_SIZE 
+bp eip+3C
+esto
+bc
+cmp SEC_F, 00
+je DECRYPT_END
+sub eip, 3C
+mov [eip+02], SEC_F
+mov [eip+07], SEC_F_SIZE 
+bp eip+3C
+esto
+bc
+jmp DECRYPT_END
+pause
+pause
+readstr [CODESECTION_bak], 10
+mov TEMP, $RESULT
+buf TEMP
+xor TEMP, DC2_IN
+xor TEMP, RECALC
+mov [CODESECTION_bak], TEMP
+add CODESECTION_bak, 10
+cmp CODESECTION_bak, SEC_2
+jb DECRYPT
+je DECRYPT_END
+////////////////////
+DECRYPT_END:
+bphwc
+bc
+mov eip, OEP
+free NSECTION
+////////////////////
+FIX_APIS:
+cmp SECTION_T, 00
+je DECRYPT_END_2
+mov SECTION_T, SECTION_T_BAK
+mov TT_1, eax
+////////////////////
+FIX_APIS_2:
+cmp [SECTION_T_BAK], 00
+je FIX_APIS_3
+mov eax,   [SECTION_T]
+mov [eax], [SECTION_T+04]
+add SECTION_T, 08
+add SECTION_T_BAK, 08
+jmp FIX_APIS_2
+////////////////////
+FIX_APIS_3:
+free SECTION_T
+mov eax, TT_1
+////////////////////
+DECRYPT_END_2:
+cmp SAUER_2, 00
+je DECRYPT_END_3
+cmp GMHA, 00
+je DECRYPT_END_3
+mov [GMHA], SAUER_2
+////////////////////
+DECRYPT_END_3:
+cmp RECALC, 00
+je NO_SCRIPT
+alloc 1000
+mov SCRIPTSEC, $RESULT
+mov [SCRIPTSEC],     #70617573650D0A62706877630D0A62630D0A62706D630D0A7661722076610D0A7661722076615F73697A650D0A7661722073746F707065720D0A76617220636F756E740D0A76617220737472696E670D0A766172204F45500D0A7661722045500D0A76617220686F6C6465720D0A766172204469616C6F67426F78496E646972656374506172616D410D0A766172205669727475616C416C6C6F630D0A0D0A6D6F762045502C2020202020202020200D0A6D6F76204F45502C2020202020202020200D0A6D6F7620737472696E672C20233031303130313031303130313031303130313031303130313031303130313031230D0A6D6F762073746F707065722C#
+mov [SCRIPTSEC+100], #2020202020202020200D0A6D6F762076615F73697A652C2020202020202020200D0A6D6F7620686F6C6465722C2020202020202020200D0A6270687773204F45502C202278220D0A67706120224469616C6F67426F78496E646972656374506172616D41222C20227573657233322E646C6C220D0A6D6F76204469616C6F67426F78496E646972656374506172616D412C2020202024524553554C540D0A67706120225669727475616C416C6C6F63222C20226B65726E656C33322E646C6C220D0A6D6F7620205669727475616C416C6C6F632C20202024524553554C540D0A2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F0D0A53544152543A0D0A636D70#
+mov [SCRIPTSEC+201], #206569702C2045500D0A6A652053544152545F320D0A62706877732045502C202278220D0A62702045500D0A6573746F0D0A636D70206569702C2045500D0A6A6E652053544152540D0A62706877630D0A62630D0A2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F0D0A53544152545F323A0D0A6270687773205669727475616C416C6C6F632C202278220D0A6573746F0D0A7274720D0A636D70205B6573702B30385D2C2076615F73697A650D0A6A6E652053544152545F320D0A6D6F762076612C206561780D0A6573746F0D0A6270687763205669727475616C416C6C6F630D0A6164642073746F707065722C2076610D0A62702073746F707065720D#
+mov [SCRIPTSEC+301], #0A62706877732073746F707065722C202278220D0A636D7020686F6C6465722C2030300D0A6A6E652050415443480D0A6270687773204469616C6F67426F78496E646972656374506172616D412C202278220D0A62632073746F707065720D0A6573746F0D0A636D70206569702C204F45500D0A6A6520454E440D0A66696E64206569702C2023433231343030230D0A6D6F76206569702C2024524553554C540D0A6270687763204469616C6F67426F78496E646972656374506172616D410D0A6D6F76206561782C20323332430D0A62702073746F707065720D0A62706877732073746F707065722C202278220D0A6A6D702046494C4C5F49540D0A2F2F2F#
+mov [SCRIPTSEC+401], #2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F0D0A50415443483A0D0A61646420686F6C6465722C2076610D0A6D6F76205B686F6C6465725D2C20234542232C2030310D0A2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F0D0A46494C4C5F49543A0D0A6573746F0D0A636D70206569702C204F45500D0A6A6520454E440D0A696E6320636F756E740D0A73746F0D0A6573746F0D0A636D70206569702C204F45500D0A6A6520454E440D0A696E6320636F756E740D0A636D7020636F756E742C2030320D0A6A652046494C4C5F535452494E470D0A2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F0D0A46494C4C5F535452494E473A0D0A6D6F76205B65#
+mov [SCRIPTSEC+500], #73705D2C20737472696E670D0A6D6F7620636F756E742C2030300D0A73746F0D0A6A6D702046494C4C5F49540D0A2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F2F0D0A454E443A0D0A62706877630D0A62630D0A72657400#
+eval "{ENTRYPOINT}"
+mov ENTRYPOINT, $RESULT
+buf ENTRYPOINT
+eval "{OEP}"
+mov OEP, $RESULT
+buf OEP
+eval ""{RECALC}""
+mov RECALC, ##+$RESULT
+alloc 1000
+mov SECTEMP, $RESULT
+mov [SECTEMP], RECALC
+inc SECTEMP
+inc SECTEMP
+readstr [SECTEMP], 20
+mov RECALC, $RESULT
+//  buf RECALC
+dec SECTEMP
+dec SECTEMP
+free SECTEMP
+eval ""{RECALC}""
+mov RECALC, ##+$RESULT
+mov [SCRIPTSEC+0A7], ENTRYPOINT
+mov [SCRIPTSEC+0BA], OEP
+mov [SCRIPTSEC+0D0], RECALC
+mov [SCRIPTSEC+0D0], #23#,01
+mov [SCRIPTSEC+0F1], #23#,01
+gmemi check, MEMORYBASE
+sub check, $RESULT
+eval "{check}"
+mov check, $RESULT
+buf check
+mov [SCRIPTSEC+101], check
+eval "{ZPSEC_SIZE}"
+mov ZPSEC_SIZE, $RESULT
+buf ZPSEC_SIZE
+mov [SCRIPTSEC+118], ZPSEC_SIZE
+cmp SIGN, 00
+je NULLER
+gmemi SIGN, MEMORYBASE
+sub SIGN, $RESULT
+eval "{SIGN}"
+mov SIGN, $RESULT
+buf SIGN
+mov [SCRIPTSEC+12E], SIGN
+jmp NULLER_2
+////////////////////
+NULLER:
+mov [SCRIPTSEC+12E], ##+"00000000"
+////////////////////
+NULLER_2:
+eval "{PROCESSNAME_2}_DeCrypt_Script.txt"
+dma SCRIPTSEC, 558, $RESULT
+free SCRIPTSEC
+////////////////////
+NO_SCRIPT:
+jmp FULL_END
+pause
+pause
+////////////////////
+VARS:
+var SIGN
+var PROCESSNAME_2
+var SECTEMP
+var SCRIPTSEC
+var SAUER_2
+var COUNT
+var SEC_ALL_SIZE
+var SEC_ALL
+var HAMMER
+var SAUER
+var TT_1
+var SECTION_T
+var SECTION_T_BAK
+var APILOG
+var APILOG_2
+var APILOG_3
+var other
+var TAMAX
+var SEC_F_SIZE
+var SEC_E_SIZE
+var SEC_D_SIZE
+var SEC_C_SIZE
+var SEC_A_SIZE
+var NSECTION
+var SEC_2
+var CODESECTION_bak
+var TEMP
+var RECALC
+var ENDOF_2
+var STRING_A
+var ENDOF
+var P1
+var SEC_A
+var SEC_B
+var SEC_C
+var SEC_D
+var SEC_E
+var SEC_F
+var DC1
+var DC2
+var DC1_IN
+var DC2_IN
+var check
+var PROCESSID
+var PROCESSNAME
+var PROCESSNAME_COUNT
+var PROCESSNAME_FREE_SPACE
+var PROCESSNAME_FREE_SPACE_2
+var EIP_STORE
+var MODULEBASE
+var PE_HEADER
+var CURRENTDIR
+var PE_HEADER_SIZE
+var CODESECTION
+var CODESECTION_SIZE
+var MODULESIZE
+var MODULEBASE_and_MODULESIZE
+var PE_SIGNATURE
+var PE_SIZE
+var PE_INFO_START
+var ENTRYPOINT
+var BASE_OF_CODE
+var IMAGEBASE
+var SIZE_OF_IMAGE
+var TLS_TABLE_ADDRESS
+var TLS_TABLE_SIZE
+var IMPORT_ADDRESS_TABLE
+var IMPORT_ADDRESS_SIZE
+var SECTIONS
+var SECTION_01
+var SECTION_01_NAME
+var MAJORLINKERVERSION
+var MINORLINKERVERSION
+var PROGRAMLANGUAGE
+var IMPORT_TABLE_ADDRESS
+var IMPORT_TABLE_ADDRESS_END
+var IMPORT_TABLE_ADDRESS_CALC
+var IMPORT_TABLE_SIZE
+var IAT_BEGIN
+var IMPORT_ADDRESS_TABLE_END
+var API_IN
+var API_NAME
+var MODULE
+var IMPORT_FUNCTIONS
+var IATSTORE_SECTION
+var IATSTORE
+var DialogBoxIndirectParamA
+var GetModuleHandleA
+var VirtualAlloc
+var MapViewOfFile
+var DialogRet
+var 1ESP
+var ESP_OEP
+var DECR
+var GMHA
+var heller
+var sFile
+var check_add
+var RETURNER
+var ALOC
+var EXTRA_2
+var EXTRA
+var VA
+var VP
+var DC
+var API
+var CMP_PATCH
+var SECOND_LOOP
+var STRING_2
+var counta
+var test
+var STRING
+var CALC
+var I1
+var I2
+var I3
+var I4
+var ME
+var points
+var sFile
+var scriptname
+var PLUS_1
+var PLUS_2
+var SIZE_OF
+var TEMP
+var PATCH_ADDR
+var CHECK
+var TEMP_CHECK
+var TEMP_CHECK_IN
+var PATCH_ADDR
+var INLINE_YES
+var SetWindowTextA
+var patched
+var DWORD_1_TEMP
+var run
+var DWORD
+var DWORD_1
+var DWORD_2
+var END_CRC
+var CRC_CODE
+var NEW_CRC
+var OLD_CRC
+var CRC_ADDRESS
+var MAPPEDFILE
+var CRC
+var CRCBASE
+var ALOC
+var A_SIZE
+var A_ADDRESS
+var B_SIZE
+var B_ADDRESS
+var C_SIZE
+var C_ADDRESS
+var D_SIZE
+var D_ADDRESS
+var E_SIZE
+var E_ADDRESS
+var MapViewOfFile
+var VirtualAlloc
+var ort
+var test
+var place
+var mem
+var ID
+var ID2
+var ID_1
+var ID_2
+var FOUND
+var VMBASE
+var baceip
+var DeviceIoControl
+var VirtualProtect
+var PROCESSID
+var PROCESSNAME
+var PROCESSNAME_2
+var PROCESSNAME_COUNT
+var PROCESSNAME_FREE_SPACE
+var PROCESSNAME_FREE_SPACE_2
+var EIP_STORE
+var MODULEBASE
+var PE_HEADER
+var CURRENTDIR
+var PE_HEADER_SIZE
+var CODESECTION
+var CODESECTION_SIZE
+var MODULESIZE
+var MODULEBASE_and_MODULESIZE
+var PE_SIGNATURE
+var PE_SIZE
+var PE_INFO_START
+var ENTRYPOINT
+var BASE_OF_CODE
+var IMAGEBASE
+var SIZE_OF_IMAGE
+var TLS_TABLE_ADDRESS
+var TLS_TABLE_SIZE
+var IMPORT_ADDRESS_TABLE
+var IMPORT_ADDRESS_SIZE
+var SECTIONS
+var SECTION_01
+var SECTION_01_NAME
+var MAJORLINKERVERSION
+var MINORLINKERVERSION
+var PROGRAMLANGUAGE
+var IMPORT_TABLE_ADDRESS
+var IMPORT_TABLE_ADDRESS_END
+var IMPORT_TABLE_ADDRESS_CALC
+var IMPORT_TABLE_SIZE
+var IAT_BEGIN
+var IMPORT_ADDRESS_TABLE_END
+var API_IN
+var API_NAME
+var MODULE
+var IMPORT_FUNCTIONS
+var IATSTORE_SECTION
+var IATSTORE
+var OTHERCRC
+var dll
+var call
+var ZAM
+var VMBASE_2
+var BADBOY
+var TALYOR
+var NEWPATCH
+var FACE
+var TEMP_EXTRA
+var Temp_1
+var Temp_2
+var testsec
+var EXEFILENAME
+var EXEFILENAME_COUNT
+var CHAR
+var Temp_1
+var Temp_2
+var NO_CODE
+var AA
+var CRCSET
+var file
+var sFileA
+var KULI
+var KARA
+var TONNE
+gpa "DialogBoxIndirectParamA", "user32.dll"
+mov DialogBoxIndirectParamA, $RESULT
+find DialogBoxIndirectParamA, #C21400#
+mov DialogRet, $RESULT
+gpa "GetModuleHandleA", "kernel32.dll"
+mov  GetModuleHandleA,  $RESULT
+gpa "VirtualAlloc",     "kernel32.dll"
+mov  VirtualAlloc,      $RESULT
+gpa "VirtualProtect",  "kernel32.dll"
+mov VirtualProtect,     $RESULT
+gpa "MapViewOfFile",    "kernel32.dll"
+mov MapViewOfFile,      $RESULT
+mov scriptname, "ZProtect 1.4 DeCryption & InLine Patcher 1.0"
+mov points, "******************************************************"
+mov ME, "LCF-AT"
+ret
+////////////////////
+START_OF_INLINE:
+////////////////////
+NAME_FIND:
+add PE_TEMP, 0F8
+////////////////////
+NAME_FIND_2:
+readstr [PE_TEMP], 07
+mov NAME, $RESULT
+str NAME
+cmp NAME, ".MaThiO"
+je NAME_FOUND
+add PE_TEMP, 28
+cmp [PE_TEMP], 00
+jne NAME_FIND_2
+log ""
+mov KULI, 01
+eval "{PROCESSNAME_2}_Some_Infos.txt"
+mov sFileA, $RESULT
+wrta sFileA, $RESULT
+wrta sFileA, " "
+wrta sFileA, " "
+wrta sFileA, "No .MaThiO section found!Inline is not posible now!"
+wrta sFileA, " "
+wrta sFileA, "Add a new section called .MaThiO with a min size of 1000!"
+log "No .MaThiO section found!Inline is not posible now!Add a new section called .MaThiO with a min size of 1000!"
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe last section name is not .MaThiO! \r\n\r\nSo add a new section called .MaThiO with a min size of 1000! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+jmp FULL_END
+////////////////////
+NAME_FOUND:
+eval "The last section name is {NAME}"
+log $RESULT, ""
+log ""
+mov SIZE_OF, [PE_TEMP+08]
+cmp [PE_TEMP+08], 1000
+je SIZE_OK
+ja SIZE_OK
+mov TEMP, [PE_TEMP+08]
+mov SIZE_OF, [PE_TEMP+08]
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe last section {NAME} has a size of {TEMP} but this is too low!Min size you need is 1000! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+eval "The last section {NAME} has a size of {TEMP} but this is too low!Min size you need is 1000!"
+log $RESULT, ""
+log ""
+jmp FULL_END
+////////////////////
+SIZE_OK:
+mov TEMP, [PE_TEMP+0C]
+mov TEMP_EXTRA, [PE_TEMP+0C]
+add TEMP, IMAGEBASE
+mov PATCH_ADDR, TEMP
+readstr [TEMP], 1000
+mov CHECK, $RESULT
+buf CHECK
+alloc 1000
+mov TEMP_CHECK, $RESULT
+readstr [TEMP_CHECK], 1000
+mov TEMP_CHECK_IN, $RESULT
+buf TEMP_CHECK_IN
+cmp TEMP_CHECK_IN, CHECK
+je SECTION_IS_FREE
+log ""
+eval "The last section {NAME} | {PATCH_ADDR} | {SIZE_OF} is not empty!Can I overwrite this section?"
+log $RESULT, ""
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe last section {NAME} | {PATCH_ADDR} | {SIZE_OF} is not empty!Can I overwrite this section? \r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+je SECTION_IS_FREE
+jmp FULL_END
+////////////////////
+SECTION_IS_FREE:
+free TEMP_CHECK
+mov TEMP_CHECK, 00
+fill PATCH_ADDR, SIZE_OF, 00
+mov [PATCH_ADDR],     #60A1AAAAAAAA68AAAAAAAA6A40680001000050FF15AAAAAAAAA1AAAAAAAA8B08880DBBBBBBBB408B08890DCCCCCCCC61#
+mov [PATCH_ADDR+030], #60A1AAAAAAAAC600E983C0058B0DFFFFFFFF2BC883E804890861#
+mov [PATCH_ADDR+04A], #803DCCCCCCCC00757F90909090E9F2E6FBFF9090817C2408DDDDDDDD750B90909090C605CCCCCCCC01#
+mov [PATCH_ADDR+073], #60A1AAAAAAAA8B0DCCCCCCCC8808408B0DCCCCCCCC890861#
+mov [PATCH_ADDR+08B], #608B4C2420890DCCCCCCCC61#
+mov [PATCH_ADDR+097], #608B4C24208B118915CCCCCCCC83C1048B11668915CCCCCCCC83E904C601E983C1058B1DFFFFFFFF2BD98959FC61#
+mov [PATCH_ADDR+0C5], #FE05CCCCCCCCFF25AAAAAAAA90#
+mov [PATCH_ADDR+0D2], #60A1CCCCCCCC8B0DCCCCCCCC890883C0048B0DCCCCCCCC66890861#
+mov [PATCH_ADDR+0ED], #803DCCCCCCCC01740A90909090FF25CCCCCCCCA3CCCCCCCC#
+mov [PATCH_ADDR+105], #60A1AAAAAAAA8B0DCCCCCCCC8808408B0DCCCCCCCC890861#
+mov [PATCH_ADDR+11D], #60A1AAAAAAAA68AAAAAAAA6A40680001000050FF15AAAAAAAAA1AAAAAAAA8B08880DCCCCCCCC408B08890DCCCCCCCC61#
+mov [PATCH_ADDR+14D], #60A1AAAAAAAAC600E983C0058B0DCCCCCCCC2BC883E804890861#
+mov [PATCH_ADDR+167], #FF25CCCCCCCC9090909090909090909090909090#
+mov [PATCH_ADDR+17B], #60A1AAAAAAAA8B0DCCCCCCCC8808408B0DCCCCCCCC890861#
+mov [PATCH_ADDR+193], #60A1CCCCCCCC05BBBBBBBBA3CCCCCCCC8B08890DCCCCCCCC83C0048B08890DCCCCCCCC83E80483C0058B0DFFFFFFFF2BC8C640FBE98948FCA1CCCCCCCC05BBBBBBBBA3CCCCCCCC61#
+mov [PATCH_ADDR+1DB], #FF25AAAAAAAA9090909090909090909090#
+mov [PATCH_ADDR+1DA], #8B08890DAAAAAAAA83C0048B08890DBBBBBBBB408B0DCCCCCCCC2BC8C640FBE98948FC61B82C230000C214009090909090#
+mov [PATCH_ADDR+224], #FE05AAAAAAAA60B8BBBBBBBB8B008B0DCCCCCCCC8B15DDDDDDDD890889500461803DEEEEEEEE02740FEB68#
+mov [PATCH_ADDR+24F], #90909090909090FF25FFFFFFFFC70424AAAAAAAAC7442404BBBBBBBBC7442408CCCCCCCCC744240CDDDDDDDDC705EEEEEEEE00000000EB30#
+mov [PATCH_ADDR+287], #60A1FFFFFFFF8B0DAAAAAAAA8B15BBBBBBBB8908895004A1CCCCCCCC8B0DDDDDDDDD83C0052BC8C640FBE98948FC61#
+mov [PATCH_ADDR+2B6], #C360A1EEEEEEEE8B0DFFFFFFFF83C0052BC8C640FBE98948FC61EB84#
+mov P1, PATCH_ADDR
+mov P2, PATCH_ADDR
+add P1, 0E0C
+eval "push {P1}"
+asm P2+06, $RESULT
+eval "push {P1}"
+asm P2+123, $RESULT
+sub P1, 0E0C
+add P1, 0E10
+eval "MOV BYTE PTR DS:[{P1}],CL"
+asm P2+20, $RESULT
+eval "MOV ECX,DWORD PTR DS:[{P1}]"
+asm P2+79, $RESULT
+eval "MOV ECX,DWORD PTR DS:[{P1}]"
+asm P2+10B, $RESULT
+eval "MOV BYTE PTR DS:[{P1}],CL"
+asm P2+13D, $RESULT
+eval "MOV ECX,DWORD PTR DS:[{P1}]"
+asm P2+181, $RESULT
+sub P1, 0E10
+add P1, 0E14
+mov [P2+02B], P1
+mov [P2+084], P1
+mov [P2+116], P1
+mov [P2+148], P1
+mov [P2+18C], P1
+sub P1, 0E14
+add P1, 0E38
+mov [P2+04C], P1
+mov [P2+0C7], P1
+sub P1, 0E38
+eval "jmp {ENTRYPOINT}"
+asm P1+057, $RESULT
+add P1, 0E3C
+mov [P2+06E], P1
+mov [P2+0EF], P1
+sub P1, 0E3C
+add P1, 0E24
+mov [P2+092], P1
+mov [P2+0D4], P1
+mov [P2+0FC], P1
+mov [P2+169], P1
+sub P1, 0E24
+add P1, 0E28
+mov [P2+0A0], P1
+mov [P2+0DA], P1
+sub P1, 0E28
+add P1, 0E2C
+mov [P2+0AC], P1
+mov [P2+0E5], P1
+sub P1, 0E2C
+add P1, 0E34
+mov [P2+0BB], P1
+sub P1, 0E34
+add P1, 0E40
+mov [P2+101], P1
+mov [P2+195], P1
+mov [P2+1CC], P1
+sub P1, 0E40
+add P1, 0E1C
+mov [P2+03E], P1
+mov [P1], P2+05E
+sub P1, 0E1C
+add P1, 0E48
+mov [P2+15B], P1
+sub P1, 0E48
+add P1, 0E50
+mov [P2+19F], P1
+sub P1, 0E50
+add P1, 0E54
+mov [P2+1A7], P1
+sub P1, 0E54
+add P1, 0E58
+mov [P2+1B2], P1
+sub P1, 0E58
+add P1, 0E60
+mov [P2+1BE], P1
+sub P1, 0E60
+add P1, 0E64
+mov [P2+1D6], P1
+//  mov [P2+215], P1
+sub P1, 0E64
+// mov [P1+0E34], eip
+mov [P1+0E34], P1
+mov [P1+0E48], P2+17B
+mov [P1+0E60], P2+224
+mov [P1+0E80], P2+287
+mov [P1+01F0], P2+0E80
+fill PATCH_ADDR+206, 01E, 90
+add IMPORT_TABLE_ADDRESS, IMAGEBASE
+cmp [IMPORT_TABLE_ADDRESS+10], 00
+je NOT_FOUND_IN
+////////////////////
+API_INFOS:
+mov API, [IMPORT_TABLE_ADDRESS+10]
+add API, IMAGEBASE
+// log API, ""
+////////////////////
+API_CHECK_OFF:
+cmp [API], VirtualAlloc
+je VirtualAlloc
+cmp [API], VirtualProtect
+je VirtualProtect
+cmp [API], DialogBoxIndirectParamA
+je DialogBoxIndirectParamA
+////////////////////
+ADD_API:
+add API, 04
+cmp [API], 00
+jne API_CHECK_OFF
+add IMPORT_TABLE_ADDRESS, 14
+cmp [IMPORT_TABLE_ADDRESS+10], 00
+je API_ENDE
+jmp API_INFOS
+////////////////////
+VirtualAlloc:
+mov VA, API
+jmp ADD_API
+////////////////////
+VirtualProtect:
+mov VP, API
+jmp ADD_API
+////////////////////
+DialogBoxIndirectParamA:
+mov DC, API
+jmp ADD_API
+////////////////////
+NOT_FOUND_IN:
+mov KULI, 01
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nNot all 3 APIs was found in your Imports!Add them with LordPE! \r\n\r\nkernel32.dll / User32.dll \r\n-------------------- \r\nVirtualAlloc \r\nVirtualProtect \r\nDialogBoxIndirectParamA \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+log "Not all 3 APIs was found in your Imports!"
+wrta sFileA, "Not all 3 APIs was found in your Imports!"
+wrta sFileA, " "
+log "Add them with LordPE!"
+wrta sFileA, "Add them with LordPE!"
+wrta sFileA, " "
+log "kernel32.dll / User32.dll"
+wrta sFileA, "kernel32.dll / User32.dll"
+wrta sFileA, " "
+log "--------------------"
+wrta sFileA, "--------------------"
+wrta sFileA, " "
+log "VirtualAlloc" 
+wrta sFileA, "VirtualAlloc"
+wrta sFileA, " "
+log "VirtualProtect" 
+wrta sFileA, "VirtualProtect"
+wrta sFileA, " "
+log "DialogBoxIndirectParamA"
+wrta sFileA, "DialogBoxIndirectParamA"
+wrta sFileA, " "
+wrta sFileA, " "
+log ""
+jmp FULL_END
+////////////////////
+API_ENDE:
+cmp [VA], VirtualAlloc
+jne NOT_ALL_API
+cmp [VP], VirtualProtect
+jne NOT_ALL_API
+cmp [DC], DialogBoxIndirectParamA
+jne NOT_ALL_API
+log ""
+log "ALL API ARE THERE!"
+log ""
+log "API-LIST-FOUND"
+wrta sFileA, "API-LIST-FOUND"
+log "--------------------"
+wrta sFileA, " "
+wrta sFileA, "--------------------"
+wrta sFileA, " "
+eval "{VA} | {VirtualAlloc} | VirtualAlloc"
+wrta sFileA, $RESULT
+wrta sFileA, " "
+log $RESULT, ""
+eval "{VP} | {VirtualProtect} | VirtualProtect"
+wrta sFileA, $RESULT
+wrta sFileA, " "
+log $RESULT, ""
+eval "{DC} | {DialogBoxIndirectParamA} | DialogBoxIndirectParamA"
+wrta sFileA, $RESULT
+wrta sFileA, " "
+log $RESULT, ""
+log "--------------------"
+wrta sFileA, "--------------------"
+log ""
+jmp FIX_API_ADDRESSES
+////////////////////
+NOT_ALL_API:
+jmp NOT_FOUND_IN
+////////////////////
+FIX_API_ADDRESSES:
+mov [P1+02],  VA
+mov [P1+15],  VP
+mov [P1+1A],  VA
+mov [P1+32],  VA
+mov [P1+75],  VA
+mov [P1+0CD], VA
+mov [P1+107], VA
+mov [P1+11F], DC
+mov [P1+132], VP
+mov [P1+137], DC
+mov [P1+14F], DC
+mov [P1+17D], DC
+mov [P1+1DE], P1+0E68
+// mov [P1+1DE], P1+287
+mov [P1+1E9], P1+E6C
+mov [P1+226], P1+E70
+mov [P1+22C], P1+E50
+mov [P1+234], P1+E54
+mov [P1+23A], P1+E58
+mov [P1+246], P1+E70
+mov [P1+258], P1+E50
+mov [P1+27D], P1+E70
+mov [P1+289], P1+E64
+mov [P1+28F], P1+E68
+mov [P1+295], P1+E6C
+mov [P1+29F], P1+E50
+mov [P1+2A5], P1+E60
+mov [P1+2B9], P1+E64
+mov [P1+2BF], P1+E80
+var SELL
+alloc 1000
+mov SELL, $RESULT
+eval "{PROCESSNAME_2}_String.txt"
+lm SELL, 1000, $RESULT
+find SELL, #23#
+mov U1, $RESULT
+inc U1
+find U1, #23#
+mov U2, $RESULT
+// dec U2
+sub U2, U1
+readstr [U1], U2
+mov U3, $RESULT
+str U3
+eval "#{U3}#"
+mov U4, $RESULT
+str U4
+fill SELL, 50, 00
+mov [SELL], U4
+mov [P1+25F], [SELL]
+mov [P1+267], [SELL+04]
+mov [P1+26F], [SELL+08]
+mov [P1+277], [SELL+0C]
+free SELL
+alloc 1000
+mov READ, $RESULT
+eval "{PROCESSNAME_2}_Session_Infos.txt"
+lm READ, 1000, $RESULT
+////////////////////
+PLUS_VALUES:
+find READ, #3A#
+cmp $RESULT, 00
+jne PLUS_VALUES_1
+pause
+pause
+////////////////////
+PLUS_VALUES_1:
+mov PL1, $RESULT
+add PL1, 01
+find PL1, #0D#
+cmp $RESULT, 00
+jne PLUS_VALUES_2
+pause
+pause
+////////////////////
+PLUS_VALUES_2:
+mov PL1_B, $RESULT
+sub PL1_B, PL1
+readstr [PL1], PL1_B
+mov END_PL1, $RESULT
+atoi END_PL1, 16.
+mov END_PL1, $RESULT
+mov [P1+19A], END_PL1
+find PL1, #3A#
+cmp $RESULT, 00
+jne PLUS_VALUES_3
+pause
+pause
+////////////////////
+PLUS_VALUES_3:
+mov PL2, $RESULT
+add PL2, 01
+find PL2, #0D#
+cmp $RESULT, 00
+jne PLUS_VALUES_4
+pause
+pause
+////////////////////
+PLUS_VALUES_4:
+mov PL2_B, $RESULT
+sub PL2_B, PL1
+readstr [PL2], PL2_B
+mov END_PL2, $RESULT
+atoi END_PL2, 16.
+mov END_PL2, $RESULT
+mov [P1+1D1], END_PL2
+find PL2, #3A#
+cmp $RESULT, 00
+jne PLUS_VALUES_5
+pause
+pause
+////////////////////
+PLUS_VALUES_5:
+mov PL2, $RESULT
+add PL2, 01
+find PL2, #00#
+jne PLUS_VALUES_6
+pause
+pause
+////////////////////
+PLUS_VALUES_6:
+mov PL2_B, $RESULT
+sub PL2_B, PL2
+readstr [PL2], PL2_B
+mov END_PL2, $RESULT
+atoi END_PL2, 16.
+mov END_PL2, $RESULT
+mov [P1+062], END_PL2
+mov eip, P1
+gmemi ENTRYPOINT, MEMORYBASE
+mov EPBASE, $RESULT
+add PE_INFO_START, 0F8
+////////////////////
+READ_IT:
+add PE_INFO_START, 0C
+mov ADDR, [PE_INFO_START]
+add ADDR, IMAGEBASE
+cmp ADDR, EPBASE
+je EP2
+add PE_INFO_START, 01C
+jmp READ_IT
+////////////////////
+EP2:
+mov RW, [PE_INFO_START+018]
+mov eax, RW
+shr eax, 18
+shr eax, 04
+cmp al, 8
+je IS_WRITEABLE
+ja IS_WRITEABLE
+mov EP_2, EPBASE
+sub EP_2, IMAGEBASE
+mov KULI, 01
+eval "{PROCESSNAME_2}_Some_Infos.txt"
+mov sFileA, $RESULT
+wrta sFileA, $RESULT
+wrta sFileA, " "
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nYou must set the section \r\n\r\nVA: {EPBASE} \r\n\r\nRVA: {EP_2} \r\n\r\nto writeable with LordPE!Dont forget this! \r\n\r\n{points} \r\n{ME}"
+wrta sFileA, $RESULT
+wrta sFileA, " "
+msg $RESULT
+log ""
+eval "You must set the section VA: {EPBASE} | RVA: {EP_2} to writeable with LordPE!Dont forget this!"
+log $RESULT, ""
+jmp WRITE_OVER
+////////////////////
+IS_WRITEABLE:
+////////////////////
+WRITE_OVER:
+cmp CHAR, "exe"
+je WRITE_OVER_2
+cmp CHAR, "EXE"
+je WRITE_OVER_2
+////////////////////
+DLL_FIX:
+mov P1_BAK, P1
+mov [P1+02DF], #90608BD381E20000FFFF66813A4D5A740881EA00000100EBF18BC283C03C030083E83C83C0288B0003C28BC82DE0020000#
+mov [P1+0310], #890424816802AAAAAAAA816807AAAAAAAA816815AAAAAAAA81681AAAAAAAAA816822AAAAAAAA81682BAAAAAAAA816832AAAAAAAA81683EAAAAAAAA81684CAAAAAAAA81686EAAAAAAAA816875AAAAAAAA81687BAAAAAAAA#
+mov [P1+0367], #81A884000000AAAAAAAA81A892000000AAAAAAAA81A8A0000000AAAAAAAA81A8AC000000AAAAAAAA81A8BB000000AAAAAAAA81A8C7000000AAAAAAAA81A8CD000000AAAAAAAA81A8D4000000AAAAAAAA81A8DA000000AAAAAAAA81A8E5000000AAAAAAAA81A8EF000000AAAAAAAA81A8FC000000AAAAAAAA#
+mov [P1+03DF], #81A801010000AAAAAAAA81A807010000AAAAAAAA81A80D010000AAAAAAAA81A816010000AAAAAAAA81A81F010000AAAAAAAA81A824010000AAAAAAAA81A832010000AAAAAAAA81A837010000AAAAAAAA81A83F010000AAAAAAAA81A848010000AAAAAAAA81A84F010000AAAAAAAA81A85B010000AAAAAAAA81A869010000AAAAAAAA81A87D010000AAAAAAAA#
+mov [P1+046B], #81A883010000AAAAAAAA81A88C010000AAAAAAAA81A895010000AAAAAAAA81A89F010000AAAAAAAA81A8A7010000AAAAAAAA81A8B2010000AAAAAAAA81A8BE010000AAAAAAAA81A8CC010000AAAAAAAA81A8D6010000AAAAAAAA81A8DE010000AAAAAAAA81A8E9010000AAAAAAAA81A8F0010000AAAAAAAA#
+mov [P1+04E3], #81A826020000AAAAAAAA81A82C020000AAAAAAAA81A834020000AAAAAAAA81A83A020000AAAAAAAA81A846020000AAAAAAAA81A858020000AAAAAAAA81A87D020000AAAAAAAA81A889020000AAAAAAAA81A88F020000AAAAAAAA81A895020000AAAAAAAA81A89F020000AAAAAAAA81A8A5020000AAAAAAAA81A8B9020000AAAAAAAA81A8BF020000AAAAAAAA81A8D3020000AAAAAAAA81A8DB020000AAAAAAAA#
+mov [P1+0583], #01500201500701501501501A01502201502B01503201503E01504C01506E01507501507B0190840000000190920000000190A00000000190AC0000000190BB0000000190C70000000190CD0000000190D40000000190DA0000000190E50000000190EF0000000190FC000000#
+mov [P1+05EF], #01900101000001900701000001900D01000001901601000001901F01000001902401000001903201000001903701000001903F01000001904801000001904F01000001905B01000001906901000001907D01000001908301000001908C01000001909501000001909F0100000190A70100000190B20100000190BE0100000190CC0100000190D60100000190DE0100000190E90100000190F001000001902602000001902C020000#
+mov [P1+0697], #01903402000001903A02000001904602000001905802000001907D02000001908902000001908F02000001909502000001909F0200000190A50200000190B90200000190BF0200000190D30200000190DB020000#
+mov [P1+06EB], #81A81C0E0000AAAAAAAA81A8340E0000AAAAAAAA81A8480E0000AAAAAAAA81A8600E0000AAAAAAAA81A8800E0000AAAAAAAA01901C0E00000190340E00000190480E00000190600E00000190800E0000C601E983C0572BC183E80589410161FF6424E090#
+mov [P1+0316], IMAGEBASE
+mov [P1+031D], IMAGEBASE
+mov [P1+0324], IMAGEBASE
+mov [P1+032B], IMAGEBASE
+mov [P1+0332], IMAGEBASE
+mov [P1+0339], IMAGEBASE
+mov [P1+0340], IMAGEBASE
+mov [P1+0347], IMAGEBASE
+mov [P1+034E], IMAGEBASE
+mov [P1+0355], IMAGEBASE
+mov [P1+035C], IMAGEBASE
+mov [P1+0363], IMAGEBASE
+mov [P1+036D], IMAGEBASE
+mov [P1+0377], IMAGEBASE
+mov [P1+0381], IMAGEBASE
+mov [P1+038B], IMAGEBASE
+mov [P1+0395], IMAGEBASE
+mov [P1+039F], IMAGEBASE
+mov [P1+03A9], IMAGEBASE
+mov [P1+03B3], IMAGEBASE
+mov [P1+03BD], IMAGEBASE
+mov [P1+03C7], IMAGEBASE
+mov [P1+03D1], IMAGEBASE
+mov [P1+03DB], IMAGEBASE
+mov TAMPA, P1
+add TAMPA, 3D5
+add TAMPA, 06
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+add TAMPA, 0A
+mov [TAMPA], IMAGEBASE
+mov [P1+06F1], IMAGEBASE
+mov [P1+06FB], IMAGEBASE
+mov [P1+0705], IMAGEBASE
+mov [P1+070F], IMAGEBASE
+mov [P1+0719], IMAGEBASE
+////////////////////
+HANTA:
+jmp HANTA2
+mov [P1+0356], IMAGEBASE
+mov [P1+0360], IMAGEBASE
+mov [P1+036A], IMAGEBASE
+mov [P1+0374], IMAGEBASE
+mov [P1+037E], IMAGEBASE
+mov [P1+0388], IMAGEBASE
+mov [P1+0392], IMAGEBASE
+mov [P1+039C], IMAGEBASE
+mov [P1+03A6], IMAGEBASE
+mov [P1+03B0], IMAGEBASE
+mov [P1+03BA], IMAGEBASE
+mov [P1+03C4], IMAGEBASE
+mov [P1+03CE], IMAGEBASE
+mov [P1+03D8], IMAGEBASE
+mov [P1+03E2], IMAGEBASE
+mov [P1+03EC], IMAGEBASE
+mov [P1+03F6], IMAGEBASE
+mov [P1+0400], IMAGEBASE
+mov [P1+040A], IMAGEBASE
+mov [P1+0414], IMAGEBASE
+mov [P1+041E], IMAGEBASE
+mov [P1+0428], IMAGEBASE
+mov [P1+0432], IMAGEBASE
+mov [P1+043C], IMAGEBASE
+mov [P1+0452], IMAGEBASE
+mov [P1+0464], IMAGEBASE
+mov [P1+0474], IMAGEBASE
+mov [P1+0580], IMAGEBASE
+mov [P1+058A], IMAGEBASE
+mov [P1+0594], IMAGEBASE
+mov [P1+059E], IMAGEBASE
+////////////////////
+HANTA2:
+add P1_BAK, 2D0
+eval "MOV WORD PTR DS:[{P1}],55EB"
+asm P1_BAK, $RESULT
+sub P1_BAK, 2D0
+add P1_BAK, 2D9
+mov P_TEMP, P1
+add P_TEMP, 0E50
+eval "jmp dword ptr ds:[{P_TEMP}]"
+asm P1_BAK, $RESULT
+sub P1_BAK, 2D9
+mov FACE, P1
+add FACE, 2E0
+mov FACE_2, TEMP_EXTRA
+add FACE_2, 2E0
+log ""
+eval "Dynamic DLL Patch was written and starts at address: {FACE}"
+log $RESULT, ""
+log ""
+eval "Enter in LORD PE the new EP RVA address of: {FACE_2}"
+log $RESULT, ""
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nDynamic DLL Patch was written and starts at address: {FACE} \r\n\r\nThis is also your >>> NEW DLL ENTRY POINT! <<< \r\n\r\nNew EP RVA is: {FACE_2} \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+jmp WRITE_OVER_2
+pause
+pause
+////////////////////
+WRITE_OVER_2:
+////////////////////
+WRITE_OVER_2_A:
+eval "{PROCESSNAME_2}_InLine.exe was successfully created!"
+log $RESULT, "
+////////////////////
+NO_DUMP:
+log ""
+log "Don´t forget to change the new EntryPoint!"
+////////////////////
+DUMP_OVER:
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nNow in your last step you need to run this script again to find the new CRC DWORD! \r\n\r\nAfter this your are finished! \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+log ""
+log "Now in your last step you need to run this script again to find the new CRC DWORD!After this your are finished!"
+log ""
+free READ
+jmp FULL_END
+////////////////////
+START_OF_CRCCHECK:
+mov KULI, 01
+////////////////////
+START_2:
+cmp Temp_1, 00
+je START_2_B
+find Temp_1, #5F5EF7D0C3#
+cmp $RESULT, 00
+jne FOUNDSOME
+find Temp_1, #??F7D0??C20?#
+cmp $RESULT, 00
+jne FOUNDSOME
+cmp Temp_2, 00
+je START_2_B
+find Temp_2, #5F5EF7D0C3#
+cmp $RESULT, 00
+jne SAFFA
+jmp FOUNDSOME
+////////////////////
+SAFFA:
+find Temp_2, #??F7D0??C20?#
+cmp $RESULT, 00
+je START_2_B
+////////////////////
+FOUNDSOME:
+mov CRC, $RESULT
+add CRC, 04
+gmemi CRC, MEMORYBASE
+mov CRCBASE, $RESULT
+bc
+bphwc
+jmp FOUNDCRC_2
+////////////////////
+START_2_B:
+bphws VirtualAlloc, "x"
+bp VirtualAlloc
+bphws MapViewOfFile, "x"
+bp MapViewOfFile
+esto
+cmp eip, VirtualAlloc
+je ALLOC
+bphwc
+bc
+rtu
+mov MAPPEDFILE, eax
+rtu
+gmemi eip, MEMORYBASE
+mov CRCBASE, $RESULT
+find CRCBASE, #5F5EF7D0C3#
+cmp $RESULT, 00
+jne FOUNDCRC
+pause
+pause
+////////////////////
+FOUNDCRC:
+mov CRC, $RESULT
+add CRC, 04
+////////////////////
+FOUNDCRC_2:
+bphws CRC, "x"
+bp CRC
+esto
+inc run
+cmp run, 02
+je RUNTEST
+jb RUNTEST
+pause
+pause
+////////////////////
+RUNTEST:
+cmp DWORD_1, 00
+jne FOUNDCRC_2_A
+mov DWORD_1, eax
+mov DWORD_1_TEMP, eax
+////////////////////
+FOUNDCRC_2_A:
+cmp run, 01
+je FOUNDCRC_2_B
+cmp DWORD_2, 00
+jne FOUNDCRC_2_B
+mov DWORD_2, eax
+////////////////////
+FOUNDCRC_2_B:
+cmp OTHERCRC, 01
+je FOUNDCRC_2_B_1_2
+mov TEMP, ecx
+gmemi TEMP, MEMORYBASE
+cmp $RESULT, 00
+je FOUNDCRC_2_C
+mov AA, $RESULT
+mov NO_CODE, 01
+cmp AA, PE_HEADER
+jb FOUNDCRC_2_D
+cmp AA, MODULEBASE_and_MODULESIZE
+ja FOUNDCRC_2_D
+mov NO_CODE, 00
+////////////////////
+FOUNDCRC_2_C:
+cmp TEMP, 00
+jne FOUNDCRC_2_B_1
+////////////////////
+FOUNDCRC_2_D:
+mov OTHERCRC, 01
+////////////////////
+FOUNDCRC_2_B_1:
+cmp MAPPEDFILE, 00
+je FOUNDCRC_2_B_1_2
+gmemi TEMP, MEMORYBASE
+cmp $RESULT, MAPPEDFILE
+jne FOUNDCRC_2
+////////////////////
+FOUNDCRC_2_B_1_2:
+cmp run, 02
+jb FOUNDCRC_2
+xor DWORD_1, DWORD_2
+mov DWORD, DWORD_1
+cmp OTHERCRC, 01
+jne FOUNDCRC_2_B_1_3
+////////////////////
+ROUNDER:
+sti
+cmp [eip], C833, 02
+jne ROUNDER
+////////////////////
+ROUNDER_2:
+sti
+cmp [eip], 3B, 01
+jne ROUNDER_2
+GOPI eip, 2, ADDR
+mov CRC_ADDRESS, $RESULT
+////////////////////
+ROUNDER_3:
+sti
+cmp [eip], 840F, 02
+jne ROUNDER_4
+cmp !ZF, 00
+je SET_CRC
+jmp FOUNDCRC_2_B_1_4
+////////////////////
+ROUNDER_4:
+cmp [eip], 850F, 02
+jne ROUNDER_3
+cmp !ZF, 01
+je SET_CRC
+jmp FOUNDCRC_2_B_1_4
+////////////////////
+SET_CRC:
+mov CRCSET, 01
+cmt eip, "NEW CRC NEEDED!"
+jmp FOUNDCRC_2_B_1_4
+////////////////////
+FOUNDCRC_2_B_1_3:
+mov CRC_ADDRESS, ecx
+////////////////////
+FOUNDCRC_2_B_1_4:
+mov OLD_CRC, [CRC_ADDRESS]
+mov NEW_CRC, DWORD
+findmem OLD_CRC, CODESECTION
+cmp $RESULT, 00
+jne CRC_CODE
+pause
+pause
+////////////////////
+CRC_CODE:
+mov END_CRC, $RESULT
+bphwc
+bc
+xor DWORD_1_TEMP, OLD_CRC
+// mov eax, DWORD_1_TEMP
+cmp KULI, 01
+je CRC_INFOS
+eval "{PROCESSNAME_2}_Some_Infos.txt"
+mov sFileA, $RESULT
+wrta sFileA, $RESULT
+wrta sFileA, " "
+////////////////////
+CRC_INFOS:
+eval "The CRC DWORD was located at {END_CRC} | {OLD_CRC}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+log ""
+eval "The new CRC DWORD is {NEW_CRC}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+log ""
+wrta sFileA, " "
+wrta sFileA, points
+log points, ""
+eval "The new CRC result is: {END_CRC} | {NEW_CRC}"
+wrta sFileA, $RESULT
+log $RESULT, ""
+wrta sFileA, " "
+log ""
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe CRC DWORD was located at {END_CRC} | {OLD_CRC} \r\n\r\nThe new CRC DWORD is {NEW_CRC} \r\n\r\nThe new CRC result is: {END_CRC} | {NEW_CRC} \r\n\r\n{points} \r\n{ME}"
+msg $RESULT
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nDo you want let patch NOW the new CRC DWORD? \r\n\r\n{points} \r\n{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+jne CRC_ENDE
+mov eip, END_CRC
+mov [END_CRC], NEW_CRC
+mov patched, 01
+////////////////////
+CRC_ENDE:
+log "Save the new CRC DWORD on the LAST step after all your patches!"
+wrta sFileA, " "
+wrta sFileA, "Save the new CRC DWORD on the LAST step after all your patches!"
+log " "
+cmp patched, 01
+jne CRC_ENDE_2
+eval "{scriptname} \r\n\r\n{points} \r\n\r\nThe NEW CRC DWORD WAS WRITTEN,NOW SELECT this DWORD AND SAVE! \r\n\r\n{points} \r\n{ME}"
+wrta sFileA, " "
+msg $RESULT
+wrta sFileA, "The NEW CRC DWORD WAS WRITTEN,NOW SELECT this DWORD AND SAVE!"
+log "The NEW CRC DWORD WAS WRITTEN,NOW SELECT this DWORD AND SAVE!"
+log ""
+OPENDUMP END_CRC
+cmt END_CRC, "CRC DWORD!"
+////////////////////
+CRC_ENDE_2:
+jmp FULL_END
+////////////////////
+ALLOC:
+bphwc VirtualAlloc
+bc VirtualAlloc
+inc ALOC
+cmp A_SIZE, 00
+jne ALLOC_2
+mov A_SIZE, [esp+08]
+rtr
+mov A_ADDRESS, eax
+mov Temp_1, eax
+jmp START_2
+////////////////////
+ALLOC_2:
+cmp B_SIZE, 00
+jne ALLOC_3
+mov B_SIZE, [esp+08]
+rtr
+mov B_ADDRESS, eax
+mov Temp_2, eax
+jmp START_2
+////////////////////
+ALLOC_3:
+cmp C_SIZE, 00
+jne ALLOC_4
+mov C_SIZE, [esp+08]
+rtr
+mov C_ADDRESS, eax
+mov Temp_1, eax
+jmp START_2
+////////////////////
+ALLOC_4:
+cmp D_SIZE, 00
+jne ALLOC_5
+mov D_SIZE, [esp+08]
+rtr
+mov D_ADDRESS, eax
+mov Temp_2, eax
+jmp START_2
+////////////////////
+ALLOC_5:
+mov E_SIZE, [esp+08]
+rtr
+mov E_ADDRESS, eax
+mov Temp_1, eax
+jmp START_2
+////////////////////
+FULL_END:
+////////////////////
+FULL_END_2:
+log scriptname, ""
+log points, ""
+log "script was written by"
+log ""
+log ME, ""
+eval "{scriptname} \r\n\r\n{points} \r\nscript was written by \r\n\r\n{ME}"
+msg $RESULT
+cmp KULI, 01
+je FULL_END_3
+jmp AUSS
+////////////////////
+FULL_END_3:
+wrta sFileA, "\r\n"
+wrta sFileA, "\r\n"
+wrta sFileA, points
+wrta sFileA, "script was written by"
+wrta sFileA, " "
+wrta sFileA, ME
+////////////////////
+AUSS:
+pause
+ret
+pause
+pause

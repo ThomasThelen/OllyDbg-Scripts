@@ -1,0 +1,529 @@
+//copyright by Pnluck 20005 pnluck@virgilio.it
+//if u use this script for write a tutorial, u can put  me in thankses :D
+//i must to thanks MaRKuS-DJM and KaGra for their info at http://forum.exetools.com/showthread.php?t=7545
+
+var x_addr     //addr originale
+var x_LoadLib  //addr LoadLibraryA
+var x_AddrApi
+var data_sect
+var end_data
+var x_eax
+var go
+var xvar
+var str
+var x
+var str_eax
+var str_edi
+var save_data
+var end_addr
+
+var sav_eax
+var sav_ecx
+var sav_edx
+var sav_ebx
+var sav_esp
+var sav_ebp
+var sav_esi
+var sav_edi
+
+
+//salvo i registri
+//mov sav_eax,eax
+//mov sav_ecx,ecx
+//mov sav_edx,edx
+//mov sav_ebx,ebx
+//mov sav_esp,esp
+//mov sav_ebp,ebp
+//mov sav_esi,esi
+//mov sav_edi,edi
+
+//chiedo l'addr della .data section
+ask "Enter the address of data section."
+cmp $RESULT,0
+je exit
+mov data_sect,$RESULT
+mov save_data,$RESULT
+mov end_data,$RESULT
+ask "Enter the size of data section."
+cmp $RESULT,0
+je exit
+add end_data,$RESULT
+//domando che call devo analizzare
+ask "Enter the start address of calls to analize:"
+cmp $RESULT,0
+je exit
+mov x_addr,$RESULT 
+mov start_addr,x_addr
+ask "Enter the end address of calls to analize:"
+cmp $RESULT,0
+je exit
+mov end_addr,$RESULT 
+start_proc:
+mov eip,x_addr
+GPA "LoadLibraryA","kernel32.dll"
+cmp $RESULT,0
+je exit
+mov x_LoadLib,$RESULT
+add x_LoadLib,b
+bp x_LoadLib  //setto bp al je di LoadLibraryA
+run
+bc x_LoadLib
+//al bp
+mov x_eax,eax
+mov str,""
+mov go,1
+
+//inizio della proc hex->ascii
+analize:
+mov xvar,[x_eax]
+shl xvar,8
+shl xvar,8
+shl xvar,8
+shr xvar,8
+shr xvar,8
+shr xvar,8//prelevo il primo byte
+
+
+cmp xvar,0
+je fin_an
+
+cmp xvar,2e
+jne prox_0
+mov x,"."
+jmp add
+
+prox_0:
+cmp xvar,30
+jne prox_1
+mov x,"0"
+jmp add
+
+prox_1:
+cmp xvar,31
+jne prox_2
+mov x,"1"
+jmp add
+
+prox_2:
+cmp xvar,32
+jne prox_3
+mov x,"2"
+jmp add
+
+prox_3:
+cmp xvar,33
+jne prox_4
+mov x,"3"
+jmp add
+
+prox_4:
+cmp xvar,34
+jne prox_5
+mov x,"4"
+jmp add
+
+prox_5:
+cmp xvar,35
+jne prox_6
+mov x,"5"
+jmp add
+
+prox_6:
+cmp xvar,36
+jne prox_7
+mov x,"6"
+jmp add
+
+prox_7:
+cmp xvar,37
+jne prox_8
+mov x,"7"
+jmp add
+
+prox_8:
+cmp xvar,38
+jne prox_9
+mov x,"8"
+jmp add
+
+prox_9:
+cmp xvar,39
+jne prox_A
+mov x,"9"
+jmp add
+
+prox_A:
+cmp xvar,41
+jne prox_B
+mov x,"A"
+jmp add
+
+prox_B:
+cmp xvar,42
+jne prox_C
+mov x,"B"
+jmp add
+
+prox_C:
+cmp xvar,43
+jne prox_D
+mov x,"C"
+jmp add
+
+prox_D:
+cmp xvar,44
+jne prox_E
+mov x,"D"
+jmp add
+
+prox_E:
+cmp xvar,45
+jne prox_F
+mov x,"E"
+jmp add
+
+prox_F:
+cmp xvar,46
+jne prox_G
+mov x,"F"
+jmp add
+
+prox_G:
+cmp xvar,47
+jne prox_H
+mov x,"G"
+jmp add
+
+prox_H:
+cmp xvar,48
+jne prox_I
+mov x,"H"
+jmp add
+
+prox_I:
+cmp xvar,49
+jne prox_J
+mov x,"I"
+jmp add
+
+prox_J:
+cmp xvar,4A
+jne prox_K
+mov x,"J"
+jmp add
+
+prox_K:
+cmp xvar,4B
+jne prox_L
+mov x,"K"
+jmp add
+
+prox_L:
+cmp xvar,4C
+jne prox_M
+mov x,"L"
+jmp add
+
+prox_M:
+cmp xvar,4D
+jne prox_N
+mov x,"M"
+jmp add
+
+prox_N:
+cmp xvar,4E
+jne prox_O
+mov x,"N"
+jmp add
+
+prox_O:
+cmp xvar,4F
+jne prox_P
+mov x,"O"
+jmp add
+
+prox_P:
+cmp xvar,50
+jne prox_Q
+mov x,"P"
+jmp add
+
+prox_Q:
+cmp xvar,51
+jne prox_R
+mov x,"Q"
+jmp add
+
+prox_R:
+cmp xvar,52
+jne prox_S
+mov x,"R"
+jmp add
+
+prox_S:
+cmp xvar,53
+jne prox_T
+mov x,"S"
+jmp add
+
+prox_T:
+cmp xvar,54
+jne prox_U
+mov x,"T"
+jmp add
+
+prox_U:
+cmp xvar,55
+jne prox_V
+mov x,"U"
+jmp add
+
+prox_V:
+cmp xvar,56
+jne prox_W
+mov x,"V"
+jmp add
+
+prox_W:
+cmp xvar,57
+jne prox_X
+mov x,"W"
+jmp add
+
+prox_X:
+cmp xvar,58
+jne prox_Y
+mov x,"X"
+jmp add
+
+prox_Y:
+cmp xvar,59
+jne prox_Z
+mov x,"Y"
+jmp add
+
+prox_Z:
+cmp xvar,5A
+jne prox_a
+mov x,"Z"
+jmp add
+
+prox_a:
+cmp xvar,61
+jne prox_b
+mov x,"a"
+jmp add
+
+prox_b:
+cmp xvar,62
+jne prox_c
+mov x,"b"
+jmp add
+
+prox_c:
+cmp xvar,63
+jne prox_d
+mov x,"c"
+jmp add
+
+prox_d:
+cmp xvar,64
+jne prox_e
+mov x,"d"
+jmp add
+
+prox_e:
+cmp xvar,65
+jne prox_f
+mov x,"e"
+jmp add
+
+prox_f:
+cmp xvar,66
+jne prox_g
+mov x,"f"
+jmp add
+
+prox_g:
+cmp xvar,67
+jne prox_h
+mov x,"g"
+jmp add
+
+prox_h:
+cmp xvar,68
+jne prox_i
+mov x,"h"
+jmp add
+
+prox_i:
+cmp xvar,69
+jne prox_j
+mov x,"i"
+jmp add
+
+prox_j:
+cmp xvar,6A
+jne prox_k
+mov x,"j"
+jmp add
+
+prox_k:
+cmp xvar,6B
+jne prox_l
+mov x,"k"
+jmp add
+
+prox_l:
+cmp xvar,6C
+jne prox_m
+mov x,"l"
+jmp add
+
+prox_m:
+cmp xvar,6D
+jne prox_n
+mov x,"m"
+jmp add
+
+prox_n:
+cmp xvar,6E
+jne prox_o
+mov x,"n"
+jmp add
+
+prox_o:
+cmp xvar,6F
+jne prox_p
+mov x,"o"
+jmp add
+
+prox_p:
+cmp xvar,70
+jne prox_q
+mov x,"p"
+jmp add
+
+prox_q:
+cmp xvar,71
+jne prox_r
+mov x,"q"
+jmp add
+
+prox_r:
+cmp xvar,72
+jne prox_s
+mov x,"r"
+jmp add
+
+prox_s:
+cmp xvar,73
+jne prox_t
+mov x,"s"
+jmp add
+
+prox_t:
+cmp xvar,74
+jne prox_u
+mov x,"t"
+jmp add
+
+prox_u:
+cmp xvar,75
+jne prox_v
+mov x,"u"
+jmp add
+
+prox_v:
+cmp xvar,76
+jne prox_w
+mov x,"v"
+jmp add
+
+prox_w:
+cmp xvar,77
+jne prox_x
+mov x,"w"
+jmp add
+
+prox_x:
+cmp xvar,78
+jne prox_y
+mov x,"x"
+jmp add
+
+prox_y:
+cmp xvar,79
+jne prox_z
+mov x,"y"
+jmp add
+
+prox_z:
+cmp xvar,7A
+jne exit
+mov x,"z"
+jmp add
+
+add:
+eval "{str}{x}"
+mov str,$RESULT
+inc x_eax
+jmp analize
+
+fin_an:
+cmp go,1
+je ana_edi
+jne fin_str_cov
+
+
+ana_edi:
+mov str_eax,str
+mov str,""
+mov x_eax,edi
+inc go
+jmp analize
+//fine proc hex->ascii
+
+fin_str_cov:
+//trovo l'addr
+mov str_edi,str
+GPA str_edi,str_eax
+cmp $RESULT,0
+je exit
+mov x,$RESULT
+
+//inizio la ricerca
+start_trovo:
+mov xvar,[data_sect]
+cmp x,xvar
+je trovato
+add data_sect,4
+cmp data_sect,end_data
+je exit
+jmp start_trovo
+
+trovato:
+eval "jmp dword ptr [{data_sect}]"
+asm x_addr,$RESULT
+//mov eax,sav_eax
+//mov ecx,sav_ecx
+//mov edx,sav_edx,
+//mov ebx,sav_ebx
+//mov esp,sav_esp
+//mov ebp,sav_ebp
+//mov esi,sav_esi
+//mov edi,sav_edi
+
+mov eip,x_addr
+cmp end_addr,start_addr
+je fine
+add start_addr,8
+mov x_addr,start_addr
+mov data_sect,save_data
+jmp start_proc
+fine:
+ret
+
+exit:
+MSG "Error" 
+ret

@@ -1,0 +1,42 @@
+/*
+Armadillo script OpenMutexA
+Exceptions c000001e
+invalid or privileged instruction
+*/
+
+dbh
+
+var pBuffer
+var OpenMutexA
+var VirtualProtect
+
+gpa "OpenMutexA", "kernel32.dll" 
+mov OpenMutexA, $RESULT
+bp OpenMutexA
+run
+
+
+//Breakpoint
+bc OpenMutexA
+mov pBuffer, esp
+log pBuffer
+add pBuffer, 0c
+mov pBuffer, [pBuffer]
+log [pBuffer]
+
+exec 
+PUSHAD 
+push {pBuffer}
+push 0
+push 0
+CALL kernel32.CreateMutexA 
+POPAD 
+jmp kernel32.OpenMutexA 
+ende 
+
+gpa "VirtualProtect", "kernel32.dll" 
+mov VirtualProtect, $RESULT
+log VirtualProtect
+bp VirtualProtect
+run
+bc VirtualProtect

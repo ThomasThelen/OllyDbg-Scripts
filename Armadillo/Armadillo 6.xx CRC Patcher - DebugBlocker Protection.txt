@@ -1,0 +1,286 @@
+////////////////////////////////////////////////////
+//    Author: Unregistered !
+//    Homepage: www.reaonline.net
+//    Date: 06/09/2008
+///////////////////////////////////////////////////
+
+BC
+BPHWC
+//Get some necessary API from Target's Import Table
+gmi eip,MODULEBASE
+mov ImgBase,$RESULT
+mov EP,eip
+mov PEaddr, [$RESULT+3C]
+add PEaddr,ImgBase
+mov ExpTable,[PEaddr+0D8]
+add ExpTable,ImgBase
+
+mov Cave,eip
+
+FindEmptyByte:
+add Cave,4
+find Cave,#00000000#
+cmp $RESULT,0
+je Error
+mov Cave,$RESULT
+cmp [$RESULT+4],0
+jne FindEmptyByte
+cmp [$RESULT+8],0
+jne FindEmptyByte
+cmp [$RESULT+0C],0
+jne FindEmptyByte
+cmp [$RESULT+10],0
+jne FindEmptyByte
+cmp [$RESULT+14],0
+jne FindEmptyByte
+
+gpa "VirtualProtect","kernel32.dll"
+mov pVirtual,$RESULT
+gpa "GetProcAddress","kernel32.dll"
+mov pGetProc,$RESULT
+gpa "GetModuleHandleA","kernel32.dll"
+mov pGetModule,$RESULT
+exec
+pushad
+ende
+
+mov eax,pVirtual
+mov ebx,pGetProc
+mov ecx,0
+mov edx,0
+
+mov esi,3
+L1:
+mov cl,al
+mov dl,bl
+cmp esi,0
+je Cont1
+dec esi
+shr eax,8
+shr ebx,8
+shl ecx,8
+shl edx,8
+jmp L1
+
+Cont1:
+mov eax,pGetModule
+mov ebx,0
+mov esi,3
+
+L2:
+mov bl,al
+cmp esi,0
+je next
+dec esi
+shr eax,8
+shl ebx,8
+jmp L2
+
+next:
+mov pVirtual,ecx
+mov pGetProc,edx
+mov pGetModule,ebx
+exec
+popad
+ende
+
+//Get address of "GetModuleHandleA" Import
+eval "#{pGetModule}#"
+find ExpTable,$RESULT
+mov GetModuleHandleA,$RESULT
+
+//Get address of "GetProcAddress" Import
+eval "#{pGetProc}#"
+find ExpTable,$RESULT
+mov GetProcAddress,$RESULT
+
+//Get address of "VirtualProtect" Import
+eval "#{pVirtual}#"
+find ExpTable,$RESULT
+mov VirtualProtect,$RESULT
+
+FindCRCs:
+mov Chk,0
+FaCh:
+gpa "OpenMutexA", "kernel32.dll"
+bp $RESULT
+esto
+bc eip
+mov pra3,[esp+0C]
+cmp [pra3+3],41443A3A
+je OMA
+
+OMA: 
+add Chk,1
+findop eip, #C2#
+bp $RESULT
+esto
+bc eip
+sto
+sto
+mov !ZF,0
+cmp Chk,2
+je Con
+jmp FaCh
+
+
+Con:
+gpa "OutputDebugStringA", "KERNEL32.dll" 
+bp $RESULT
+esto
+esto
+bc eip
+
+findop [esp],#3345??#
+cmp $RESULT,0
+bp $RESULT
+esto
+bc eip
+mov Temp,[$RESULT+2]
+and Temp,0FF
+mov lCRC1,0FF
+sub lCRC1,Temp
+add lCRC1,1
+mov bCRC1,eax
+sto
+mov CRC1,eax
+xor CRC1,bCRC1
+
+findop eip,#8D45??#
+cmp $RESULT,0
+je Error
+bp $RESULT
+esto
+bc eip
+mov Temp,[$RESULT+2]
+and Temp,0FF
+mov lCRC2,0FF
+sub lCRC2,Temp
+add lCRC2,1
+mov bCRC1,eax
+sto
+
+mov CRC2,[eax]
+mov CRC3,[eax+4]
+mov CRC4,[eax+8]
+mov CRC5,[eax+0C]
+mov Temp,lCRC2
+sub Temp,4
+mov lCRC3,Temp
+sub Temp,4
+mov lCRC4,Temp
+sub Temp,4
+mov lCRC5,Temp
+
+
+
+//Inline Place
+mov [Cave],#6B65726E656C33322E646C6C004F75747075744465627567537472696E674100# //String
+mov [Cave+20],#609C#//PUSHAD - PUSHFD
+mov Temp,Cave
+add Temp,22
+eval "PUSH {Cave}"
+asm Temp,$RESULT
+add Temp,5
+mov [Temp],#FF15#
+mov [Temp+2],GetModuleHandleA
+add Temp,6
+mov Temp2,Cave
+add Temp2,0D
+eval "PUSH {Temp2}"
+asm Temp,$RESULT
+eval "PUSH EAX"
+mov [Cave+32],#50FF15#
+mov [Cave+35],GetProcAddress
+mov Temp,Cave
+mov Temp2,Cave
+add Temp2,41
+add Temp,39
+eval "MOV DWORD PTR DS:[{Temp2}],EAX"
+asm Temp,$RESULT
+mov Temp,Cave
+add Temp,3F
+mov [Temp],#EB04#
+add Temp,6
+mov Temp2,Temp
+add Temp2,12
+eval "PUSH {Temp2}"
+asm Temp,$RESULT
+mov [Temp+5],#6A406A1050#
+mov [Temp+0A],#FF15#
+mov [Temp+0C],VirtualProtect
+mov [Temp+10],#EB04#
+add Temp,16
+mov Temp2,Cave
+add Temp2,41
+mov [Temp],#A1#
+mov [Temp+1],Temp2
+
+add Temp,5
+eval "MOV BYTE PTR DS:[EAX],68"
+asm Temp,$RESULT
+add Temp,3
+mov Temp2,Cave
+add Temp2,75
+eval "MOV DWORD PTR DS:[EAX+1],{Temp2}"
+asm Temp,$RESULT
+add Temp,7
+mov [Temp],#C64005C39D61#
+add Temp,6
+eval "JMP {EP}"
+asm Temp,$RESULT
+mov Temp,Cave
+add Temp,75
+mov [Temp],#EB01#
+mov Temp2,Temp
+add Temp2,2
+add Temp,3
+eval "CMP BYTE PTR DS:[{Temp2}],1"
+asm Temp,$RESULT
+add Temp,7
+mov [Temp],#7537#
+add Temp,2
+eval "MOV DWORD PTR SS:[EBP-{lCRC1}],{CRC1}"
+asm Temp,$RESULT
+add Temp,7
+eval "MOV DWORD PTR SS:[EBP-{lCRC2}],{CRC2}"
+asm Temp,$RESULT
+add Temp,7
+eval "MOV DWORD PTR SS:[EBP-{lCRC3}],{CRC3}"
+asm Temp,$RESULT
+add Temp,7
+eval "MOV DWORD PTR SS:[EBP-{lCRC4}],{CRC4}"
+asm Temp,$RESULT
+add Temp,7
+eval "MOV DWORD PTR SS:[EBP-{lCRC5}],{CRC5}"
+asm Temp,$RESULT
+add Temp,7
+eval "PUSHAD"
+asm Temp,$RESULT
+add Temp,1
+mov Temp2,Cave
+add Temp2,41
+mov [Temp],#A1#
+mov [Temp+1],Temp2
+add Temp,5
+mov [Temp],#C700B8010000C7400400C2040061FE05#
+add Temp,10
+mov Temp2,Cave
+add Temp2,77
+mov [Temp],Temp2
+add Temp,4
+mov [Temp],#B801000000C20400#
+add Temp,8
+mov Temp2,Cave
+add Temp2,20
+mov eip,Temp2
+cmt eip,"<- Change new EP to this VA"
+sub Temp2,ImgBase
+
+eval "Inlined Successfully ! \r\nSave change from VA: {Cave} to VA: {Temp} to new file \r\nAnd use a PE Editor (LordPE, CFF Exlporer,...) to change EP of saved file to {Temp2}"
+msg $RESULT
+ret
+
+Error:
+msg "Error occured ! Script terminated now !"
+ret

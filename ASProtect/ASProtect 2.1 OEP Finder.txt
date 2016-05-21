@@ -1,0 +1,20 @@
+gmi 401000,CODESIZE
+mov codes,$RESULT
+eoe chk
+eob chk
+esto
+chk:
+cmp eax,0
+je cnt
+cmp eax,ebx
+jne cnt
+cmp [esp],edx
+jne cnt
+bprm 401000,codes
+eob end
+cnt:
+esto
+end:
+bpmc
+ret
+best regards!; britedream
