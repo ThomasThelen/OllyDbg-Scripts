@@ -1,0 +1,401 @@
+; Unpacking script for PESpin 1.33 
+; This Script  fix all but nanomites.
+; 
+; ###########################################################
+; UPDATED FROM PREVIOUS VERSION (1.32) BUT DOESN'T SUPPORT IT
+; ###########################################################
+;
+; Tested on WINXP SP2 + OdbgScript 1.77.3.3 + OLLYDBG1.10
+; Script done by Zool@nder of AT4RE
+; Please for all remarks and suggestions, contact me at anderzool@hotmail.fr or at WWW.AT4RE.COM
+; 6/22/2011
+; Regards
+
+var var1
+var var2
+var var3
+var var4
+var cb_packer
+var oep
+var cb_target
+var cb_target2
+var cs_packer
+var ibase
+var ip
+
+
+
+
+
+mov var1,eip
+gmemi eip,MEMORYBASE
+mov cb_packer,$RESULT
+gmemi eip, MEMORYSIZE
+
+
+gmi eip, MODULEBASE
+mov ibase, $RESULT
+
+msgyn "Is DebugBlocker enabled"
+cmp $RESULT, 2
+jne continuework_1
+ret
+
+continuework_1:
+cmp $RESULT, 0
+jne DB_Exist
+mov var1, cb_packer+296C
+bphws var1, "x"
+run
+bphwc var1
+mov var1, cb_packer+29E7
+mov var1, [var1]
+bp var1
+esto
+bc var1
+jmp no_DB
+
+
+DB_Exist:
+setoption ALL
+gpa "CreateMutexA", "Kernel32.dll"
+cmp $RESULT,0
+je cantGetCreateMutexAddress
+bphws $RESULT, "x"
+; a dumb but working method as a workarround to win7 kernelbase/kernel32 stuff
+esto
+bphwc
+sto
+sto
+sto
+sto
+sto
+sto
+sto
+; dumbness ends here
+
+
+find eip, #C20C00#
+cmp $RESULT, 0
+je cantGetCreateMutexRetAddress
+bp $RESULT
+
+
+esto
+bc $RESULT
+sti
+
+find eip,#3BC39C#
+add $RESULT,2
+bp $RESULT
+esto
+mov !ZF,1
+bc $RESULT
+bp $RESULT+47
+esto
+
+bc $RESULT+47
+mov eip,$RESULT+47+1F
+
+
+find eip,#F187DF57C3558BECC745FC00000000C745F800000000#
+cmp $RESULT,0
+je errunknown
+
+bp $RESULT
+esto
+bc $RESULT
+mov eip,[esp]
+add esp,4
+
+
+no_DB:
+find cb_packer,#FE4FFF83C7042BC78947FCEB02#
+cmp $RESULT,0
+je errunknown
+
+
+; NOP ; NOP ; NOP ; NOP ; NOP ; NOP ; NOP
+; XOR     EDI, EDI
+; OR      EDI, EDI
+mov [cb_packer+19A1], #9090909090909033FF0BFF#
+
+
+; MOV     WORD PTR DS:[EDI-1], 25FF
+; MOV     DWORD PTR DS:[EDI+1], EDX
+; MOV     DWORD PTR DS:[EDX], EAX
+; NOP ; NOP ; NOP ; NOP ; NOP ; NOP ; NOP ; NOP ; NOP
+mov [cb_packer+114B],#66C747FFFF258957018902909090909090909090#
+
+
+mov oep,cb_packer+1D32
+repl oep, #EB01??#, #909090#, 100
+repl oep, #68????????E9#, #9090909090E8#, 100
+bp oep
+go
+bc oep
+
+find oep,#9090909090909090#
+cmp $RESULT,0
+je runCleaners
+preop $RESULT
+mov eip, $RESULT
+eval "FAKE OEP AT : {$RESULT}"
+log $RESULT
+
+
+
+mov ip, eip
+wrt "stoleb.bytes", "\r\n"
+
+loopToGetOepStolenBytes:
+opcode ip
+cmp [ip], #90#, 1
+je noNops
+wrta "stoleb.bytes", $RESULT_1, "\r\n"
+
+noNops:
+add ip, $RESULT_2
+cmp [ip], #E9#, 1
+jne loopToGetOepStolenBytes
+
+mov tmp, [ip+1]
+add tmp, ip+5
+
+loopToFindRealOep:
+preop tmp
+mov tmp2, [$RESULT], 2
+cmp tmp2, 0
+jne gotRealOep
+mov tmp, $RESULT
+jmp loopToFindRealOep
+
+gotRealOep:
+; doesn't work as it should, because the asmtxt commands doesn't optimize the instructions
+; but only assemble the first result witch is in many case not the shortest needed one.
+; asmtxt tmp, "stoleb.bytes"
+eval "real OEP AT : {tmp}"
+log $RESULT
+
+
+runCleaners:
+gmi oep,CODEBASE
+cmp $RESULT,0
+je errcantcontinuefix
+mov cb_target,$RESULT
+mov cb_target2,$RESULT
+dec cb_target2
+
+cleanjmpPE:
+find cb_target,#E9??????FF#
+cmp $RESULT,0
+je continuework_3
+mov cb_target,$RESULT+5
+mov fpat,$RESULT
+mov var1,$RESULT+1
+mov var1,[var1]
+add var1,$RESULT+5
+cmp var1,cb_target2
+ja cleanjmpPE
+cmp ibase, var1
+ja cleanjmpPE
+opcode var1
+add var1, $RESULT_2
+gci var1, TYPE
+cmp $RESULT, 50
+jne cleanjmpPE
+asm fpat,$RESULT_1
+jmp cleanjmpPE
+
+
+continuework_3:
+gmi oep,CODEBASE
+cmp $RESULT,0
+je errcantcontinuefix
+mov cb_target,$RESULT
+
+cleancallPE:
+find cb_target,#E8??????FF#
+cmp $RESULT,0
+je cleanjmp1b
+mov cb_target,$RESULT+5
+mov fpat,$RESULT
+gci fpat, DESTINATION
+mov var1, $RESULT
+mov var3, $RESULT
+cmp var1,cb_target2
+ja cleancallPE
+cmp ibase, var1
+ja cleancallPE
+gci var1, TYPE
+cmp $RESULT, 50
+jne cleancallPE
+gci var3, DESTINATION
+eval "call {$RESULT}"
+asm fpat,$RESULT
+jmp cleancallPE
+
+cleanjmp1b:
+find var1,#EB01#
+cmp $RESULT,0
+je continuework_5
+
+mov var1,$RESULT+3
+fill $RESULT,3,90
+jmp cleanjmp1b
+
+
+continuework_5:
+mov var1,oep
+
+cleancalllike:
+find var1,#68????????E9??????FF#
+cmp $RESULT,0
+je continuework_6
+mov var1,$RESULT
+mov var3,$RESULT+6
+mov var3,[var3]
+add var3,$RESULT+A
+fill $RESULT,A,90
+eval "call {var3}"
+asm var1,$RESULT
+add var1,A
+jmp cleancalllike
+
+
+
+continuework_6:
+mov var1,oep
+
+cleanmetapush1:
+find var1,#68????????812C24#
+cmp $RESULT,0
+je continuework_7
+mov var1,$RESULT
+mov var3,$RESULT+1
+mov var3,[var3]
+mov var4,$RESULT+8
+mov var4,[var4]
+sub var3,var4
+fill $RESULT,C,90
+eval "push {var3}"
+asm var1,$RESULT
+add var1,C
+jmp cleanmetapush1
+
+
+
+continuework_7:
+mov var1,oep
+
+cleanmetapush2:
+find var1,#68????????810424#
+cmp $RESULT,0
+je continuework_8
+mov var1,$RESULT
+mov var3,$RESULT+1
+mov var3,[var3]
+mov var4,$RESULT+8
+mov var4,[var4]
+add var3,var4
+fill $RESULT,C,90
+eval "push {var3}"
+asm var1,$RESULT
+add var1,C
+jmp cleanmetapush2
+
+continuework_8:
+gmi oep, CODEBASE
+mov cb_target2, $RESULT
+mov var1,cb_target2
+
+gmemi oep, MEMORYBASE
+mov cb_packer, $RESULT
+
+gmemi oep, MEMORYSIZE
+mov cs_packer, $RESULT
+add cs_packer,cb_packer
+dec cs_packer
+
+cleanextracall:
+findop var1, #FF15??????00#
+cmp $RESULT,0
+je continuework_9
+mov var1, $RESULT+6
+mov var3, $RESULT+2
+mov var4, $RESULT+2
+mov var3,[var3]
+cmp cb_packer, var3
+ja cleanextracall
+cmp var3, cs_packer
+ja cleanextracall
+
+gci $RESULT, DESTINATION
+
+mov [var4], $RESULT
+jmp cleanextracall
+
+continuework_9:
+mov var1,cb_target2
+
+cleanextrajmp:
+findop var1, #FF25??????00#
+cmp $RESULT,0
+je continuework_10
+mov var1, $RESULT+6
+mov var3, $RESULT+2
+mov var4, $RESULT+2
+mov var3,[var3]
+cmp cb_packer, var3
+ja cleanextrajmp
+cmp var3, cs_packer
+ja cleanextrajmp
+
+gci $RESULT, DESTINATION
+
+mov [var4], $RESULT
+jmp cleanextrajmp
+
+continuework_10:
+mov var1, cb_target2
+
+cleanmovr32extramem:
+findop var1, #8B????????00#
+cmp $RESULT,0
+je jackpot
+mov var1, $RESULT+6
+mov var3, $RESULT+2
+mov var4, $RESULT+2
+mov var3,[var3]
+cmp cb_packer, var3
+ja cleanmovr32extramem
+cmp var3, cs_packer
+ja cleanmovr32extramem
+
+gci $RESULT, SIZE
+cmp $RESULT, 6
+jne cleanmovr32extramem
+
+mov var3, [var3]
+mov [var4], var3
+jmp cleanmovr32extramem
+
+jackpot:
+msg "The FAKE OEP is here, see log window for the real one and look at stolen.bytes file for your ..., you got it !!!"
+ret
+
+errcantcontinuefix:
+msg "The script can't continue fixing the target ... Please do it by hand or send me an Email"
+ret
+
+errunknown:
+msg "There was an error,sorry"
+ret
+
+cantGetCreateMutexRetAddress:
+msg "Can'te get CreateMutexA return address"
+ret
+
+cantGetCreateMutexAddress:
+msg "Can'te get CreateMutexA address"
+ret

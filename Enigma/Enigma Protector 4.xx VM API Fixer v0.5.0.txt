@@ -1,0 +1,251 @@
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////Enigma Protector 4.xx VM API Fixer///////////////////////
+//////////////////////////////////by PC-RET/////////////////////////////////////
+/////////////////////////////////////////////////////////////v0.5 public////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////
+
+// FileName    :  DebugActiveProcess.osc
+
+// Comment     :  Enigma Protector 4.xx VM API Fixer
+
+// Environment :  
+
+// Author      :  PC-RET
+
+// WebSite     :  
+
+// Date        :  Wednesday 14 January 2015 - 17:44:53
+
+//////////////////////////////////////////////////////////
+
+log ""
+log "Enigma Protector 4.xx VM API Fixer - Public Version"
+log "------------------------------------------------------------"
+bc
+bphwc
+bpmc
+mov notfixed, 0
+mov fixed, 0
+pusha
+gmi eip, MODULEBASE
+mov MODULEBASE, $RESULT
+mov eax, $RESULT
+mov edi, eax
+add eax, 3C
+mov eax, edi+[eax]
+mov SECTIONS, [eax+06], 02
+mov esi, eax+0F8
+mov edi, 28
+mov ebp, SECTIONS
+mov ecx, edi
+mul edi, SECTIONS
+add edi, esi
+sub edi, 28
+mov LASTSECTION, [edi+0C]
+add LASTSECTION, MODULEBASE
+sub edi, 28
+mov ENIGMASECTION, [edi+0C]
+add ENIGMASECTION, MODULEBASE
+cmp [ENIGMASECTION], #4D5A# ,02
+je ENIGMASECTION_FOUND
+cmp [LASTSECTION], #4D5A# ,02
+je ENIGMASECTION_FOUND_LAST
+ENIGMAENTER:
+ask "Please enter ENIGMA section address:"
+cmp $RESULT, 0
+je canceled
+mov ENIGMASECTION, $RESULT
+cmp [ENIGMASECTION], #4D5A# ,02
+jne ENIGMASUSPICIOUS
+jmp start
+ENIGMASUSPICIOUS:
+eval "The entered VA doesn't seems like ENIGMA section address.\r\n\r\nTry again?"
+msgyn $RESULT
+cmp $RESULT, 01
+je ENIGMAENTER
+ENIGMASECTION_FOUND_LAST:
+mov ENIGMASECTION, LASTSECTION
+ENIGMASECTION_FOUND:
+popa
+start:
+gmemi ENIGMASECTION, MEMORYSIZE
+mov ENIGMASIZE, $RESULT
+gpi MAINBASE
+mov filebase, $RESULT
+gmi filebase, CODEBASE
+mov CODESECTION, $RESULT
+gmi filebase, CODESIZE
+mov CODESIZE, $RESULT
+alloc 2000
+mov VMAPILOGGER, $RESULT
+alloc 1000
+mov vmapialloc, $RESULT
+mov [vmapialloc], #60BB00104000BE00400E00BF0000320503F383EE013BDE0F841100000066813BFF250F840C00000043E9E7FFFFFFE930000000908B5302FF7302E820BD4F7783F80174E48B1281FA0070E70372DA81FA0050420477D28B4B02890F89570483C708EBC5BB00104000BE00400E0003F383EE013BDE0F841100000066813BFF150F840C00000043E9E7FFFFFFE930000000908B5302FF7302E8C3BC4F7783F80174E48B1281FA0070E70372DA81FA0050420477D28B4B02890F89570483C708EBC56190#
+mov [vmapialloc+2], CODESECTION
+mov [vmapialloc+7], CODESIZE
+mov [vmapialloc+C], VMAPILOGGER
+mov [vmapialloc+64], CODESECTION
+mov [vmapialloc+69], CODESIZE
+mov [vmapialloc+48], ENIGMASECTION
+mov [vmapialloc+50], ENIGMASECTION
+add [vmapialloc+50], ENIGMASIZE
+mov [vmapialloc+A5], ENIGMASECTION
+mov [vmapialloc+AD], ENIGMASECTION
+add [vmapialloc+AD], ENIGMASIZE
+GPA "IsBadCodePtr", "kernel32.dll"
+mov  IsBadCodePtr, $RESULT
+eval "call {IsBadCodePtr}"
+asm vmapialloc+3A, $RESULT
+eval "call {IsBadCodePtr}"
+asm vmapialloc+97, $RESULT
+mov OEP, eip
+mov eip, vmapialloc
+bp vmapialloc+C1
+run
+mov eip, OEP
+mov esp_addr, esp
+pusha
+alloc 1000
+mov searchalloc, $RESULT
+mov [searchalloc], #60B800000000B900000000BE0000000003C883E9013BC10F840F0000008038E90F840800000040E9E9FFFFFF90908B500103D083C20581FA0000000072E83BD177E49090803A6875DD39720175D86190#
+mov [searchalloc+2], ENIGMASECTION
+mov [searchalloc+38], ENIGMASECTION
+mov [searchalloc+7], ENIGMASIZE
+looplogger:
+mov origapiaddr, [VMAPILOGGER]
+mov vmedlocation, [VMAPILOGGER+4]
+cmp origapiaddr, 0
+je end
+gmemi [origapiaddr], MEMORYBASE
+cmp $RESULT, ENIGMASECTION
+jne next4bytes
+mov eip, vmedlocation
+loopsti:
+find eip, #68????????#
+cmp $RESULT, 0
+jne foundpointer_push
+findmovpointer:
+find eip, #C70424#
+cmp $RESULT, 0
+jne foundpointer_mov
+do_sti:
+sti
+jmp loopsti
+foundpointer_push:
+cmp $RESULT, eip
+jne findmovpointer
+jmp endsearch
+foundpointer_mov:
+cmp $RESULT, eip
+jne do_sti
+jmp endsearch
+endsearch:
+cmp [eip], #68#, 1
+je push_type
+cmp [eip], #C70424#, 3
+je mov_type
+push_type:
+mov searchpointer, [eip+1], 4
+jmp startsearch
+mov_type:
+mov searchpointer, [eip+3], 4
+startsearch:
+mov [searchalloc+C], searchpointer
+mov bakeip, eip
+mov eip, searchalloc
+bp searchalloc+2C
+bp searchalloc+4E
+run
+bc
+cmp eip,searchalloc+2C
+je next4bytes1
+cmp eip,searchalloc+4E
+je foundpointer
+jmp end
+foundpointer:
+mov addr_result, eax
+and addr_result, f0
+cmp addr_result, 0
+jne normal
+mov addr_result, eax
+alloc 100
+mov alloc1, $RESULT
+mov [alloc1], addr_result
+rev [alloc1]
+mov addr_result, $RESULT
+eval #0{addr_result}#
+mov addr_result, $RESULT
+free alloc1
+jmp after_notnormal
+normal:
+mov addr_result, eax
+after_notnormal:
+sti
+find ENIGMASECTION, addr_result
+cmp $RESULT, 0
+je next4bytes1
+mov addr_result, $RESULT
+mov [origapiaddr], [addr_result-4]
+gn [addr_result-4]
+mov apiname, $RESULT_2
+add fixed, 1
+eval "[INFO]: Fixed at {origapiaddr} - {apiname}"
+log $RESULT, ""
+mov eip, bakeip
+jmp next4bytes
+next4bytes:
+mov searchpointer, 0
+mov addr_result, 0
+add VMAPILOGGER, 8
+jmp looplogger
+next4bytes1:
+mov eip, bakeip
+add notfixed, 1
+eval "[ERROR]: NOT fixed at {origapiaddr}"
+log $RESULT, ""
+add VMAPILOGGER, 8
+mov searchpointer, 0
+mov addr_result, 0
+jmp looplogger
+end:
+mov eip, bakeip
+free searchalloc
+free VMAPILOGGER
+free vmapialloc
+mov esp, esp_addr
+popa
+mov eip, OEP
+cmp fixed, 0
+je nofixed
+log " "
+log "------------------UIF data------------------"
+GPI PROCESSID
+MOV PID, $RESULT
+log "Process ID:"
+log PID,""
+log "Code section address:"
+log CODESECTION,""
+mov codesecend, CODESECTION
+add codesecend, CODESIZE
+log "Code section end:"
+log codesecend,""
+log " "
+log PID,""
+log CODESECTION,""
+log codesecend,""
+log " "
+log "--------------------------------------------"
+eval "Job completed.\r\n--------------------------\r\nFixed: {fixed}\r\nNOT fixed: {notfixed}\r\n--------------------------\r\nCheck log for more details."
+jmp DONE1
+nofixed:
+eval "Job completed.\r\nNothing has been fixed."
+DONE1:
+msg $RESULT
+ret
+canceled:
+msg "Canceled by user"
+ret

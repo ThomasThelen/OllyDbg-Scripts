@@ -1,0 +1,137 @@
+/*
+//////////////////////////////////////////////////////////////////////
+// .:[CracksLatinoS]:. 2013 CLS !.-                                 /
+// lARP 2.0 Ultimate _ByPass Hide Process Driver & VMWare & IAT &  /
+// JMP Rebuild & Stolen Bytes & OEP.                              /
+// OS: XP SP2/3 (Tested), OllyDbg V1.10, OllyScript v1.83.1      /
+//     StrongOD v.4.8.xxx or Above.-                            /
+// Author: _/\_-=InDuLgEo=-_/\_ (CLS).-                        / 
+// WebSite :-> http://indulgeoeddy.orgfree.com/               /
+//////////////////////////////////////////////////////////////
+*/
+
+
+
+VAR API
+VAR OEP
+VAR EIP2
+VAR Near_OEP
+VAR VMware 
+VAR Base
+VAR Jump
+VAR Byte
+VAR Byte1
+VAR Byte2
+VAR rva
+
+
+
+BPMC
+BPHWC
+BC
+
+
+
+Vamos:
+MOV OEP, 402059
+MOV Near_OEP, 402061
+MOV VMware, 4113FD
+MOV Jump, 41870A
+mov Base, 401000
+BPHWS VMware
+ERUN
+mov ebx, F1ACA
+BPHWC
+BPWM Jump, 1
+ERUN
+MOV eax, 85
+BPMC
+BPHWC
+BPRM Near_OEP, 1
+
+
+
+Bucle:
+CMP eip, Near_OEP
+JE Repara
+ERUN
+JMP Bucle
+
+
+
+Repara:
+FIND Base, #68????????C3#
+mov Byte, $RESULT
+mov eip, Byte
+sti
+sti
+
+
+
+Mira:
+mov Byte1, [eip], 1
+cmp Byte1, E9
+je Dale
+sti
+jmp Mira
+
+
+
+Dale:
+sub eip, 5
+mov EIP2, eip
+sti
+mov Byte2, eip
+mov API, 40515C
+mov conta,0
+
+
+
+Sigue:
+mov [API], Byte2
+add EIP2, 5
+mov eip, EIP2
+inc conta
+cmp conta, 8
+je Fin
+add API, 4
+sti
+mov Byte2, eip
+jmp Sigue
+
+
+
+Fin:
+MOV [402053], #FF15F8504000#
+MOV [40205B], #FF15FC504000#
+MOV [40106C], #FF1560514000#
+MOV [401085], #FF1564514000#
+MOV [40109C], #FF1568514000#
+MOV [4010BD], #FF156C514000#
+MOV [401BB7], #FF1570514000#
+MOV [401C13], #FF1528514000#
+MOV [401D91], #FF1578514000#
+MOV [401BF3], #FF1570514000#
+MOV eip, OEP
+cmt eip,"<-- OEP by InDuLgEo (CLS) !.-"
+mov rva, eip
+GMI eip, MODULEBASE
+sub rva, $RESULT 
+EVAL "-= OEP Alcanzado y Todo Reparado ;)\r\n\r\n =- Fija la IAT: RVA = 50EC | SIZE: = 9C | RVA OEP:-> {rva} !\r\n\r\n_/\_-=InDuLgEo=-_/\_ CLS 2013.-"
+MSG $RESULT 
+LOG "<- lARP 2.0 Ultimate _ByPass Hide Process Driver & VMWare & IAT & JMP Rebuild & Stolen Bytes & OEP. By InDuLgEo (CLS)!.-"
+BPMC
+BPHWC
+RET
+
+
+/*
+//////////////////////////////////////////////////////////////
+//       _/\_-=InDuLgEo=-_/\_ (CLS).-                       /
+/        *** To : -= CLS & SnD ***                         /
+//       - Art Of Reverse Engineering -                   /
+//                Have a nice day !                      /
+//                          Enjoy !                     /    
+//       \_____JMP____ASM____x386_____/          E.O.F./
+///////////////////////////////////////////////////////
+*/

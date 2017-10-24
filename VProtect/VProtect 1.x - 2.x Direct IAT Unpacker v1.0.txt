@@ -1,0 +1,5129 @@
+////////////////////////Château-Saint-Martin/////////////////////////////////////////////////////////////////////////////////////////
+//                                                                      ////////////////////////////////////////////////////////////
+//  FileName    :  VProtect 1.x - 2.x Direct IAT Unpacker 1.0           ///////////////////////////////////////////////////////////
+//  Features    :                                                       //////////////////////////////////////////////////////////
+//                 With this script you can unpack VProtect targets     /////////////////////////////////////////////////////////
+//                 which have no special SDK redirect code features.    ////////////////////////////////////////////////////////
+//                                                                      ///////////////////////////////////////////////////////
+//                                                                      //////////////////////////////////////////////////////
+//                 Watch my movies to know how to use this script!      /////////////////////////////////////////////////////
+//                                                                      ////////////////////////////////////////////////////
+//                  *************************************************** ///////////////////////////////////////////////////
+//               ( 1.) Unpacking of VProtect Targets  | Exe  Tested   * //////////////////////////////////////////////////
+//                                                                    * /////////////////////////////////////////////////
+//               ( 2.) Supports Diffrent API Fixing Ways              * ////////////////////////////////////////////////
+//                                                                    * ///////////////////////////////////////////////
+//               ( 3.) Main API Fix           C|J|C   | Turbo Patch   * //////////////////////////////////////////////
+//                                                                    * /////////////////////////////////////////////
+//               ( 4.) Memory API Fix                 | Turbo Patch   * ////////////////////////////////////////////
+//                                                                    * ///////////////////////////////////////////
+//               ( 5.) Memory API Extra Fix       SDK | Classic Patch * //////////////////////////////////////////
+//                                                                    * /////////////////////////////////////////
+//               ( 6.) Distance API & ReCalc Fix  SDK | Turbo Patch   * ////////////////////////////////////////
+//                                                                    * ///////////////////////////////////////
+//               ( 7.) VM API Scan & Fix          SDK | Long Check    * //////////////////////////////////////
+//                                                                    * /////////////////////////////////////
+//               ( 8.) CPUID Scanner & CRC LOGGER SDK | VM Store      * ////////////////////////////////////
+//                                                                    * ///////////////////////////////////
+//               ( 9.) UIF | dll & exe Support        | Reducing      * //////////////////////////////////
+//                                                                    * /////////////////////////////////
+//              ( 10.) Completely API Adjustment      | Turbo Patch   * ////////////////////////////////
+//                                                                    * ///////////////////////////////
+//              ( 11.) Resource Control Checker                       * //////////////////////////////
+//                                                                    * /////////////////////////////
+//              ( 12.) OS Scanner                                     * ////////////////////////////
+//                                                                    * ///////////////////////////
+//              ( 13.) Simple Operational Support                     * //////////////////////////
+//                                                                    * /////////////////////////
+//              ( 14.) No SDK Code Rebuild | Redirect Support         * ////////////////////////
+//                                                                    * ///////////////////////
+//              ( 15.) Manually Choice Of MEM & DIS API Fixing | N.N. * //////////////////////
+//                                                                    * /////////////////////
+//              ( 16.) Exactly Information Message Support            * ////////////////////
+//                                                                    * ///////////////////
+//              ( 17.) UIF.dll Auto Script Fix Using  | Exe Manually  * //////////////////
+//                                                                    * /////////////////
+//                  *************************************************** ////////////////
+//                                                                    * ///////////////
+//                 Use this script to unpack your BASIC - MEDIUM +    * //////////////
+//                 packet VProtect version x - x targets.Read and     * /////////////
+//                 follow the script messages on a decent way!        * ////////////
+//                 Watch the exsample movies to know what to do in    * ///////////
+//                 certain situations.Script was only tested with     * //////////
+//                 exe files.                                         * /////////
+//                                                                    * ////////
+//                  *************************************************** ///////
+//  Environment :  WinXP,OllyDbg V1.10,OllyScript v1.82.x,UIF x2        //////
+//                                                                      /////
+//  Author      :  LCF-AT                                               ////
+//  Date        :  2011-21-10 | October                                 ///
+//                                                                      //
+//                                                                     //
+///////////////WILLST DU SPAREN,DANN MUßT DU SPAREN!////////////////////
+BC
+BPMC
+BPHWC
+cmp $VERSION, "1.82"
+je RIGHT_VERSION
+ja RIGHT_VERSION
+log ""
+eval "Your are using a too old script version: {$VERSION}"
+log $RESULT, ""
+log ""
+log "Update your plugin to min. version 1.82 and try again!"
+log ""
+eval "Your are using a too old script version: {$VERSION} \r\n\r\nUpdate your plugin to min. version 1.82 and try again! \r\n\r\nLCF-AT"
+msg $RESULT
+jmp END_RETURN
+////////////////////
+RIGHT_VERSION:
+call VARS
+pause
+/* 
+-----------------------------
+safety stop 1
+
+Just Resume The Script now
+
+Press Space Or Right Mouse Button And Choose The Resume Line If You Are Ready
+-----------------------------
+*/
+////////////////////
+GPI PROCESSID
+mov PROCESSID, $RESULT
+GPI PROCESSNAME
+mov PROCESSNAME, $RESULT
+mov PROCESSNAME_2, $RESULT
+len PROCESSNAME
+mov PROCESSNAME_COUNT, $RESULT
+buf PROCESSNAME_COUNT
+alloc 1000
+mov PROCESSNAME_FREE_SPACE, $RESULT
+mov PROCESSNAME_FREE_SPACE_2, $RESULT
+mov EIP_STORE, eip
+mov eip, PROCESSNAME_FREE_SPACE
+mov [PROCESSNAME_FREE_SPACE], PROCESSNAME
+////////////////////
+PROCESSNAME_CHECK:
+cmp [PROCESSNAME_FREE_SPACE],00
+je PROCESSNAME_CHECK_02
+cmp [PROCESSNAME_FREE_SPACE],#20#, 01
+je PROCESSNAME_CHECK_01
+cmp [PROCESSNAME_FREE_SPACE],#2E#, 01
+je PROCESSNAME_CHECK_01
+inc PROCESSNAME_FREE_SPACE
+jmp PROCESSNAME_CHECK
+////////////////////
+PROCESSNAME_CHECK_01:
+mov [PROCESSNAME_FREE_SPACE], #5F#, 01
+jmp PROCESSNAME_CHECK
+////////////////////
+PROCESSNAME_CHECK_02:
+readstr [PROCESSNAME_FREE_SPACE_2], 08
+mov PROCESSNAME, $RESULT
+str PROCESSNAME
+mov eip, EIP_STORE
+free PROCESSNAME_FREE_SPACE
+/////
+GMA PROCESSNAME, MODULEBASE
+cmp $RESULT, 0
+jne MODULEBASE
+pause
+pause
+////////////////////
+MODULEBASE:
+mov MODULEBASE, $RESULT
+mov PE_HEADER, $RESULT
+GPI CURRENTDIR
+mov CURRENTDIR, $RESULT
+////////////////////
+gmemi PE_HEADER, MEMORYSIZE
+mov PE_HEADER_SIZE, $RESULT
+add CODESECTION, MODULEBASE
+add CODESECTION, PE_HEADER_SIZE
+GMI MODULEBASE, MODULESIZE
+mov MODULESIZE, $RESULT
+add MODULEBASE_and_MODULESIZE, MODULEBASE
+add MODULEBASE_and_MODULESIZE, MODULESIZE
+////////////////////
+gmemi CODESECTION, MEMORYSIZE
+mov CODESECTION_SIZE, $RESULT
+add PE_HEADER, 03C
+mov PE_SIGNATURE, PE_HEADER
+sub PE_HEADER, 03C
+mov PE_SIZE, [PE_SIGNATURE]
+add PE_INFO_START, PE_HEADER
+add PE_INFO_START, PE_SIZE
+////////////////////
+mov PE_TEMP, PE_INFO_START
+////////////////////
+////////////////////
+mov Resource_Table_address, [PE_TEMP+88]
+mov Resource_Table_size, [PE_TEMP+8C]
+mov RES_ADDR, PE_TEMP
+add RES_ADDR, 88
+mov SECTIONS, [PE_TEMP+06], 01
+itoa SECTIONS, 10.
+mov SECTIONS, $RESULT
+mov ENTRYPOINT, [PE_TEMP+028]
+mov BASE_OF_CODE, [PE_TEMP+02C]
+mov IMAGEBASE, [PE_TEMP+034]
+mov SIZE_OF_IMAGE, [PE_TEMP+050]
+mov TLS_TABLE_ADDRESS, [PE_TEMP+0C0]
+mov TLS_TABLE_SIZE, [PE_TEMP+0C4]
+mov IMPORT_TABLE_ADDRESS, [PE_TEMP+080]
+mov IMPORT_TABLE_SIZE, [PE_TEMP+084]
+mov IMPORT_ADDRESS_TABLE, [PE_TEMP+0D8]
+mov IATSTORE, [PE_TEMP+0D8]
+add ENTRYPOINT, IMAGEBASE
+////////////////////
+////////////////////
+EIP_CHECK:
+cmp ENTRYPOINT, eip
+je START_ON
+bphws ENTRYPOINT, "x"
+bp ENTRYPOINT
+esto
+bphwc
+bc
+jmp EIP_CHECK
+////////////////////
+START_ON:
+log ""
+log ""
+log SCRIPTNAME, ""
+log points, ""
+log ""
+eval "Hello {CPU_NAME}"
+log $RESULT, ""
+log ""
+eval "{DAYNAME} {WDAY}.{MONTH} | {YEAR} >:< Time: {HOUR}:{MINUTE}:{SECOND}"
+log $RESULT, ""
+log ""
+log "Operating System:"
+log ""
+eval "{OS}"
+log $RESULT, ""
+log ""
+log "Important Setting Infos:"
+log ""
+log "- Disable Protect DRx  (PHM)"
+log ""
+log "- Enable Skip some Exceptions (SOD)"
+log ""
+log points, ""
+log ""
+log "LCF-AT"
+log ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Hello {CPU_NAME} {RN_2}{DAYNAME} {WDAY}.{MONTH} | {YEAR} >:< Time: {HOUR}:{MINUTE}:{SECOND} {RN_2}{points} {RN_2}Operating System: {RN_2}{OS} {RN_2}{points} {RN_2}Important Setting Infos: {RN_2}- Disable Protect DRx  (PHM) {RN_2}- Enable Skip some Exceptions (SOD) {RN_2}{points} {RN}{ME}"
+msg $RESULT
+mov MEMO, 10000
+jmp ALLOC_MEMO
+////////////////////
+ALLOC_LOWER:
+free MEM_NEW
+add MEMO, 10000
+////////////////////
+ALLOC_MEMO:
+alloc MEMO
+mov MEM_NEW, $RESULT
+cmp MEM_NEW, CODESECTION
+jb ALLOC_LOWER
+alloc 1000
+mov MEMTEST, $RESULT
+mov MEMTEST_2, $RESULT
+////////////////////
+BEFORE_OEP:
+bp VALLOC
+bp VPAPI
+run
+bc
+cmp eip, VALLOC
+jne VPSTOP
+mov [MEMTEST], eax
+cmp [esp+08], 8000
+jne ALLOC_NORM
+free eax
+mov eax, MEM_NEW
+mov [MEMTEST], eax
+mov NEW_MEM_YES, 01
+////////////////////
+ALLOC_NORM:
+add MEMTEST, 04
+jmp BEFORE_OEP
+////////////////////
+VPSTOP:
+// RES_ADDR
+cmp eip, VPAPI
+jne ALLOC_API_STOP
+cmp [esp+04], RES_ADDR
+jne ALLOC_API_STOP
+log ""
+eval "Ressource protection enabled | {RES_ADDR}"
+log $RESULT, ""
+log ""
+eval "Res RVA now is: {Resource_Table_address} | {Resource_Table_size} <-- size"
+log $RESULT, ""
+log ""
+////////////////////
+ALLOC_API_STOP:
+bprm CODESECTION, CODESECTION_SIZE
+bp VALLOC
+esto
+bc
+cmp eip, VALLOC
+jne CODE_STOP_CHECK
+cmp NEW_MEM_YES, 01
+je ALLOC_NORM_2
+cmp [esp+08], 8000
+jne ALLOC_NORM_2
+free eax
+mov eax, MEM_NEW
+mov NEW_MEM_YES, 01
+////////////////////
+ALLOC_NORM_2:
+mov [MEMTEST], eax
+add MEMTEST, 04
+jmp VPSTOP
+////////////////////
+CODE_STOP_CHECK:
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je OEP_CLOSE
+// refresh eip
+cmp SYSTEM_APIS_SEC, 00
+jne IS_ALLOCED
+alloc 3000
+mov SYSTEM_APIS_SEC, $RESULT
+mov SYSTEM_APIS_SEC_2, $RESULT
+////////////////////
+IS_ALLOCED:
+cmp [eip], 0889, 02
+je MOV_[EAX]_ECX
+// pause
+// pause
+jmp VPSTOP // keine APIs
+////////////////////
+MOV_[EAX]_ECX:
+mov YES_S_APIS, 01
+mov [SYSTEM_APIS_SEC],    eax
+mov [SYSTEM_APIS_SEC+04], ecx
+jmp LOG_SYSTEM_API_INFOS
+////////////////////
+LOG_SYSTEM_API_INFOS:
+inc SYSTEM_API_COUNT
+add SYSTEM_APIS_SEC, 08
+jmp VPSTOP
+////////////////////
+OEP_CLOSE:
+cmp YES_S_APIS, 00
+je NO_SYSTEM_API_USED
+////////////////////
+NO_SYSTEM_API_USED:
+bpmc
+cmt eip, "OEP near OEP"
+mov OEP, eip
+call GETESP
+////////////////////
+call DUMP_SECS
+pusha
+mov eax, Resource_Table_address
+mov ecx, Resource_Table_size
+mov edx, [RES_ADDR]
+mov ebx, [RES_ADDR+04]
+log ""
+log "Ressouces Check"
+log "------------------------------"
+eval "EP Ressources:  {eax} | {ecx} | RVA & SIZE"
+log $RESULT, ""
+log ""
+eval "OEP Ressources: {edx} | {ebx} | RVA & SIZE"
+log $RESULT, ""
+log ""
+cmp eax, edx
+jne RES_CHANGE
+log "Original Ressources has not changed!"
+log ""
+jmp MEM_CHECK
+////////////////////
+RES_CHANGE:
+eval "Original Ressources has changed to {edx} | {ebx} | RVA & SIZE!"
+log $RESULT, ""
+log ""
+popa
+jmp MEM_CHECK
+////////////////////
+MEM_CHECK:
+cmp [MEMTEST_2], 00
+je NO_MEM_APIS
+pusha
+mov eax, [MEMTEST_2]
+find eax, #68????????C1??????C?68#
+cmp $RESULT, 00
+jne MEM_FOUND
+// cmp [eax], 68, 01
+// je MEM_FOUND
+add MEMTEST_2, 04
+popa
+jmp MEM_CHECK
+pause
+pause
+////////////////////
+MEM_FOUND:
+mov eip, eax
+////////////////////
+RET_LOOP:
+rtr
+cmp eip, eax
+je RET_LOOP
+refresh [esp]
+gn [esp]
+cmp $RESULT_2, 00
+je NO_API
+free MEMTEST_2
+mov MEMTEST, eax
+mov MEM, MEMTEST
+gmemi MEM, MEMORYSIZE
+mov MEMSIZE, $RESULT
+jmp AFTER_MEM
+////////////////////
+NO_API:
+free MEMTEST_2
+pause
+pause
+////////////////////
+NO_MEM_APIS:
+free MEMTEST_2
+findmem #68????????C1??????C?68#, CODESECTION
+cmp $RESULT, 00
+je FOUND_A_MEMSEC
+pause
+pause
+////////////////////
+FOUND_A_MEMSEC:
+mov MEM, $RESULT
+gmemi MEM, MEMORYBASE
+mov MEM, $RESULT
+gmemi MEM, MEMORYSIZE
+mov MEMSIZE, $RESULT
+mov MEMTEST, MEM
+log ""
+eval "Found a API MEMsection at {MEM} | {MEMSIZE}"
+log $RESULT, ""
+log ""
+gmemi MEMTEST, MEMORYSIZE
+add MEMTEST, $RESULT
+findmem #68????????C1??????C?68#, MEMTEST
+cmp $RESULT, 00
+jne FOUND_ANOTHERMEMSEC
+jmp AFTER_MEM
+////////////////////
+FOUND_ANOTHERMEMSEC:
+mov MEM_2, $RESULT
+gmemi MEM_2, MEMORYBASE
+mov MEM_2, $RESULT
+gmemi MEM_2, MEMORYSIZE
+mov MEMSIZE_2, $RESULT
+mov MEMTEST, MEM_2
+jmp AFTER_MEM
+pause
+pause
+////////////////////
+AFTER_MEM:
+mov IAT, 100000
+////////////////////
+ALLOC_IAT:
+alloc IAT
+mov IAT, $RESULT
+cmp IAT, MODULEBASE_and_MODULESIZE
+ja IATSEC_MORE
+free IAT
+add IAT, 100000
+jmp ALLOC_IAT
+////////////////////
+IATSEC_MORE:
+mov TABLE, IAT
+mov TABLEBAK, IAT
+add IAT, 40000 // 4000
+mov IATBAK, IAT
+eval "{PROCESSNAME_2}_Fixing_IAT.txt"
+mov sFile, $RESULT
+eval "{PROCESSNAME_2}_Last_IAT_ADDR.txt"
+mov sFile2, $RESULT
+eval "{PROCESSNAME_2}_Not_Fixed_ADDR.txt"
+mov sFile3, $RESULT
+eval "{PROCESSNAME_2}_Last_Table_ADDR.txt"
+mov sFile4, $RESULT
+eval "{PROCESSNAME_2}_Possible_SDK_ADDR_BP_LIST.txt"
+mov sFile5, $RESULT
+eval "{PROCESSNAME_2}_Waring_Not_Fixed_ADDR.txt"
+mov sFile6, $RESULT
+eval "{PROCESSNAME_2}_Possible_CPUID_BP_LIST.txt"
+mov sFile7, $RESULT
+eval "{PROCESSNAME_2}_Possible_SYSTEM_APIs_TO_KEEP.txt"
+mov sFile8, $RESULT
+eval "{PROCESSNAME_2}_Possible_CPUID_MEM_BP_STOPS_TO_PATCH.txt"
+mov sFile9, $RESULT
+mov eip, OEP
+// load files!
+//---
+////////////////////
+Last_IAT_ADDR_CHECK:
+jmp DATA_NOT_FOUND
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+add APR, 50
+gpa "FindFirstFileA","kernel32.dll"
+mov FindFirstFileA, $RESULT
+mov [APR], #6068AAAAAAAA68BBBBBBBBE877BB73CCA3AAAAAAAA61#
+mov [APR+02], APR2+100
+mov [APR+07], APR2+04
+add APR, 0B
+eval "call {FindFirstFileA}"
+asm APR, $RESULT
+sub APR, 0B
+mov [APR+11], APR+1A
+mov [APR+16], #90909090#
+mov [APR2+04], sFile2
+mov eip, APR
+bp APR+17
+run
+bc
+cmp [APR+1A], -1
+je DATA_NOT_FOUND
+//-------------
+mov written, 01
+fill APR2, 1000, 00
+mov FOUNDFILE, 01
+mov eip, OEP
+free APR
+mov APR, 00
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+lm APR, 0, sFile2
+pusha
+mov eax, APR
+find APR, #0D0A#
+cmp $RESULT, 00
+je NO_SPACE
+mov [$RESULT], 00, 02
+////////////////////
+NO_SPACE:
+GSTR eax
+cmp $RESULT, 00
+jne STRING_IN
+popa
+log "No last IAT data to read!"
+log ""
+jmp DATA_NOT_FOUND
+////////////////////
+STRING_IN:
+mov ADDR, $RESULT
+atoi ADDR, 16.
+mov ADDR, $RESULT
+mov eax, ADDR
+mov IAT, eax
+mov IATBAK, eax
+popa
+free APR
+JMP LAST_TABLE_CHECK
+////////////////////
+DATA_NOT_FOUND:
+mov eip, OEP
+// free APR
+mov APR, 00
+log ""
+// eval "{sFile2} <-- Not Found | Maybe your first run!"
+// log $RESULT, ""
+log ""
+jmp WRTA_FILES
+////////////////////
+LAST_TABLE_CHECK:
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+add APR, 50
+gpa "FindFirstFileA","kernel32.dll"
+mov FindFirstFileA, $RESULT
+mov [APR], #6068AAAAAAAA68BBBBBBBBE877BB73CCA3AAAAAAAA61#
+mov [APR+02], APR2+100
+mov [APR+07], APR2+04
+add APR, 0B
+eval "call {FindFirstFileA}"
+asm APR, $RESULT
+sub APR, 0B
+mov [APR+11], APR+1A
+mov [APR+16], #90909090#
+mov [APR2+04], sFile4
+mov eip, APR
+bp APR+17
+run
+bc
+cmp [APR+1A], -1
+je DATA_NOT_FOUND_2
+//-------------
+mov written, 01
+fill APR2, 1000, 00
+mov FOUNDFILE, 01
+mov eip, OEP
+free APR
+mov APR, 00
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+lm APR, 0, sFile4
+pusha
+mov eax, APR
+find APR, #0D0A#
+cmp $RESULT, 00
+je NO_SPACE_2
+mov [$RESULT], 00, 02
+////////////////////
+NO_SPACE_2:
+GSTR eax
+mov ADDR, $RESULT
+atoi ADDR, 16.
+mov ADDR, $RESULT
+mov eax, ADDR
+mov TABLE, eax
+popa
+free APR
+jmp NOT_FIXED_COMMANDS
+////////////////////
+DATA_NOT_FOUND_2:
+pause
+pause
+mov eip, OEP
+free APR
+mov APR, 00
+log ""
+eval "{sFile4} <-- Not Found | Do not delete the txt files!!!"
+log $RESULT, ""
+log ""
+jmp WRTA_FILES
+////////////////////
+NOT_FIXED_COMMANDS:
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+add APR, 50
+gpa "FindFirstFileA","kernel32.dll"
+mov FindFirstFileA, $RESULT
+mov [APR], #6068AAAAAAAA68BBBBBBBBE877BB73CCA3AAAAAAAA61#
+mov [APR+02], APR2+100
+mov [APR+07], APR2+04
+add APR, 0B
+eval "call {FindFirstFileA}"
+asm APR, $RESULT
+sub APR, 0B
+mov [APR+11], APR+1A
+mov [APR+16], #90909090#
+mov [APR2+04], sFile3
+mov eip, APR
+bp APR+17
+run
+bc
+cmp [APR+1A], -1
+je DATA_NOT_FOUND_3
+//-------------
+msgyn "Found not fixed addresses from a older session!Do you want fix them?LAST STEP!"
+cmp $RESULT, 01
+je FIX_SINGLE_ADDRS
+free APR
+mov APR, 00
+mov eip, OEP
+jmp WRTA_FILES
+////////////////////
+FIX_SINGLE_ADDRS:
+mov written, 01
+fill APR2, 1000, 00
+mov FOUNDFILE, 01
+mov eip, OEP
+free APR
+mov APR, 00
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+lm APR, 0, sFile3
+pusha
+mov eax, APR
+////////////////////
+SPACE_LOOP:
+find APR, #0D0A#
+cmp $RESULT, 00
+je 20er
+mov tmp, $RESULT
+mov [tmp], 00, 02
+jmp SPACE_LOOP
+////////////////////
+20er:
+mov APR, APR2
+////////////////////
+20er_2:
+find APR, #20#
+cmp $RESULT, 00
+je NO_SPACE_3
+mov [$RESULT], 00, 01
+jmp 20er_2
+////////////////////
+NO_SPACE_3:
+mov APR, APR2
+find APR, #0000000000000000000000000000000000000000000000000000000000000000#
+cmp $RESULT, 00
+jne ENDE_FOUND
+pause
+pause
+pause
+////////////////////
+ENDE_FOUND:
+mov ENDE, $RESULT
+mov ENDE_2, $RESULT
+xor eax, eax
+mov eax, APR
+alloc 1000
+mov NFASEC, $RESULT
+mov NFASEC_2, $RESULT
+////////////////////
+SHORT_LOOP:
+GSTR eax
+cmp $RESULT, 00
+jne FOUND_ADDR
+inc APR
+inc eax
+jmp SHORT_LOOP
+////////////////////
+FOUND_ADDR:
+inc NOT_FIXED_ADDRS
+GSTR eax
+mov ADDR, $RESULT
+mov COUNT, $RESULT_1
+atoi ADDR, 16.
+mov ADDR, $RESULT
+mov [NFASEC], ADDR
+add NFASEC, 04
+add APR, COUNT
+add eax, COUNT
+cmp APR, ENDE
+ja ALL_LOGGED
+je ALL_LOGGED
+jmp SHORT_LOOP
+////////////////////
+ALL_LOGGED:
+mov NFASEC, NFASEC_2
+free APR
+popa
+mov SINGLEFIX, 01
+itoa NOT_FIXED_ADDRS, 10.
+mov NOT_FIXED_ADDRS, $RESULT
+log ""
+eval "Found >>> {NOT_FIXED_ADDRS} <<< {dec-count} not fixed addresses!"
+log $RESULT, ""
+log "Will fix them now in singlemode!"
+log ""
+// pause
+// pause
+jmp WRTA_FILES
+////////////////////
+DATA_NOT_FOUND_3:
+// pause
+// pause
+mov eip, OEP
+free APR
+mov APR, 00
+log ""
+eval "{sFile3} <-- Not Found | Do not delete the txt files 2. time!!!"
+log $RESULT, ""
+log ""
+jmp WRTA_FILES
+////////////////////
+WRTA_FILES:
+wrta sFile, " "
+wrta sFile2, " "
+wrta sFile3, " "
+wrta sFile4, " "
+// wrta sFile5, " "
+wrta sFile6, " "
+wrta sFile7, " "
+pusha
+alloc 1000
+mov PROTECT, $RESULT
+mov [PROTECT+30], #68AAAAAA006A4068AAAAAA0068AAAAAA00E80421640090909090#
+mov bak, eip
+mov eip, PROTECT+30
+mov [eip+01], PROTECT
+mov [eip+08], CODESECTION_SIZE
+mov [eip+0D], CODESECTION
+gpa "VirtualProtect", "kernel32.dll"
+mov VPAPI_2, $RESULT
+eval "call {VPAPI_2}"
+asm eip+11, $RESULT
+bp eip+16
+run
+bc
+mov eip, bak
+free PROTECT
+popa
+mov [esp], 00
+add esp, 4
+jmp NO_DLL_ASK
+msgyn "Fill dll files with 00?Normaly press YES!Press NO if you want to dump!"
+cmp $RESULT, 01
+jne NO_EXTRA_DLL_FILL
+////////////////////
+NO_DLL_ASK:
+alloc 2000
+mov STORE, $RESULT
+mov eip, STORE
+mov [STORE], #60648B35300000008B760C8B760C8BFEB900000000BD00000000BDAAAAAAAA896D008BDD83C304B800000000BA000000008B46188B562003D041890389530483C308895D008B363BF775DC4961909090#
+alloc 2000
+mov MODULE_SEC, $RESULT
+mov MODULE_SEC_2, $RESULT
+mov [STORE+1B], MODULE_SEC
+bp STORE+4C
+bp STORE+4E
+run
+bc eip
+mov MOD_COUNT, ecx
+itoa MOD_COUNT, 10.
+mov MOD_COUNT_DEC, $RESULT
+log ""
+eval "Found {MOD_COUNT} hex | {MOD_COUNT_DEC} dec loaded modules!"
+log ""
+log $RESULT, ""
+run
+bc eip
+mov eip, STORE
+fill eip, 50, 90
+pusha
+mov eax, MODULE_SEC
+add eax, 4
+refresh eax
+////////////////////
+MODULE_NAME_CHECKS:
+cmp [eax], 00
+je END_MODULESEC
+mov ecx, [eax]
+gmi ecx, NAME
+cmp $RESULT, 00
+jne NAME_GET
+pause
+pause
+////////////////////
+NAME_GET:
+mov NAME, $RESULT
+mov edx, ecx
+add edx, [ecx+3C]
+mov edx, [edx+104]
+add edx, ecx
+gmemi edx, MEMORYSIZE
+cmp $RESULT, 00
+jne SIZE_GET
+pause
+pause
+////////////////////
+SIZE_GET:
+mov SIZE, $RESULT
+mov SECTION, edx
+cmp SECTION, CODESECTION
+je ADD_EAX
+mov bak, eip
+cmp ZECH, 01
+je ENTER_NAME
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+add APR, 50
+gpa "FindFirstFileA","kernel32.dll"
+mov FindFirstFileA, $RESULT
+mov [APR], #6068AAAAAAAA68BBBBBBBBE877BB73CCA3AAAAAAAA61#
+mov [APR+02], APR2+100
+mov [APR+07], APR2+04
+add APR, 0B
+eval "call {FindFirstFileA}"
+asm APR, $RESULT
+sub APR, 0B
+mov [APR+11], APR+1A
+mov [APR+16], #90909090#
+////////////////////
+ENTER_NAME:
+len NAME
+mov LENGHT, $RESULT
+mov [APR2+04], NAME
+mov eip, APR
+bp APR+17
+run
+bc
+mov eip, bak
+mov ZECH, 01
+fill APR2+04, LENGHT , 00
+cmp [APR+1A], -1
+je DUMP_DLL
+eval "{NAME} - MODULE was already dumped"
+log $RESULT, ""
+log ""
+jmp ADD_EAX
+////////////////////
+DUMP_DLL:
+mov [APR+1A], 00
+eval "{NAME}"
+dm SECTION, SIZE, $RESULT
+////////////////////
+ADD_EAX:
+mov [APR+1A], 00
+add eax, 8
+jmp MODULE_NAME_CHECKS
+////////////////////
+END_MODULESEC:
+popa
+free APR
+pusha
+mov [STORE], #B8AAAAAAAA83C0048904248B48048B002BC883F8000F8497000000BABBBBBBBB3BC20F84420000008BD883C33C8B1B03D88B6B0681E5FF0F000081C300010000894424FC8B730403F08B3B83EC20546A405756E874CC8DCC83C4208B4424FC4D83FD00740583C328EBDA830424088B0424E995FFFFFF909090908BC78BCEC60190484183F80075F603F783EE5066C706FF25B8DDDDDDDD83C0108940F083E8108946028B4424FC4D83FD0074BD83C328EB92E80000000058C7409490909090C7409890909090C7409C90909090C740A09090909066C74094EB2D808060FFFFFF392DB7000000FFE090909090909090909090#
+mov [STORE+01], MODULE_SEC
+mov [STORE+01], MODULE_SEC
+// gmi OEP, MODULEBASE
+mov [STORE+1C], IMAGEBASE
+gpa "VirtualProtect", "kernel32.dll"
+mov VPAPI_2, $RESULT
+mov VPAPI, $RESULT
+eval "call {VPAPI}"
+asm STORE+53,  $RESULT
+alloc 2000
+mov JMPSEC, $RESULT
+mov [STORE+93], JMPSEC
+fill JMPSEC, 2000, 90
+mov [STORE+31], #BD0100000090909090#
+bp STORE+0ED
+bp JMPSEC+020
+run
+bc
+cmp eip, JMPSEC+020
+jne NO_EXTRA_DLL_FILL
+add MODULE_SEC, 04
+////////////////////
+DLL_FILL_LOOP:
+cmp [MODULE_SEC], 00
+je DLL_ENDE
+mov temp, [MODULE_SEC]
+gmi temp, MODULEBASE
+cmp $RESULT, IMAGEBASE
+je ADD_DLL
+add temp, 3C
+mov temp, [temp]
+add temp, [MODULE_SEC]
+add temp, 100
+mov temp2, [temp+4]
+add temp2, [MODULE_SEC]
+mov temp3, [temp]  // size
+fill temp2, temp3, 90
+add temp2, temp3
+sub temp2, 50
+eval "jmp dword ptr ds:[{JMPSEC}]"
+asm temp2, $RESULT
+jmp ADD_DLL
+////////////////////
+ADD_DLL:
+add MODULE_SEC, 08
+jmp DLL_FILL_LOOP
+////////////////////
+DLL_ENDE:
+////////////////////
+NO_EXTRA_DLL_FILL:
+popa
+mov eip, OEP
+jmp ANFANG
+////////////////////
+ANFANG:
+mov VPROTECTSTRING, CODESECTION
+gmemi CODESECTION, MEMORYSIZE
+add VPROTECTSTRING, $RESULT
+mov code2, CODESECTION
+mov espbak,esp
+mov code, CODESECTION
+mov SIGN, #E8#
+findmem #8B5F10836F100483EB045889038B078B5F0C8B4F048B57088B6F148B7718#, CODESECTION
+cmp $RESULT, 00
+jne API_LOGGER
+log ""
+log "No API Logger found!"
+log ""
+mov LOG, 00
+// pause
+// pause // NO API LOG
+jmp WITHOUT_LOG
+////////////////////
+API_LOGGER:
+mov LOG, $RESULT
+// findmem #E802000000E8????????E802000000E8#, VPROTECTSTRING
+////////////////////
+WITHOUT_LOG:
+alloc 1000
+mov TEST_SEC, $RESULT
+mov TEST_SEC_2, $RESULT
+pusha
+mov edx, TEST_SEC
+mov eax, VPROTECTSTRING   // 2. sec
+gmemi VPROTECTSTRING, MEMORYSIZE
+mov ecx, $RESULT
+////////////////////
+SEARCH_VP_SECS:
+find eax, #68????????9C81??24????????????C3#
+cmp $RESULT, 00
+jne FOUND_1
+////////////////////
+TARGET_END:
+add eax, ecx
+gmemi eax, MEMORYSIZE
+mov ecx, $RESULT
+cmp eax, MODULEBASE_and_MODULESIZE
+ja FULL_END_CHECK
+je FULL_END_CHECK
+jmp SEARCH_VP_SECS
+////////////////////
+FOUND_1:
+mov [edx], eax
+add edx, 04
+inc SEC_COOUNTER
+log ""
+eval "Found VProtect Section: {eax} | {ecx} || SEC # {SEC_COOUNTER}"
+log $RESULT, ""
+log ""
+jmp TARGET_END
+////////////////////
+FULL_END_CHECK:
+mov edi, 00
+mov edi, SEC_COOUNTER
+////////////////////
+SEC_LOOP_LOG:
+cmp edi, 00
+je SEC_OVER
+mov eax, [TEST_SEC_2]
+cmp VP, 00
+jne 2_VP
+mov VP, eax
+add TEST_SEC_2, 04
+dec edi
+jmp SEC_LOOP_LOG
+////////////////////
+2_VP:
+cmp VP2, 00
+jne 3_VP
+mov VP2, eax
+add TEST_SEC_2, 04
+dec edi
+jmp SEC_LOOP_LOG
+////////////////////
+3_VP:
+cmp VP3, 00
+jne 4_VP
+mov VP3, eax
+add TEST_SEC_2, 04
+dec edi
+jmp SEC_LOOP_LOG
+////////////////////
+4_VP:
+cmp VP4, 00
+jne 5_VP_END
+mov VP4, eax
+add TEST_SEC_2, 04
+dec edi
+jmp SEC_LOOP_LOG
+////////////////////
+5_VP_END:
+pause
+pause
+// Not more than 4 VProtect secs allowed in this script!
+////////////////////
+SEC_OVER:
+popa
+free TEST_SEC
+jmp SEC_CHECKING_IS_END
+pause
+pause
+pause
+pause
+// -----------
+find VPROTECTSTRING, #68????????9C81??24????????????C3#
+cmp $RESULT, 00
+jne FOUNDSEC_1
+pause
+pause
+// NO VP OPCODE SIGN FOUND
+////////////////////
+FOUNDSEC_1:
+mov VP, $RESULT
+mov VP, VPROTECTSTRING
+pusha
+mov eax, VP
+gmemi VP, MEMORYSIZE
+mov ecx, $RESULT
+cmp eax, MODULEBASE_and_MODULESIZE
+jb SEC_1_OK
+pause
+pause
+////////////////////
+SEC_1_OK:
+add eax, ecx
+find eax, #68????????9C81??24????????????C3#
+cmp $RESULT, 00
+jne FOUNDSEC_2
+pause
+jmp SEC_CHECKING_IS_END
+pause
+////////////////////
+FOUNDSEC_2:
+mov VP2, $RESULT
+mov VP2, eax
+gmemi VP2, MEMORYSIZE
+mov ecx, $RESULT
+cmp eax, MODULEBASE_and_MODULESIZE
+jb SEC_2_OK
+pause
+pause
+////////////////////
+SEC_2_OK:
+add eax, ecx
+find eax, #68????????9C81??24????????????C3#
+cmp $RESULT, 00
+jne FOUNDSEC_3
+pause
+jmp SEC_CHECKING_IS_END
+pause
+////////////////////
+FOUNDSEC_3:
+mov VP3, $RESULT
+mov VP3, eax
+gmemi V3P, MEMORYSIZE
+mov ecx, $RESULT
+cmp eax, MODULEBASE_and_MODULESIZE
+jb SEC_3_OK
+pause
+pause
+////////////////////
+SEC_3_OK:
+add eax, ecx
+jmp SEC_CHECKING_IS_END
+////////////////////
+SEC_CHECKING_IS_END:
+popa
+jmp START
+findmem #5650726F7465637400#, VPROTECTSTRING  // Vprotect string
+cmp $RESULT, 00
+jne LOGSECS
+pause
+pause
+////////////////////
+LOGSECS:
+mov VP, $RESULT
+gmemi VP, MEMORYBASE
+mov VP, $RESULT
+mov VPROTECTSTRING, $RESULT
+gmemi VPROTECTSTRING, MEMORYSIZE
+add VPROTECTSTRING, $RESULT
+findmem #5650726F7465637400#, VPROTECTSTRING
+cmp $RESULT, 00
+je START
+mov VP2, $RESULT
+gmemi VP2, MEMORYBASE
+mov VP2, $RESULT
+mov VPROTECTSTRING, $RESULT
+gmemi VPROTECTSTRING, MEMORYSIZE
+add VPROTECTSTRING, $RESULT
+findmem #5650726F7465637400#, VPROTECTSTRING
+cmp $RESULT, 00
+je START
+mov VP3, $RESULT
+gmemi VP3, MEMORYBASE
+mov VP3, $RESULT
+jmp START
+pause
+pause
+////////////////////
+TRACE:
+mov VP, $RESULT
+gmemi VP, MEMORYBASE
+mov VP, $RESULT
+////////////////////
+////////////////////
+////////////////////
+////////////////////
+////////////////////
+////////////////////
+////////////////////
+START:
+eval "CODE_{PROCESSNAME_2}"
+dm CODESECTION, CODESECTION_SIZE, $RESULT
+mov esp, espbak
+alloc 200000
+mov INFOSEC, $RESULT
+mov INFOSEC_2, $RESULT
+alloc 1000
+mov PATCHSEC, $RESULT
+mov PATCHSEC_2, $RESULT
+mov [PATCHSEC], CODESECTION
+mov [PATCHSEC+04], CODESECTION_SIZE
+add [PATCHSEC+04], CODESECTION
+sub [PATCHSEC+04], 10
+mov [PATCHSEC+08], VP
+gmemi VP, MEMORYSIZE
+mov [PATCHSEC+0C], $RESULT
+add [PATCHSEC+0C], VP
+// sub [PATCHSEC+0C], 10 // VP
+mov [PATCHSEC+10], VP2
+gmemi VP2, MEMORYSIZE
+mov [PATCHSEC+14], $RESULT
+add [PATCHSEC+14], VP2
+// sub [PATCHSEC+14], 10
+mov [PATCHSEC+18], VP3
+gmemi VP3, MEMORYSIZE
+mov [PATCHSEC+1C], $RESULT
+add [PATCHSEC+1C], VP3
+mov [PATCHSEC+20], VP4
+gmemi VP4, MEMORYSIZE
+mov [PATCHSEC+24], $RESULT
+add [PATCHSEC+24], VP4
+mov [PATCHSEC+28], MEMTEST
+gmemi MEMTEST, MEMORYSIZE
+mov [PATCHSEC+2C], $RESULT
+add [PATCHSEC+2C], MEMTEST
+sub [PATCHSEC+2C], 10
+// 30 is counter
+add PATCHSEC, 10
+mov [PATCHSEC+30]  , #606A0F596A085AE88D0000005411A1025411A101415411A1025411A1025411A1#
+mov [PATCHSEC+50]  , #41015411A141015411A141015411A1410F0F055244A1F11161041F1161F1625C#
+mov [PATCHSEC+70]  , #0AC105240411A10618A86221015261F13101210211025412025818A2C1110441#
+mov [PATCHSEC+90]  , #014202819106525472017102765977547458067A5F5F5F536453017652AFA15F#
+mov [PATCHSEC+B0]  , #5103516151720351615B7261576151635108715F5F51715E715F578A1E8A0747#
+mov [PATCHSEC+D0]  , #D4102AD873F75FAC86E03C0774183C04755180FC0F750383C75B80EC6580FC02#
+mov [PATCHSEC+0F0] , #77020AF4E2D4EB2D80FB40730780FC067502B380C0EB067A1102C380ECA080FC#
+mov [PATCHSEC+110] , #03770780F208740BD0EE66F7C20801750240402AC104103C10F50FB6C0894424#
+mov [PATCHSEC+130] , #1C61C332D03C09760224073C0572CC8B1E493C081C04A804740F2C03F6C33074#
+mov [PATCHSEC+150] , #0232C03C027402B208B40722E3F6C602759680E3C079047AB1404080FC047505#
+mov [PATCHSEC+170] , #40B40722E784DB758B80FC0575860404EB82#
+sub PATCHSEC, 10
+mov eip, PATCHSEC+200
+mov [eip] , #60A1AAAAAAAABFAAAAAAAABEBBBBBB0083C610BDBBBBBBBB897500897730897734806F341090908B5F048B173BC3747C777A8038E874088038E9740340EBE8608BF083C740FFD783F8050F85590000008B460183C00503C63BC2724D3BC3724983EF4060B90200000083C7083B07722E3B47047729618B6F30C7450001000000803EE87507C745000200000089750489450883C530896F30FE4738EB0C904983F9007402EBC361EB0061EB90619090909090909090#
+mov [eip+2] , PATCHSEC
+mov [eip+7] , PATCHSEC
+mov [eip+0C] , INFOSEC
+mov [eip+14] , INFOSEC
+bp PATCHSEC+2AD
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Disable all Olly exceptions + custom's too! {RN_2}Disable StrongOD - Skip some Exceptions {RN_2}PhantOm customs Ecxeptions too! {RN_2}{points} {RN_2}Then resume the script again {RN_2}{points} {RN}{ME}"
+msg $RESULT
+setoption
+pause
+/* 
+-----------------------------
+safety stop 1.1
+
+Just Resume The Script now
+
+Press Space Or Right Mouse Button And Choose The Resume Line If You Are Ready
+-----------------------------
+*/
+////////////////////
+RUN_SUCCESS:
+run
+bc
+cmp eip, PATCHSEC+2AD
+je SUCCESS
+mov eip, PATCHSEC+2AC  // popad
+mov bak, eip
+////////////////////
+SUCCESS_LOOP:
+sto
+cmp eip, bak
+je SUCCESS_LOOP
+mov esp, espbak
+mov eip, PATCHSEC+200
+fill INFOSEC, 200000, 00
+mov [PATCHSEC+30], 00
+mov [PATCHSEC+34], 00
+mov [PATCHSEC+38], 00
+bp PATCHSEC+2AD
+jmp RUN_SUCCESS
+////////////////////
+SUCCESS:
+fill PATCHSEC+218, 0A0, 90
+mov eip, PATCHSEC+200
+pusha
+mov eax, MEMTEST
+////////////////////
+RETLOOP:
+findop eax, #C20400#
+cmp $RESULT, 00
+je RET_MEM_END
+mov eax, $RESULT
+mov [eax], C3 ,01
+inc eax
+fill eax, 02, 90
+add eax, 02
+jmp RETLOOP
+////////////////////
+RET_MEM_END:
+popa
+// pause
+// pause
+mov INTERN, PATCHSEC+2A1
+mov STAP, [JMPSEC]
+eval "jmp {INTERN}"
+asm STAP, $RESULT
+// msg "Disable all exceptions also StrongOD / PhantOm customs Ecxeptions too!"
+// setoption
+mov [PATCHSEC+219] , #89773089673CBFAAAAAA0A8B673C8B77309090833E007443833E0174388B460483C0058B08894E1083C0048B08894E1483E803C600E98BC883C1058BD781C2000300002BD18950018B4604C6400590FFE0#
+mov [PATCHSEC+26A] , #909090908B4604FFE0909090908B5424FC89560C33D2EB03909090BFAAAAAA0A8B773083C630897730C74424FC00000000EB8290EBFB90BFAAAAAA0A8B7730833E0174C98B5424FC89560C33D28B46048B4E108B56148948058950098B0C242BC8894E10C7461400000000EBAE#
+mov [PATCHSEC+2D7] , #9090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090890424894C240489542408895C240C896C241089742414897C241890#
+mov [PATCHSEC+325] , #BFAAAAAA0A8B77308B46048B4E108B56148948058950098B4C24FC2BC8894E10C74614000000008B04248946148B4424048946188B44240889461C8B44240C8946208B4424108946248B4424148946288B44241889462CC7060300000033C033C933D233DB33ED33F633FFE940FFFFFF909090#
+mov [PATCHSEC+274] , 61, 01
+mov [PATCHSEC+220] , PATCHSEC
+mov [PATCHSEC+286] , PATCHSEC
+mov [PATCHSEC+2A2] , PATCHSEC
+mov [PATCHSEC+326] , PATCHSEC
+mov [PATCHSEC+2CB] , #83F906770C894E10C7461400000000EBA98B4C24042BC8EBEC90#
+mov REM, PATCHSEC+2DA
+mov TEM, PATCHSEC+390
+eval "jmp {REM}"
+asm TEM, $RESULT
+// pause
+////////////////////
+LOOP_AROUND:
+bp PATCHSEC+275
+run
+bc
+cmp eip, PATCHSEC+275
+je PATCH_LOOP_END
+mov eip, PATCHSEC+2A1
+MOV edi, PATCHSEC
+MOV esp, [edi+3C]
+bp PATCHSEC+29B
+run
+bc
+mov [esi-2F], ffffff, 03
+inc NONFIXED
+jmp LOOP_AROUND
+////////////////////
+PATCH_LOOP_END:
+eval "Found {NONFIXED} commands API or SDK!Need to fix them later or manually!"
+log $RESULT, ""
+// pause
+eval "CODE_{PROCESSNAME_2}"
+lm CODESECTION, CODESECTION_SIZE, $RESULT
+// pause
+////////////////////
+alloc 2000
+mov FAKESEC,   $RESULT
+mov FAKESEC_2, $RESULT
+mov [FAKESEC], FAKESEC+10
+///////////////////////
+CHECK_ALL_LOG_INFOS_AND_WRITE_PATCH:
+call DLL_RELOAD
+call DELETE_OLD_FILES
+call LOAD_SECS
+fill PATCHSEC+219, 200, 00
+mov eip, PATCHSEC+200
+mov [PATCHSEC+800], #558BEC6AFF602BC0648B58308B5B0C8B5B0C8BFB8B531883FA00744981FAAAAAAAAA743B8B4B203B55087F3303CA3B4D087C2C8345FC038B423C03C28B4878E32403CA8B711C03F28B4914E318FE4DFCAD03C23B4508740DE2F6FE4DFCEB068B1B3BDF75AF6158C9C2040090#
+mov [PATCHSEC+81E], IMAGEBASE
+mov API, PATCHSEC+800
+alloc 3000 
+mov STOREMEM, $RESULT
+mov STOREMEM_2, $RESULT
+mov [PATCHSEC+38], 00
+alloc 30000
+mov DATAS, $RESULT
+mov DATAS_2, $RESULT
+mov [DATAS], DATAS+10
+alloc 2000
+mov NEWDATA, $RESULT
+mov NEWDATA_2, $RESULT
+mov [NEWDATA], INFOSEC            // LOG Controll stuff
+mov [NEWDATA+04], PATCHSEC        // Patchsec
+mov [NEWDATA+08], [PATCHSEC+28]   // MEMTEST APIs sec start
+mov [NEWDATA+0C], [PATCHSEC+2C]   // MEMTEST sec end
+mov [NEWDATA+10], STOREMEM
+mov [NEWDATA+14], DATAS
+mov [NEWDATA+18], IATBAK
+mov [NEWDATA+1C], TABLEBAK
+mov [NEWDATA+20], PATCHSEC+800    // API check
+mov [NEWDATA+24], FAKESEC
+// +28 = counter
+// +2C = esp wert
+// +30 = 1 2 3 4 reg
+// +34 = esp wert
+// FAKESEC
+mov [PATCHSEC+219], #BFAAAAAAAA89672C#
+mov [PATCHSEC+221], #BFAAAAAAAAFE47288B078B008B77188B672C8B7F1C8338000F8433040000813802FFFFFF0F8410040000813801FFFFFF0F84FD0300008B0880F9020F841600000080F9010F848E00000080F9030F84AB00000090909090#
+mov [PATCHSEC+278], #8B48048B50088B580C6053E833B92ABA83F801740883F8027403619090618B681083FD060F843A00000083FD050F840100000090#
+mov [PATCHSEC+2AC], #891EC601E8C7410100000000893C24290C24802C24058B2C24896901C707FF25000089770283C60883C706E950030000C701FF150000C7410200000000891E89710283C608E936030000909090#
+mov [PATCHSEC+2F9], #8B48048B50088B580C6053E8B2B82ABA83F8010F846902000083F8020F846002000061909090#
+mov [PATCHSEC+31F], #8B48048B5008BD00000000890424894424046083C014458B1853E87DB82ABA83F8010F841101000080442420048B44242083FD070F85D9FFFFFF6189042489442404BD000000006083C014458B1881FBCCCCCCCC0F82C800000081FBDDDDDDDD0F87BC000000#
+mov [PATCHSEC+385], #8BD3B900000000B8000000004241803AC375F9B907000000B8EEEEEEEE8B008B3B893883C30483C004A3000097014983F90075E483EB1CC7028B142489C742041690909066C74205FF25C74207EF039101C705EF039101F4039101892DFFFFFFFF8925AAAAAAAAFFE3#
+mov [PATCHSEC+3EE], #90909090909090909090909090909090909083E81CC70424000000008B08890B83C30483C004FE0424803C240775ED8B2DAAAAAAAA8B25BBBBBBBB896C2430EB2F#
+mov [PATCHSEC+42F], #90909090909090909090909090909090EB1780442420048B44242083FD070F8514FFFFFF9090909090891E896C243083FD01742083FD02741B83FD03741683FD04741183FD05740C83FD06740783FD0774029090#
+mov [PATCHSEC+483], #618B681083FD06745483FD0574059090909090837C241001742DC70190909090E8110100008B6C24108929C641040066C707FF2589770289790183C70683C608E9640100009090C701A1000000C641040089710183C608E94D01000090#
+mov [PATCHSEC+4E0], #837C241001742D837C2410027430837C2410037433837C2410047436837C2410057439837C241006743C837C241007743F909090C7442410B8050000EB3CC7442410B80D0000EB32C7442410B8150000EB28C7442410B81D0000EB1EC7442410B82D0000EB14C7442410B8350000EB0AC7442410B83D0000EB00C7019090909066C7410490908B5424108911897102891E83C608E9B3000000#
+mov [PATCHSEC+579], #9090618B681083FD050F8424FDFFFF83FD000F840E0000009090909090909090909090909090891EC701FF250000C641050089710283C608E976000000909090837C241401742C837C241402742E837C2414037430837C2414047432837C2414057434837C2414067436837C2414077438#
+mov [PATCHSEC+5EA], #9090C7442414B8000000C3C7442414B9000000C3C7442414BA000000C3C7442414BB000000C3C7442414BD000000C3C7442414BE000000C3C7442414BF000000C390C74424100000000083C030BDCCCCCCCC897518897D1CA3DDDDDDDDBD00000000E9D0FBFFFF#
+mov [PATCHSEC+651], #90909090909090909090BDCCCCCCCC8BCD8B6D0089450083C5048929E9BAFFFFFF9090906190909090#
+mov [PATCHSEC+21A], NEWDATA
+mov [PATCHSEC+222], NEWDATA
+eval "call {API}"
+asm PATCHSEC+283, $RESULT
+eval "call {API}"
+asm PATCHSEC+304, $RESULT
+eval "call {API}"
+asm PATCHSEC+339, $RESULT
+mov [PATCHSEC+36F], MEMTEST
+mov [PATCHSEC+37B], MEMTEST
+gmemi MEMTEST, MEMORYSIZE
+add [PATCHSEC+37B], $RESULT
+sub [PATCHSEC+37B], 10
+mov [PATCHSEC+39E], DATAS
+mov [PATCHSEC+3AF], DATAS
+mov [PATCHSEC+41F], NEWDATA+30
+mov [PATCHSEC+425], NEWDATA+34
+mov [PATCHSEC+638], NEWDATA
+mov [PATCHSEC+643], INFOSEC
+mov [PATCHSEC+65C], FAKESEC
+mov [PATCHSEC+3D2], PATCHSEC+3EF
+mov [PATCHSEC+3D8], PATCHSEC+3EF
+mov [PATCHSEC+3DC], PATCHSEC+3F4
+mov [PATCHSEC+3E2], NEWDATA+30
+mov [PATCHSEC+3E8], NEWDATA+34
+mov [PATCHSEC+67C], #90E86CA719A983F8010F84CDFDFFFF83F8020F84C4FDFFFFE9AEFCFFFF90#
+eval "call {API}"
+asm PATCHSEC+67D, $RESULT
+fill PATCHSEC+339, 0E, 90 
+mov [PATCHSEC+339], #E93F03000090#
+mov [PATCHSEC+226], FF, 01  // DWORD
+mov [PATCHSEC+2BE], 83, 01  // SUB with DWORD not BYTES!
+// register dword repair
+mov [PATCHSEC+514], #C74424108B050000EB3CC74424108B0D0000EB32C74424108B150000EB28C74424108B1D0000EB1EC74424108B2D0000EB14C74424108B350000EB0AC74424108B3D0000EB00#
+// register API writer weg is already above
+mov [PATCHSEC+56F], 9090 ,02
+// add byte to dword
+mov [PATCHSEC+347], 83, 01
+// add byte to dword
+mov [PATCHSEC+441], 83, 01
+// controll check for memsec 00 bytes
+mov [PATCHSEC+385], #E9100300009090#
+mov [PATCHSEC+69A], #833B000F849EFDFFFF8BD3B900000000E9DDFCFFFF90#
+//////////////////////////
+// ReFix for Memsec copy
+mov [PATCHSEC+399], 0A, 01
+mov [PATCHSEC+3BB], 28, 01
+mov [PATCHSEC+402], 28, 01
+mov [PATCHSEC+41A], 0A, 01
+// Control API check in EBX after 2 unsuccessfully loops
+mov [PATCHSEC+453], #E958020000#
+mov [PATCHSEC+6B0], #53E84A01000083F8010F8499FDFFFF83F8020F8490FDFFFF61EB9090#
+//////////////////////////
+bp PATCHSEC+672 // ForEND
+cmt PATCHSEC+672, "ForEND"
+bp PATCHSEC+676 // END
+cmt PATCHSEC+676, "END"
+bp PATCHSEC+293 // NO API IN!
+bp PATCHSEC+2AB // No 5 & 6 byte command
+bp PATCHSEC+31C // NO API IN!
+bp PATCHSEC+481 // NO REG IN!EAX etc
+bp PATCHSEC+491 // NO size in?Check this later
+bp PATCHSEC+511 // NO REG IN!EAX etc
+bp PATCHSEC+5EA // NO REG IN!EAX etc
+// pause
+////////////////////
+RUN_ME:
+run
+cmp eip, PATCHSEC+672
+je PATCHENDE
+cmp eip, PATCHSEC+2AB
+jne NEXT_ONE
+mov eip, PATCHSEC+654  // Maybe Fake command or SDK
+jmp RUN_ME
+////////////////////
+NEXT_ONE:
+cmp eip, PATCHSEC+293
+mov eip, PATCHSEC+654
+jmp RUN_ME
+////////////////////
+PATCHENDE:
+// pause
+dec [NEWDATA+28]
+bc eip
+cmp eip, PATCHSEC+672
+je ALL_OK_SO_FAR
+////////////////////
+ALL_OK_SO_FAR:
+run
+bc
+// FAKESEC
+pusha
+mov ebx, 00
+mov eax, FAKESEC
+add eax, 10
+cmp [eax], 00
+je NO_EXTRA_FIX_NEED
+inc ebx
+////////////////////
+EXTRA_COMMAND_CHECK_LOOP:
+mov ecx, [eax]
+mov [ecx], ecx
+mov edx, [ecx+4]
+eval "{edx} | Not fixed try next time again!"
+log $RESULT, ""
+eval "{edx}"
+wrta sFile3, $RESULT
+add eax, 4
+cmp [eax], 00
+je YES_EXTRA_FIX_NEED
+inc ebx
+jmp EXTRA_COMMAND_CHECK_LOOP
+////////////////////
+NO_EXTRA_FIX_NEED:
+log "There are no more API commands to fix!"
+mov NOFIX, 01
+jmp IAT_DATA_LOGS
+pause
+pause
+////////////////////
+YES_EXTRA_FIX_NEED:
+eval "There are still >>> {ebx} <<< hex API or SDK commands to fix!"
+log $RESULT, ""
+mov NOFIX, 00
+wrt sFile3, " "
+pusha
+mov eax, FAKESEC
+add eax, 10
+mov edi, 00  // APIs
+mov esi, 00  // SDK
+mov ebp, 00  // FAKE
+log ""
+////////////////////
+CHECKUP_LOOP:
+cmp [eax], 00
+je FAKES_FIXED
+mov ecx, [eax]
+mov edx, [ecx+4]  // code call
+mov ebx, [ecx+8]  // call of code call
+cmp [ebx], 0424648D  // SDK
+je YES_SDK
+// cmp [ebx], E8, 01
+// je YES_API
+cmp [ebx], 00, 01
+je FAKES_API
+cmp [ebx], 00, 01
+je FAKES_API
+cmp [edx], E8, 01
+je CHECK_VM_SIGN
+// TEST
+cmp [edx], E9, 01
+je CHECK_VM_SIGN
+jmp FAKES_API
+pause
+pause
+////////////////////
+CHECK_VM_SIGN:
+cmp [ebx], E8, 01
+je CHECK_VM_SIGN_2
+// TEST
+jmp FAKES_API
+pause
+pause
+////////////////////
+CHECK_VM_SIGN_2:
+gci ebx, DESTINATION
+cmp [$RESULT], 0424648D
+je YES_API
+pause
+pause
+////////////////////
+FAKES_API:
+mov [eax], -1 // Fake
+add eax, 04
+inc ebp
+jmp CHECKUP_LOOP
+////////////////////
+YES_SDK:
+eval "bp {edx}"
+wrta sFile5, $RESULT
+mov [eax], -2 // SDK FFFFFFFE
+add eax, 04
+inc esi
+mov SDK_IN, 01
+jmp CHECKUP_LOOP
+////////////////////
+YES_API:
+eval "{edx}"
+wrta sFile3, $RESULT
+add eax, 04
+inc edi
+jmp CHECKUP_LOOP
+////////////////////
+FAKES_FIXED:
+log ""
+eval "Found not fixed {edi} API's"
+log $RESULT, ""
+eval "Found possible not fixed {esi} SDK's"
+log $RESULT, ""
+eval "Found {ebp} zero API Fake pointer's = No APIs = Trash code"
+log $RESULT, ""
+log ""
+log "New LOG files was written!"
+log ""
+popa
+////////////////////
+TRY_TO_FIX_THE_REST_APIS:
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Now Enable >>> ONLY <<< Olly's custom exceptions again! {RN_2}00000000-FFFFFFFF {RN_2}{points} {RN}{ME}"
+msg $RESULT
+// msg "Enable Ollys custom exceptions 00000000-FFFFFFFF"
+setoption
+pusha
+mov eax, FAKESEC
+add eax, 10
+mov edi, 00  // APIs
+mov esi, 00  // SDK
+mov ebp, 00  // FAKE
+mov bakeip2, eip
+log ""
+add FAKESEC, 10
+call SET_KI_PATCH
+call ALLOC_VM_MARKER
+call FIND_BP_DETECT
+// +++++
+////////////////////
+CHECKUP_LOOP_2:
+// MACHET
+cmp [eax], 00
+je FAKES_FIXED_2
+cmp [eax], -1
+je ADD_EAX_4
+cmp [eax], -2
+je ADD_EAX_4
+mov ecx, [eax]
+mov edx, [ecx+4]
+mov ebx, [ecx+8]
+mov eip, edx
+add eip, 05
+readstr [eip], 08
+mov RECODE, $RESULT
+buf RECODE
+mov [eip], 9090, 02
+sub eip, 05
+mov A, eip
+call SET_ESP_DBOMT
+bp eip+05
+bp eip+06
+bprm MEMTEST, MEMSIZE
+// bp KiUserExceptionDispatcher
+bp KI_STOP
+// cmp eip, KiUserExceptionDispatcher
+cmp VM_CHECKEND, 01
+je ALREADY_CHECKED
+call VM_MARKER
+////////////////////
+ALREADY_CHECKED:
+cmp BP_SETTED, 01
+je ALREADY_CHECKED_2
+call BP_VM_MARKER
+////////////////////
+ALREADY_CHECKED_2:
+call SET_REGISTER
+mov VM_LOG_START, esp
+mov VM_LOG_END, esp
+sub VM_LOG_END, 30
+cmp ACCESSVIO, 00
+jne RUN_VM_API_LOOP
+alloc 1000
+mov ACCESSVIO, $RESULT
+mov ACCESSVIO_2, $RESULT
+// ++++
+////////////////////
+RUN_VM_API_LOOP:
+mov API, 00
+////////////////////
+RUN_VM_API_LOOP_1:
+esto
+cmp eip, KI_STOP
+jne NEXT_STOP_CHECK
+jmp ACCESS_VIO_NOW
+////////////////////
+ACCESS_VIO_NOW:
+cmp VIOLOOP, 01
+jne ACCESS_VIO_NOW_2
+mov VIO_END_CHECK, 01
+// MACHET
+pusha
+mov eax, [VM_LOG_END]
+gn eax
+cmp $RESULT_2, 00
+jne API_INTO_DAT
+////////////////////
+NO_API_IN_LOG_SENF:
+gmemi eax, MEMORYBASE
+cmp $RESULT, MEMTEST
+je NO_API_IN_LOG
+popa
+cmp eip, KI_STOP
+je SENFER
+pause
+pause
+pause
+////////////////////
+API_INTO_DAT:
+mov API, eax
+bc
+bp API
+mov eip, A
+call SET_ESP_DBOMT
+bp eip+05
+bp eip+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+call SET_REGISTER
+mov VM_LOG_START, esp
+mov VM_LOG_END, esp
+sub VM_LOG_END, 30
+esto
+cmp eip, API
+je ENABLE_VM_BPS
+// MACHET <-- NEU bis hier
+////////////////////
+SENFER:
+pusha
+mov eax, 00
+add MAKERSEC, BP_VM_COUNTERS
+mov eax, MAKERSEC
+mov eax, [eax]
+cmp eax, 00
+je BP_VM_LOOP_END
+bc eax
+mov tmp, eax
+mov BP_VM_COUNTERS, 04
+popa
+mov eip, A
+call SET_ESP_DBOMT
+bp eip+05
+bp eip+06
+bprm MEMTEST, MEMSIZE
+bp KI_STOP
+call SET_REGISTER
+mov VM_LOG_START, esp
+mov VM_LOG_END, esp
+sub VM_LOG_END, 30
+mov API, 00
+esto
+bp tmp
+//////////////////////////////////////
+pusha
+mov eax, [VM_LOG_END]
+gn eax
+cmp $RESULT_2, 00
+je NO_API_IN_LOG
+mov API, eax
+bc
+bp API
+mov eip, A
+call SET_ESP_DBOMT
+bp eip+05
+bp eip+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+call SET_REGISTER
+mov VM_LOG_START, esp
+mov VM_LOG_END, esp
+sub VM_LOG_END, 30
+esto
+////////////////////
+API_STOP_CHECK:
+cmp eip, API
+je ENABLE_VM_BPS
+pause
+pause
+pause
+////////////////////
+ENABLE_VM_BPS:
+bc eip
+mov BP_VM_COUNTERS, 00
+mov MAKERSEC, MAKERSEC_2
+call BP_VM_MARKER
+jmp HWBP_STOPER
+jmp NO_MEM_INTO
+////////////////////
+NO_API_IN_LOG:
+gmemi eax, MEMORYBASE
+cmp $RESULT, MEMTEST
+jne NO_MEM_INTO
+mov API, eax
+// pause
+// pause
+bc
+bp API
+bp A+05
+bp A+06
+bp KI_STOP
+mov eip, A
+call SET_ESP_DBOMT
+call SET_REGISTER
+esto
+cmp eip, API
+// MEM HERE
+je MEMSTOPING
+pause
+pause
+pause
+pause
+// MEMFOUND
+////////////////////
+NO_MEM_INTO:
+cmp eip, KI_STOP
+je ACCESS_VIO_NOW
+mov BP_VM_COUNTERS, 00
+mov MAKERSEC, MAKERSEC_2
+mov [FAKESEC], -3 
+// call BP_VM_MARKER
+jmp NEXT_STOP_CHECK
+////////////////////
+BP_VM_LOOP_END:
+mov MAKERSEC, MAKERSEC_2
+mov BP_VM_COUNTERS,00
+//////START/////////     // START
+cmp VM_FIRST, 01         // EXTRA LOG SINGLE VM MARKER
+je VM_MARKER_FOUND
+pause
+jmp LAST_WAY_TRY
+pause
+pause
+////////////////////
+VM_MARKER_FOUND:
+mov VM_JUMP, 01
+pusha
+mov eax, VM_MAKER_SEC_2
+cmp [eax], 00
+jne MARKER_THERE
+// pause
+// pause
+// pause
+// pause
+////////////////////
+// NEW TEST
+////////////////////
+// MACHET
+LAST_WAY_TRY:
+mov LOG, 00
+mov LOG_IN, 00
+pusha
+////////////////////
+ENTER_REG:
+mov eax, 00
+mov ecx, 00
+mov eax, MAKERSEC
+mov ecx, [eax]
+cmp ecx, 00
+jne YES_MORE_BP
+inc ROUND_A
+gmemi MAKERSEC, MEMORYBASE
+mov MAKERSEC, $RESULT
+// MACHETNEW
+cmp ROUND_A, 04
+jne ENTER_REG
+log ""
+log "WARNING!"
+log ""
+eval "Can not fix this API at {A} <--- Try manually later!"
+msg $RESULT
+eval "Can not fix this API at {A} <--- Try manually later!"
+log $RESULT, ""
+log ""
+bc
+call SET_ESP_DBOMT
+call SET_REGISTER
+gmemi MAKERSEC, MEMORYBASE
+mov MAKERSEC, $RESULT
+call BP_VM_MARKER
+eval "{A}"
+wrta sFile6, $RESULT
+mov WARN, 01
+jmp ADD_EAX_4
+pause
+pause
+jmp ENTER_REG
+pause
+pause
+pause
+////////////////////
+YES_MORE_BP:
+bp ecx
+add MAKERSEC ,04
+popa
+mov eip, A
+call SET_ESP_DBOMT
+call SET_REGISTER
+bp A+05
+bp A+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+esto
+cmp eip, KI_STOP
+je KI_HOLD
+bc
+GCMT eip
+cmp $RESULT, "VM"
+jne LAST_IT
+gmemi MAKERSEC, MEMORYBASE
+mov MAKERSEC, $RESULT
+call BP_VM_MARKER
+jmp VM_API_MEM_STOP
+////////////////////
+LAST_IT:
+jmp LAST_WAY_TRY
+////////////////////
+KI_HOLD:
+bc
+mov LOG, [esp]
+mov LOG, [LOG+0C]
+gmi LOG, NAME
+mov LOG_IN, $RESULT
+gmi CODESECTION, NAME
+cmp LOG_IN, $RESULT
+je LAST_WAY_TRY
+refresh LOG
+////////////////////
+ANALYZE_MODULE:
+gn LOG
+cmp $RESULT, 00
+jne API_FOUND_THIS_WAY
+preop LOG
+mov LOG, $RESULT
+jmp ANALYZE_MODULE
+////////////////////
+API_FOUND_THIS_WAY:
+mov API, LOG
+bc
+mov A, eip
+call SET_ESP_DBOMT
+call SET_REGISTER
+bp A+05
+bp A+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+bp API
+esto
+cmp eip, API
+je FOUND_OK
+pause
+pause
+pause
+pause
+////////////////////
+FOUND_OK:
+bc API
+bc eip
+gmemi MAKERSEC, MEMORYBASE
+mov MAKERSEC, $RESULT
+call BP_VM_MARKER
+jmp API_THERE
+call BP_VM_MARKER
+// EXPERIMENTAL SINGLE VM BP SOLO FROM 1. SEC <-- Geht net
+cmp BP_VM_CHECKED, 01
+je BP_VM_CHECKED_FOUND
+pause
+pause
+pause
+////////////////////
+BP_VM_CHECKED_FOUND:
+bc
+bphwc
+mov eip, A
+call SET_ESP_DBOMT
+call SET_REGISTER
+mov VM_LOG_START, esp
+mov VM_LOG_END, esp
+sub VM_LOG_END, 30
+bp eip+05
+bp eip+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+call SET_BP_DETECT
+////////////////////
+BP_RUN_LOOP:
+esto
+GCMT eip
+cmp $RESULT, "BP"
+je COMMENT_FOUND
+pause
+pause
+pause
+cmp eip, KI_STOP
+////////////////////
+COMMENT_FOUND:
+pusha
+mov eax, [VM_LOG_END]
+gn eax
+cmp $RESULT_2, 00
+je NO_API_FOUND_IN_STACK
+mov API, eax
+popa
+bc
+bp API
+mov eip, A
+call SET_ESP_DBOMT
+bp eip+05
+bp eip+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+call SET_REGISTER
+mov VM_LOG_START, esp
+mov VM_LOG_END, esp
+sub VM_LOG_END, 30
+esto
+cmp eip, API
+je ENABLE_VM_BPS
+pause
+pause
+pause
+pause
+////////////////////
+NO_API_FOUND_IN_STACK:
+gmemi eax, MEMORYBASE
+cmp $RESULT, MEMTEST
+jne NO_MEM_INTO_HERE
+mov API, eax
+popa
+pause
+bc
+bp API
+bp A+05
+bp A+06
+bp KI_STOP
+esto
+cmp eip, API
+// MEM HERE
+je MEMSTOPING
+pause
+pause
+pause
+pause
+// MEMFOUND
+////////////////////
+NO_MEM_INTO_HERE:
+popa
+jmp 
+pause
+pause
+pause
+////////////////////////////////////////////////
+////////////////////
+MARKER_THERE:
+bc
+bp A+05
+bp A+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+////////////////////
+VM_MARKER_FOUND_2:
+cmp [eax], 00
+je ALL_SETET
+bp [eax]
+add eax, 04
+jmp VM_MARKER_FOUND_2
+////////////////////
+ALL_SETET:
+popa
+mov eip, A
+call SET_ESP_DBOMT
+call SET_REGISTER
+mov VM_LOG_START, esp
+mov VM_LOG_END, esp
+sub VM_LOG_END, 30
+mov API, 00
+esto                         // AFTER BP SET
+//////////////After Run////////////
+GCMT eip
+cmp $RESULT, "VM"
+je VM_API_MEM_STOP_2    // 1  OK
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je CODE_STOP_A
+//  NO_MEM_INTO_2
+cmp eip, KI_STOP        // check stack
+je KI_STOP_A
+gmemi eip, MEMORYBASE
+cmp $RESULT, MEMTEST
+je MEM_WAS_STOPPED
+pause
+pause
+pause
+////////////////////
+CODE_STOP_A:
+// MACHETNEW
+// pause
+mov NEW_RG, 01
+mov ADDRESS, eip
+call BP_VM_MARKER
+call REGISTER_CHECKO
+pusha 
+mov eax, [VM_LOG_END]
+cmp eax, 00
+je NO_VM_MARKER_IN_HERE
+GCMT eax
+cmp $RESULT, "VM"
+jne NO_VM_MARKER_IN_HERE
+bc
+bp eax
+popa
+mov eip, A
+call SET_ESP_DBOMT
+call SET_REGISTER
+bp eip+05
+bp eip+06
+bp KI_STOP
+esto
+GCMT eip
+cmp $RESULT, "VM"
+je VM_API_MEM_STOP_2
+////////////////////
+NO_VM_MARKER_IN_HERE:
+// MACHETNEW
+// pause
+// pause
+// SEND TARGET TO LCF-AT!
+// 
+popa
+mov MORE_LOOP, 01
+bc
+mov eip, A
+mov [eip+05], RECODE
+call SET_ESP_DBOMT
+call SET_REGISTER
+call BP_VM_MARKER
+jmp NORMAL_BPS
+////////////////////
+KI_STOP_A:
+pusha
+mov eax, [VM_LOG_END]
+gn eax
+cmp $RESULT_2, 00
+je NO_API_IN_LOG_2
+mov API, eax              // API IN
+popa
+bc
+bp A+05
+bp A+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+call SET_ESP_DBOMT
+call SET_REGISTER
+call BP_VM_MARKER
+mov A, eip
+esto
+call BP_VM_MARKER
+jmp API_STOP_CHECK
+////////////////////
+NO_API_IN_LOG_2:
+gmemi eax, MEMORYBASE
+cmp $RESULT, MEMTEST
+jne NO_MEM_INTO_2
+mov API, eax           // MEM IN
+bc
+bp A+05
+bp A+06
+bp KI_STOP
+bprm MEMTEST, MEMSIZE
+bp API
+esto
+cmp eip, API    // MEM
+je MEM_WAS_STOPPED
+pause
+pause
+pause
+////////////////////
+MEM_WAS_STOPPED:
+bc eip
+call BP_VM_MARKER
+jmp MEMSTOPING
+pause
+pause
+////////////////////
+NO_MEM_INTO_2:
+popa                  // MAKE BP LOOP
+bc
+add VM_MAKER_SEC_2, 04
+bp A+05
+bp A+06
+bp KI_STOP
+mov eip, A
+bprm MEMTEST, MEMSIZE
+call SET_ESP_DBOMT
+call SET_REGISTER
+// call BP_VM_MARKER
+jmp VM_MARKER_FOUND
+////////////////////
+VM_API_MEM_STOP_2:
+bc
+// call SET_ESP_DBOMT
+// call SET_REGISTER
+call BP_VM_MARKER
+jmp VM_API_MEM_STOP
+pause
+////////////////////
+ACCESS_VIO_NOW_2:
+bphwc
+mov eip, A
+bc eip+05
+bc eip+06
+mov [eip+05], RECODE
+mov eax, FAKESEC
+mov [ACCESSVIO], [eax]
+add ACCESSVIO, 04
+mov VIO, 01
+jmp ADD_EAX_4
+// ---------------------2
+pause
+pause
+////////////////////
+EXCEP_INT3:
+////////////////////
+EXCEP_INT4:
+pusha
+mov eax, [VM_LOG_END]
+gmemi eax, MEMORYBASE
+cmp $RESULT, MEMTEST
+je MEM_API_HOLDER
+gn eax
+cmp $RESULT_2, 00
+jne DIRECT_API_HOLDER
+popa
+jmp RUN_VM_API_LOOP_1
+////////////////////
+DIRECT_API_HOLDER:
+mov API, eax
+bphws API, "x"
+popa
+jmp RUN_VM_API_LOOP
+bc eip
+esto
+GCMT eip
+cmp $RESULT, "VM"
+je VM_API_MEM_STOP
+cmp eip, API
+je API_THERE
+pause
+pause
+pause
+////////////////////
+MEM_API_HOLDER:
+bphws eax, "x"
+popa
+jmp RUN_VM_API_LOOP_1
+// --------------------------2
+////////////////////
+// NO_KI_STOP
+////////////////////
+NEXT_STOP_CHECK:
+GCMT eip
+cmp $RESULT, "VM"
+je VM_API_MEM_STOP
+//pause
+gbpr
+// cmp $RESULT, 40
+// je HWBP_STOPER
+cmp $RESULT, 20
+je MEMSTOPING
+// pause
+cmp $RESULT, 10
+je NORMAL_BPS
+pause
+pause
+pause
+////////////////////
+VM_API_MEM_STOP:
+cmp VM_JUMP, 01
+je NO_LOG_HERE
+call LOG_VM_MARKER
+// +++++
+////////////////////
+NO_LOG_HERE:
+bphwc
+// bc
+mov LOOP, eip
+////////////////////
+ROUNDER_1:
+rtr
+cmp LOOP, eip
+je ROUNDER_1
+mov LOOP, eip
+////////////////////
+ROUNDER_2:
+sti
+cmp LOOP, eip
+je ROUNDER_2
+gmemi eip, MEMORYBASE
+cmp $RESULT, MEMTEST
+je MEM_API_EXE
+gn eip
+cmp $RESULT_2, 00
+jne DIRECT_API_FOUND_EIP
+refresh eip
+gn eip
+cmp $RESULT_2, 00
+jne DIRECT_API_FOUND_EIP
+gmemi eip, MEMORYBASE
+cmp $RESULT, CODESECTION
+je NORMAL_BPS
+pause
+pause
+pause
+////////////////////
+DIRECT_API_FOUND_EIP:
+////////////////////
+HWBP_STOPER:
+bphwc
+mov API, eip
+// bc
+jmp API_THERE
+////////////////////
+MEM_API_EXE:
+gmemi eip, MEMORYBASE
+cmp $RESULT, MEMTEST
+je ITS_MEM
+pause
+pause
+////////////////////
+ITS_MEM:
+bphwc
+jmp MEMSTOPING
+gbpr
+cmp $RESULT, 20
+je MEMSTOPING
+cmp $RESULT, 10
+je NORMAL_BPS
+pause
+pause
+pause
+////////////////////
+NORMAL_BPS:
+bphwc
+// bc
+mov ADDRESS, eip           // stopper
+////////////////////
+CODE_COMMAND:
+////////////////////
+REGISTER_CHECKO:
+gn eax
+cmp $RESULT_2, 00
+jne EAX
+gn ecx
+cmp $RESULT_2, 00
+jne ECX
+gn edx
+cmp $RESULT_2, 00
+jne EDX
+gn ebx
+cmp $RESULT_2, 00
+jne EBX
+gn ebp
+cmp $RESULT_2, 00
+jne EBP
+gn esi
+cmp $RESULT_2, 00
+jne ESI
+gn edi
+cmp $RESULT_2, 00
+jne EDI
+////////////////////
+GET_MEM_CHECK:
+mov stap, eax
+mov com, "eax"
+gmemi eax, MEMORYBASE
+cmp $RESULT, MEM
+je MEMBASE
+mov stap, ecx
+mov com, "ecx"
+gmemi ecx, MEMORYBASE
+cmp $RESULT, MEM
+je MEMBASE
+mov stap, edx
+mov com, "edx"
+gmemi edx, MEMORYBASE
+cmp $RESULT, MEM
+je MEMBASE
+mov stap, ebx
+mov com, "ebx"
+gmemi ebx, MEMORYBASE
+cmp $RESULT, MEM
+je MEMBASE
+mov stap, ebp
+mov com, "ebp"
+gmemi ebp, MEMORYBASE
+cmp $RESULT, MEM
+je MEMBASE
+mov stap, esi
+mov com, "esi"
+gmemi esi, MEMORYBASE
+cmp $RESULT, MEM
+je MEMBASE
+mov stap, edi
+mov com, "edi"
+gmemi edi, MEMORYBASE
+cmp $RESULT, MEM
+je MEMBASE
+
+cmp NEW_RG, 01
+jne PROBELM
+ret
+pause
+////////////////////
+PROBELM:
+pause
+// SEND TARGET TO LCF-AT
+pause
+pause
+////////////////////
+MEMBASE:
+mov zap, eip
+mov eip, stap
+////////////////////
+LOOP3:
+rtr
+cmp eip, stap
+je LOOP3
+mov API, [esp]
+mov eip, zap
+jmp NEXT
+////////////////////
+EAX:
+mov API, eax
+mov com, "eax"
+jmp NEXT
+////////////////////
+ECX:
+mov API, ecx
+mov com, "ecx"
+jmp NEXT
+////////////////////
+EDX:
+mov API, edx
+mov com, "edx"
+jmp NEXT
+////////////////////
+EBX:
+mov API, ebx
+mov com, "ebx"
+jmp NEXT
+////////////////////
+EBP:
+mov API, ebp
+mov com, "ebp"
+jmp NEXT
+////////////////////
+ESI:
+mov API, esi
+mov com, "esi"
+jmp NEXT
+////////////////////
+EDI:
+mov API, edi
+mov com, "edi"
+jmp NEXT
+////////////////////
+NEXT:
+pusha
+mov eax, API
+mov ecx, ADDRESS
+mov edx, A
+sub ecx, edx
+mov eip, A
+bc eip+05
+bc eip+06
+mov [eip+05], RECODE
+mov esi, [NEWDATA+18]
+mov edi, [NEWDATA+1C]
+mov [esi], API
+cmp ecx, 06
+je MOV_REG_DWORD_API
+cmp ecx, 05
+je WRITE_WITH_5_BYTES
+pause
+pause
+pause
+////////////////////
+WRITE_WITH_5_BYTES:
+cmp com, "eax"
+je eax_shorter
+fill eip, 05, 90
+eval "mov {com},{edi}"
+asm A, $RESULT,1
+gci eip, SIZE
+cmp $RESULT, 05
+je 5_BYTES_OK_HERE
+pause
+pause
+pause
+////////////////////
+5_BYTES_OK_HERE:
+eval "jmp dword ptr ds: [{esi}]"
+asm edi, $RESULT
+add edi, 06
+jmp 5_BYTES_IN
+////////////////////
+eax_shorter:
+fill eip, 05, 90
+eval "mov {com},dword ptr ds: [{esi}]"
+asm A, $RESULT,1
+gci eip, SIZE
+cmp $RESULT, 05
+je 5_BYTES_IN
+pause
+pause
+pause
+////////////////////
+MOV_REG_DWORD_API:
+// +++++
+fill eip, 06, 90
+eval "mov {com},dword ptr ds:[{esi}]"
+asm A, $RESULT
+gci eip, SIZE
+cmp $RESULT, 06
+je 6_BYTES_IN
+pause
+pause
+pause
+////////////////////
+5_BYTES_IN:
+6_BYTES_IN:
+add esi, 08
+wrt sFile2, esi
+wrt sFile4, edi
+mov [FAKESEC], -3
+mov [NEWDATA+18], esi
+mov [NEWDATA+1C], edi
+popa
+wrt sFile3, " "
+jmp ADD_EAX_4
+////////////////////
+//weg hier
+pause
+pause
+// commands
+////////////////////
+MEMSTOPING:
+bpmc
+bc eip
+// bc
+mov B, eip
+////////////////////
+QUCIK_LOOP:
+rtr
+cmp eip, B
+je QUCIK_LOOP
+mov B, eip
+////////////////////
+QUCIK_LOOP2:
+sti
+cmp eip, B
+je QUCIK_LOOP2
+mov API, eip
+////////////////////
+API_THERE:
+// mov API, [esp]
+bphwc
+mov ADDRESS, [esp]
+pusha
+mov eax, API
+mov ecx, ADDRESS
+mov edx, A
+sub ecx, edx
+cmp ecx, 05
+je CALL_TO_JMP_DWORDER
+cmp ecx, 06
+je CALL_DWORDER_API
+// pause
+mov ADDRESS, [esp+4]
+mov ecx, ADDRESS
+sub ecx, edx
+cmp ecx, 05
+je CALL_TO_JMP_DWORDER
+cmp ecx, 06
+je CALL_DWORDER_API
+pause
+pause
+////////////////////
+CALL_TO_JMP_DWORDER:
+mov eip, A
+bc eip+05
+bc eip+06
+mov esi, [NEWDATA+18]  // IATEND
+mov edi, [NEWDATA+1C]  // TABLE_END
+mov [eip+05], RECODE
+eval "call {edi}"
+asm eip, $RESULT
+mov [esi], API
+eval "jmp dword [{esi}]"
+asm edi, $RESULT
+add esi, 08
+add edi, 06
+wrt sFile2, esi   // LAST IAT
+wrt sFile4, edi   // LAST JMP TABLE
+mov [FAKESEC], -3 // FIXED NOW
+mov [NEWDATA+18], esi  // IATEND
+mov [NEWDATA+1C], edi  // TABLE_END
+popa
+wrt sFile3, " "
+jmp ADD_EAX_4
+////////////////////
+CALL_DWORDER_API:
+mov eip, A
+bc eip+05
+bc eip+06
+mov esi, [NEWDATA+18]  // IATEND
+mov edi, [NEWDATA+1C]  // TABLE_END
+mov [eip+05], RECODE
+fill 401000, 06, 90
+mov [esi], API
+eval "call dword ptr ds:[{esi}]"
+asm A, $RESULT
+add esi, 08
+wrt sFile2, esi   // LAST IAT
+wrt sFile4, edi   // LAST JMP TABLE
+mov [FAKESEC], -3 // FIXED NOW
+mov [NEWDATA+18], esi  // IATEND
+mov [NEWDATA+1C], edi  // TABLE_END
+popa
+wrt sFile3, " "
+jmp ADD_EAX_4
+////////////////////
+ADD_EAX_4:
+add FAKESEC, 04
+mov eax, FAKESEC
+mov MORE_LOOP, 00
+mov ROUND_A, 00
+jmp AFTER_FILE_LOG
+////////////////////
+AFTER_FILE_LOG:
+cret
+mov eax, FAKESEC
+mov BP_VM_COUNTERS, 00
+gmemi VM_MAKER_SEC_2, MEMORYBASE
+mov VM_MAKER_SEC_2, $RESULT
+jmp CHECKUP_LOOP_2
+////////////////////
+FAKES_FIXED_2:
+// MACHET einfach STOP
+mov FAKESEC, FAKESEC_2
+cmp VIO, 01
+jne VIOS_FIXED
+mov FAKESEC,   ACCESSVIO_2
+mov FAKESEC_2, ACCESSVIO_2
+mov VIOLOOP, 01
+mov eax, FAKESEC
+cmp VIO_END_CHECK, 01
+je VIOS_FIXED
+jmp CHECKUP_LOOP_2
+pause
+pause
+pause
+////////////////////
+VIOS_FIXED:
+// pause
+// pause
+jmp IAT_DATA_LOGS
+////////////////////
+IAT_DATA_LOGS:
+cmp YES_S_APIS, 00
+je NO_SYSTEM_API_PATCH
+// pause
+// pause
+// pause SYSTEM_APIS_SEC_2
+// pause Add system API patch on JMP Table start and add new values below
+log ""
+log "System API Overview"
+log "-------------------------"
+wrt sFile8, " "
+pusha
+mov edx, 00
+mov eax, SYSTEM_APIS_SEC_2
+////////////////////
+SYSTEMAPILOOP:
+mov ebx, [eax]
+mov ecx, [eax+04]
+cmp [eax], 00
+je SYSTEMAPILOGEND
+inc edx
+gn ecx
+mov DLL_IN, $RESULT_1
+mov API_IN, $RESULT_2
+eval "{edx} | ADDR: {ebx}  | API: {ecx} | {DLL_IN}.{API_IN}"
+log $RESULT, ""
+log ""
+eval "{edx} | ADDR: {ebx}  | API: {ecx} | {DLL_IN}.{API_IN}"
+wrta sFile8, $RESULT
+add eax, 08
+jmp SYSTEMAPILOOP
+////////////////////
+SYSTEMAPILOGEND:
+log ""
+eval "{sFile8} <--- Was written!"
+log $RESULT, ""
+log ""
+popa
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Found used >>> {SYSTEM_API_COUNT} <<< system API's! {RN_2}If your target used SDK with this API's then we have to keep & fix them too! {RN_2}If no SDK used with this API's then you can overwrite them! {RN_2}Keep this in your mind if your dump crash - check the AV addr! {RN_2}If it crash then re-fix this APIs with a re-load patch! {RN_2}Or use ImportsFixer or Scylla! {RN_2}{points} {RN}{ME}"
+msg $RESULT
+/* 
+-----------------------------
+Info for System API Fix if they SDKed!
+
+Copy your system APIs under your last fix IAT address.
+After fixing your dump you can search a free patch address.
+Enter your system API re-load patch!
+
+pushad
+mov eax,   ADDR  // Address of original SYSTEM API location
+mov ecx,   ADDR  // Address of 2. address of your stored API location in new IAT
+mov edx, [ADDR]  // Move API to edx
+mov [eax], edx   // Move API to original API store location
+popad
+
+Or just use the ImportsFixer tool!
+
+Or use Scylla and read the whole APIs and cut the rest between the APIs away!
+
+This will prevent to write the system API re-load patch!
+-----------------------------
+*/
+////////////////////
+NO_SYSTEM_API_PATCH:
+// MAKE UIF PATCH
+// FIND CALL XXXXXXXX and mov r32,XXXXXXXX to my IAT section and fix with new IAT
+////////////////////
+UIF_IAT_REDIRECTION:
+// pause
+// MACHET
+// CHECK UIF PROBLEMS
+call FREE_SECTIONS
+bc
+bphwc
+bpmc
+call SET_ESP_DBOMT
+call SET_REGISTER
+mov eip, OEP
+var UIF_DES
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}ATTENTION! {RN_2}In some cases the UIF.dll will not work so the process will crash etc. {RN_2}In such case you should use the UIF.exe tool! {RN_2}Do you wanna use the UIF.dll = Script do the work             >>> YES <<< {RN_2}Do you wanna use the UIF.exe = You use UIF manually     >>> NO <<<  {RN_2}If you press NO then I will give you the infos what you have to enter in the first round! {RN_2}{points} {RN}{ME}"
+msgyn $RESULT
+mov UIF_DES, $RESULT
+cmp $RESULT, 01
+je LET_SCRIPT_WORK
+////////////////////
+LET_SCRIPT_WORK:
+alloc 1000
+mov UIF_LOAD_SEC, $RESULT
+mov UIF_LOAD_SEC_2, $RESULT
+mov [UIF_LOAD_SEC], UIF_DLL  // dll string
+add UIF_LOAD_SEC, 300
+mov [UIF_LOAD_SEC], #6068AAAAAAAAE83B97BABA906190909090#
+mov [UIF_LOAD_SEC+02], UIF_LOAD_SEC_2 
+eval "call {LoadLibraryA}"
+asm UIF_LOAD_SEC+06, $RESULT
+mov eip, UIF_LOAD_SEC
+bp UIF_LOAD_SEC+0B
+bp UIF_LOAD_SEC+0D
+mov eax, 00
+cmp UIF_DES, 01
+jne NO_EXE_1
+esto
+////////////////////
+NO_EXE_1:
+bc eip
+cmp UIF_DES, 01
+jne NO_EXE_2
+cmp eax, 00
+jne UIF_DLL_LOADED
+// esto
+log ""
+log "UIF.dll was not loaded!"
+log ""
+msg "UIF.dll was not loaded!"
+pause
+pause
+pause
+ret
+////////////////////
+UIF_DLL_LOADED:
+mov UIF_BASE, eax
+mov UIF_API, eax
+add UIF_API, 1000
+add UIF_API, 56EC
+run
+////////////////////
+NO_EXE_2:
+bc
+fill UIF_LOAD_SEC_2, 1000, 00
+mov [UIF_LOAD_SEC], #60680000000068080000006810000000681800000068200000006828000000683000000068380000006840000000E848AA6BAA909061909090909090#
+mov [UIF_LOAD_SEC+02], UIF_LOAD_SEC_2
+mov [UIF_LOAD_SEC+07], UIF_LOAD_SEC_2+08
+mov [UIF_LOAD_SEC+0C], UIF_LOAD_SEC_2+10
+mov [UIF_LOAD_SEC+11], UIF_LOAD_SEC_2+18
+mov [UIF_LOAD_SEC+16], UIF_LOAD_SEC_2+20
+mov [UIF_LOAD_SEC+1B], UIF_LOAD_SEC_2+28
+mov [UIF_LOAD_SEC+20], UIF_LOAD_SEC_2+30
+mov [UIF_LOAD_SEC+25], UIF_LOAD_SEC_2+38
+mov [UIF_LOAD_SEC+2A], UIF_LOAD_SEC_2+40
+eval "call {UIF_API}"
+asm UIF_LOAD_SEC+2E, $RESULT
+// call SET_REGISTER
+mov ALLOCSEC, 100000
+jmp ALLOC_TEST_IAT
+////////////////////
+FREE_ALLOC:
+free UIF_TEST_IAT
+add ALLOCSEC, 100000
+////////////////////
+ALLOC_TEST_IAT:
+alloc ALLOCSEC
+mov UIF_TEST_IAT, $RESULT
+mov UIF_TEST_IAT_2, $RESULT
+cmp UIF_TEST_IAT, IMAGEBASE
+jb FREE_ALLOC
+// readstr [CODESECTION], CODESECTION_SIZE
+// mov BAK_CODE, $RESULT
+// buf BAK_CODE
+////////////////////
+UIF_LOOP_01:
+fill UIF_LOAD_SEC_2, 50, 00
+mov [UIF_LOAD_SEC_2],    01
+mov [UIF_LOAD_SEC_2+28], UIF_TEST_IAT
+mov [UIF_LOAD_SEC_2+30], CODESECTION
+add [UIF_LOAD_SEC_2+30], CODESECTION_SIZE
+mov [UIF_LOAD_SEC_2+38], CODESECTION
+mov [UIF_LOAD_SEC_2+40], PROCESSID
+mov eip, UIF_LOAD_SEC
+// bp UIF_LOAD_SEC+33
+bp UIF_LOAD_SEC+34
+bp UIF_LOAD_SEC+37
+// bp KI_STOP
+cmp UIF_DES, 01
+jne YES_SUCCESS_WAS_IT
+run
+cmp eip, UIF_LOAD_SEC+34
+je UIF_SUCCESS_01
+////////////////////
+PROBELM_WITH_UIF_DLL:
+bc
+// mov [CODESECTION], BAK_CODE
+fill UIF_TEST_IAT, ALLOCSEC, 00
+jmp ERROR
+jmp UIF_LOOP_01
+////////////////////
+UIF_SUCCESS_01:
+cmp [UIF_LOAD_SEC_2+20], 00
+jne YES_SUCCESS_WAS_IT
+inc UIF_LOOP
+////////////////////
+ERROR:
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2} ATTENTION! {RN_2}{points} {RN_2}UIF.dll was not working in this >>> {UIF_LOOP} <<< IAT-Fix session! {RN_2}Should I try it again? {RN_2}{points} {RN}{ME}"
+msgyn $RESULT
+pause
+pause
+ret // If you are here then send me your target!
+cmp $RESULT, 01
+je PROBELM_WITH_UIF_DLL
+pause
+pause
+// SEND YOUR TARGET TO LCF-AT
+pause
+pause
+////////////////////
+YES_SUCCESS_WAS_IT:
+cmp UIF_DES, 01
+jne NO_EXE_3
+bc eip
+run
+////////////////////
+NO_EXE_3:
+bc
+pusha
+call SET_REGISTER
+cmp UIF_DES, 01
+je NO_EXE_4
+gmemi CODESECTION, MEMORYSIZE
+mov tmp, $RESULT
+add tmp, CODESECTION
+log ""
+eval "PROCESSID: {PROCESSID}"
+log $RESULT, ""
+eval "Code Start: {CODESECTION}"
+log $RESULT, ""
+eval "Code End: {tmp}"
+log $RESULT, ""
+eval "New IAT VA: {UIF_TEST_IAT}"
+log $RESULT, ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Now start UIF.exe and enter this datas.... {RN_2} {points} {RN_2}PROCESSID: {PROCESSID} {RN_2}Code Start: {CODESECTION} {RN_2}Code End: {tmp} {RN_2}New IAT VA: {UIF_TEST_IAT} {RN_2} {points} {RN_2}Enter the data and then press START {RN_2}If it's finished then resume the script! {RN_2}{points} {RN}{ME}"
+msg $RESULT
+pause
+/* 
+-----------------------------
+safety stop 3 UIF MANUALLY USE!
+
+Just Resume The Script now
+
+Press Space Or Right Mouse Button And Choose The Resume Line If You Are Ready
+-----------------------------
+*/
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Now you can see the >>> SIZE <<< in the UIF.exe LOG window of the new IAT {RN_2}Copy the >>> SIZE <<< and enter it in the next ASK window! {RN_2}{points} {RN}{ME}"
+msg $RESULT
+////////////////////
+ASK_AGAIN_SIZE:
+ask "Enter the new IAT SIZE which you can see in UIF!"
+cmp $RESULT, 00
+je ASK_AGAIN_SIZE
+cmp $RESULT, -1
+je ASK_AGAIN_SIZE
+mov tmp, $RESULT
+mov tmp_size, $RESULT
+mov [UIF_LOAD_SEC_2+18], tmp
+////////////////////
+NO_EXE_4:
+mov eax, [UIF_LOAD_SEC_2+08] // DIR IMPORTS
+mov ecx, [UIF_LOAD_SEC_2+10] // NOR IMPORTS
+mov edx, [UIF_LOAD_SEC_2+18] // IAT SIZE
+mov ebx, UIF_TEST_IAT
+sub ebx, IMAGEBASE           // IAT RVA
+mov ebp, [UIF_LOAD_SEC_2+28] // IAT VA
+log ""
+log "NEW TEST IAT REDIRECTION INFOS"
+log "----------------------------------------"
+log eax, "DIR IMPORTS: "
+log ecx, "NOR IMPORTS: "
+log ebp, "IAT VA     : "
+log ebx, "IAT RVA    : "
+log edx, "IAT SIZE   : "
+log "----------------------------------------"
+log ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}NEW TEST IAT REDIRECTION INFOS {RN_2}{points} {RN_2}FIXED DIRECT IMPORTS: {eax} {RN_2}FIXED NORMAL IMPORTS: {ecx} {RN_2}NEW IAT  VA: {ebp} {RN_2}NEW IAT RVA: {ebx} {RN_2}NEW IAT SIZE: {edx} {RN_2}{points} {RN_2}You need min. {edx} free bytes to find in the codesection. {RN_2}If you want to redirect the whole IAT into the codesection: {CODESECTION} {RN_2}Do you want to redirect the IAT into the codesection? {RN_2}If >>> YES <<< then find a free location in the codesection with min. {edx} free bytes! {RN_2}If >>> NO <<< then I will dump the this IAT section: {ebp} which you later have to add on your dump file. {RN_2}{points} {RN}{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+popa
+// call SET_ESP_DBOMT
+jne DUMP_IAT_SECTION_BY_SCRIPT
+mov YES_UIF_CODESEC, 01
+pause
+/* 
+-----------------------------
+safety stop 2
+
+Search now your new free IAT location in the codesection
+
+Check also the size you need
+
+If you found then resume the script and enter the new IAT address
+
+Just Resume The Script now
+
+Press Space Or Right Mouse Button And Choose The Resume Line If You Are Ready
+-----------------------------
+*/
+////////////////////
+ASK_FOR_NEW_IAT_ADDRESS:
+ask "Enter your new IAT (VA) store location address max. 8 digits! - No free space at start or end!"
+cmp $RESULT, 00
+je ASK_FOR_NEW_IAT_ADDRESS
+cmp $RESULT, -1
+je ASK_FOR_NEW_IAT_ADDRESS
+mov NEW_IAT_ADDR, $RESULT
+gmemi NEW_IAT_ADDR, MEMORYBASE
+cmp $RESULT, CODESECTION
+jne ASK_FOR_NEW_IAT_ADDRESS
+////////////////////
+UIF_LOOP_02:
+mov eip, UIF_LOAD_SEC
+fill UIF_LOAD_SEC_2, 50, 00
+mov [UIF_LOAD_SEC_2],    01
+mov [UIF_LOAD_SEC_2+28], NEW_IAT_ADDR       // Codesec..
+mov [UIF_LOAD_SEC_2+30], CODESECTION
+add [UIF_LOAD_SEC_2+30], CODESECTION_SIZE
+mov [UIF_LOAD_SEC_2+38], CODESECTION
+mov [UIF_LOAD_SEC_2+40], PROCESSID
+bp UIF_LOAD_SEC+33
+bp UIF_LOAD_SEC+37
+// bp KI_STOP
+cmp UIF_DES, 01
+jne NO_EXE_5
+run
+// cmp eip, KI_STOP
+// je UIF_LOOP_02
+inc UIF_LOOP
+cmp eip, UIF_LOAD_SEC+33
+je SUCCESS_AGAIN_HERE
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2} ATTENTION! {RN_2}{points} {RN_2}UIF.dll was not working in this >>> {UIF_LOOP} <<< IAT-to-CODE-Fix session! {RN_2}Send your target to LCF-AT to check the problem! {RN_2}{points} {RN}{ME}"
+msg $RESULT
+pause
+pause
+ret
+////////////////////
+SUCCESS_AGAIN_HERE:
+cmp [UIF_LOAD_SEC_2+20], 00
+jne GREAT_WORKING
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2} ATTENTION! {RN_2}{points} {RN_2}UIF.dll was not working in this >>> {UIF_LOOP} <<< IAT-to-CODE-Fix session! {RN_2}Send your target to LCF-AT to check the problem! {RN_2}{points} {RN}{ME}"
+msg $RESULT
+pause
+pause
+ret
+////////////////////
+GREAT_WORKING:
+bc eip
+run
+bc eip
+////////////////////
+NO_EXE_5:
+cmp UIF_DES, 01
+je NO_EXE_6
+gmemi CODESECTION, MEMORYSIZE
+mov tmp, $RESULT
+add tmp, CODESECTION
+log ""
+eval "PROCESSID: {PROCESSID}"
+log $RESULT, ""
+eval "Code Start: {CODESECTION}"
+log $RESULT, ""
+eval "Code End: {tmp}"
+log $RESULT, ""
+eval "New IAT VA: {NEW_IAT_ADDR}"
+log $RESULT, ""
+log ""
+mov [UIF_LOAD_SEC_2+18], tmp_size
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Now start UIF.exe and enter this datas.... {RN_2} {points} {RN_2}PROCESSID: {PROCESSID} {RN_2}Code Start: {CODESECTION} {RN_2}Code End: {tmp} {RN_2}New IAT VA: {NEW_IAT_ADDR} {RN_2} {points} {RN_2}Enter the data and then press START {RN_2}If it's finished then resume the script! {RN_2}{points} {RN}{ME}"
+msg $RESULT
+pause
+/* 
+-----------------------------
+safety stop 4 UIF MANUALLY USE!
+
+Just Resume The Script now
+
+Press Space Or Right Mouse Button And Choose The Resume Line If You Are Ready
+-----------------------------
+*/
+////////////////////
+NO_EXE_6:
+pusha
+call SET_REGISTER
+mov eax, [UIF_LOAD_SEC_2+08] // DIR IMPORTS
+mov ecx, [UIF_LOAD_SEC_2+10] // NOR IMPORTS
+mov edx, [UIF_LOAD_SEC_2+18] // IAT SIZE
+mov ebx, NEW_IAT_ADDR
+sub ebx, IMAGEBASE           // IAT RVA
+mov ebp, [UIF_LOAD_SEC_2+28] // IAT VA
+log ""
+log "NEW END IAT REDIRECTION INFOS"
+log "----------------------------------------"
+log eax, "DIR IMPORTS: "
+log ecx, "NOR IMPORTS: "
+log ebp, "IAT VA     : "
+log ebx, "IAT RVA    : "
+log edx, "IAT SIZE   : "
+log "----------------------------------------"
+log ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}CODESECTION IAT REDIRECTION INFOS {RN_2}{points} {RN_2}FIXED DIRECT IMPORTS: {eax} {RN_2}FIXED NORMAL IMPORTS: {ecx} {RN_2}NEW IAT  VA: {ebp} {RN_2}NEW IAT RVA: {ebx} {RN_2}NEW IAT SIZE: {edx} {RN_2}{points} {RN}{ME}"
+msg $RESULT
+popa
+mov eip, OEP
+// free UIF_LOAD_SEC_2
+// free UIF_TEST_IAT_2
+////////////////////
+DUMP_IAT_SECTION_BY_SCRIPT:
+mov eip, OEP
+////////////////////
+FIX_API_CALL_AND_MOV_POINTER:
+alloc 3000
+mov POINTERSEC, $RESULT
+mov POINTERSEC_2, $RESULT
+add POINTERSEC, 100
+mov [POINTERSEC_2],    CODESECTION
+mov [POINTERSEC_2+04], CODESECTION
+add [POINTERSEC_2+04], CODESECTION_SIZE
+sub [POINTERSEC_2+04], 10
+gmemi TABLEBAK, MEMORYBASE
+mov TABLEBAK, $RESULT
+mov [POINTERSEC_2+08], $RESULT   // TABLE START
+mov [POINTERSEC_2+0C], $RESULT   // TABLE START
+////////////////////
+FIND_TABLE_ENDE:
+find TABLEBAK, #00000000000000000000000000000000#
+mov TABLEEND, $RESULT
+cmp YES_UIF_CODESEC, 01
+je UIF_CODE_TAKE
+////////////////////
+DUMP_SEC_DATA:
+mov [POINTERSEC_2+10], [UIF_LOAD_SEC_2+28]  // IAT START
+mov [POINTERSEC_2+14], [UIF_LOAD_SEC_2+28]  // IAT START
+add [POINTERSEC_2+14], [UIF_LOAD_SEC_2+18]  // IAT SIZE
+jmp TABLE_CHECK
+////////////////////
+UIF_CODE_TAKE:
+mov [POINTERSEC_2+10], [UIF_LOAD_SEC_2+28]  // IAT START
+mov [POINTERSEC_2+14], [UIF_LOAD_SEC_2+28]  // IAT START
+add [POINTERSEC_2+14], [UIF_LOAD_SEC_2+18]  // IAT SIZE
+jmp TABLE_CHECK
+////////////////////
+TABLE_CHECK:
+mov [POINTERSEC_2+0C], TABLEEND  // TABLEEND
+cmp [TABLEBAK], 00
+je NO_API_CALL_MOV_POINTER_TO_RD
+mov [POINTERSEC], #60BFAAAAAAAA8B378B6F048B5F088B570C90903BF50F840C0100000F87060100008BC68038000F84D90000008038E80F84810000008038B874238038B9741E8038BA74198038BB74148038BD740F8038BE740A8038BF7405E9A8000000B9000000008B48013BCB0F82980000003BCA0F879000000089471C8B41028B00894720894F248B0F3BCD771A668139FF257514894F288B49023B010F840C0000008B4F28EB0190#
+mov [POINTERSEC+0A4], #41E9DBFFFFFF8B47288B4F1C894101EB50908B480183C10503C83BCB72433BCA773F89471C8B41028B00894720894F248B0F3BCD7729668139FF25751F894F288B49023B0174058B4F28EB108B47288B4F1C2BC183E805894101EB0541EBD3909046C7471C00000000C7472000000000C7472400000000C7472800000000E9ECFEFFFF619090909090909090#
+mov [POINTERSEC+02], POINTERSEC_2
+mov eip, POINTERSEC
+bp POINTERSEC+0A3  // NO REG FOUND BP <---
+bp POINTERSEC+103  // NOT FOUND  BP   <---
+bp POINTERSEC+12A  // END
+// MACHET TESTE ES
+mov tmp, POINTERSEC+0EB
+mov [KI_STOP], #BC00000000E9000000009090909090#
+mov [KI_STOP+01], espbak
+eval "jmp {tmp}"
+asm KI_STOP+05, $RESULT
+// bp KI_STOP
+////////////////////
+LOOP_AFTER_AV:
+run
+fill KI_STOP, 10, 90
+jmp NO_AV_HERE
+////////////////////
+NO_AV_HERE:
+bc
+cmp eip, POINTERSEC+12A
+je ALL_FIXED_WELL
+pause
+pause
+// SEND A MESSAGE + TARGET TO LCF-AT
+pause
+pause
+ret
+////////////////////
+ALL_FIXED_WELL:
+mov eip, OEP
+////////////////////
+NO_API_CALL_MOV_POINTER_TO_RD:
+mov eip, OEP
+cmp YES_UIF_CODESEC, 01
+je NORMAL_GO_AFTER_CODEFIX
+pusha
+mov eax, [UIF_LOAD_SEC_2+28]  // IAT START
+mov ecx, [UIF_LOAD_SEC_2+18]  // IAT SIZE
+add ecx, 1000
+mov edx, eax
+sub edx, IMAGEBASE
+eval "IAT_VA_{eax}_RVA_{edx}.dmp"
+dm eax, ecx, $RESULT
+log ""
+eval "IAT_VA_{eax}_RVA_{edx}.dmp"
+mov IAT_NEW, $RESULT
+eval "IAT_VA_{eax}_RVA_{edx}.dmp"
+log $RESULT, ""
+log "Enter new IAT section on your dump and make a valid rebuild"
+log ""
+log "Then fix your dump with ImpRec etc"
+log ""
+popa
+pusha
+mov eax, Resource_Table_address
+mov ecx, Resource_Table_size
+mov edx, [RES_ADDR]
+mov ebx, [RES_ADDR+04]
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}New extern IAT section was adjusted and dumped {RN_2}- Create a dump file {RN_2}- Add New IAT section on your dump | {IAT_NEW} {RN_2}- Enter new RVA address with LORD PE {RN_2}- Make a vaild PE rebuild with PE Tool's {RN_2}- Fix your dump with ImpRec etc {RN_2}{points} {RN_2}- Set the codesection flag of {CODESECTION} to writeable {RN_2}- Enter NEW RESOURCE ADDRESS if needed {RN_2}{points} {RN_2}EP  Ressources:  {eax} | {ecx} | RVA & SIZE {RN_2}OEP Ressources: {edx} | {ebx} | RVA & SIZE * <--- THIS {RN_2}{points} {RN}{ME}"
+msg $RESULT
+popa
+jmp ALL_END
+////////////////////
+NORMAL_GO_AFTER_CODEFIX:
+log ""
+log "Dump and fix with ImpRec etc"
+log ""
+pusha
+mov eax, Resource_Table_address
+mov ecx, Resource_Table_size
+mov edx, [RES_ADDR]
+mov ebx, [RES_ADDR+04]
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}New intern IAT was adjusted {RN_2}- Create a dump file {RN_2}- Fix your dump with ImpRec etc {RN_2}{points} {RN_2}- Set the codesection flag of {CODESECTION} to writeable {RN_2}- Enter NEW RESOURCE ADDRESS if needed {RN_2}{points} {RN_2}EP  Ressources:  {eax} | {ecx} | RVA & SIZE {RN_2}OEP Ressources: {edx} | {ebx} | RVA & SIZE * <--- THIS {RN_2}{points} {RN}{ME}"
+msg $RESULT
+popa
+jmp ALL_END
+pause
+pause
+////////////////////
+ALL_END:
+call SET_ESP_DBOMT
+cmp SDK_IN, 01
+jne ASK_USER
+jmp FIX_MEM_AND_DIS
+////////////////////
+ASK_USER:
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}I found >>> NO used SDK & DIS APIs <<<< anymore! {RN_2}Normaly in this case is the whole codesection fixed with normal imports! {RN_2}This means that you can cut away all VP sections later! {RN_2}So now you can press >>> YES <<< for bypassing the fixing of MEM & DIS APIs {RN_2}If you press >>> NO <<< then the script will fix the MEM & DIS APIs! {RN_2}{points} {RN_2}If you get this message nag then you can press >>> YES <<< = STANDARD {RN_2}Press >>> NO <<< for custom MEM & DIS API fixing = User choice! {RN_2}{points} {RN_2} {RN_2}{points} {RN}{ME}"
+msgyn $RESULT
+cmp $RESULT, 01
+je NO_SDKS_FOUND
+log ""
+log "User choice of custom MEM & DIS API fixing! <-- Normaly in this case not needed!"
+log ""
+jmp FIX_MEM_AND_DIS_2
+////////////////////
+FIX_MEM_AND_DIS:
+log ""
+log "Script choice of MEM & DIS API fixing!"
+log ""
+////////////////////
+FIX_MEM_AND_DIS_2:
+mov ESP_1, esp
+mov tmp, MEMTEST
+alloc 1000
+mov M_BLOCK, $RESULT
+mov M_BLOCK_2, $RESULT
+add M_BLOCK, 100
+mov [M_BLOCK_2],    [UIF_LOAD_SEC_2+28]  // IAT START
+mov [M_BLOCK_2+04], [UIF_LOAD_SEC_2+18]  // IAT SIZE
+add [M_BLOCK_2+04], [UIF_LOAD_SEC_2+28]
+mov [M_BLOCK], #BFAAAAAAAA90908B078B4F04903BC1740F770D391075049090909083C004EBED8910C7400400000000C740080000000083C0088947049090#
+mov [M_BLOCK+01], M_BLOCK_2
+pusha
+mov eax, 00
+mov ecx, 00
+mov edx, 00
+mov edi, 00
+mov ebp, 00
+mov API, 00
+cmp [MEMTEST], 68, 01
+je PUSH
+pause
+pause
+pause
+////////////////////
+PUSH:
+mov eip, tmp
+mov ebx, eip
+////////////////////
+RTR:
+mov RR, 00
+mov A1, 00
+mov A2, 00
+mov SEK,  00
+mov SEK2, 00
+mov AP_1, 00
+mov AP_2, 00
+mov TONK_2, 00
+mov TONK, 00
+mov esp, ESP_1
+mov [esp], 00
+mov BAK, eip
+cmp [eip], 00000000
+je SECOND_00_BYTE
+jmp RTR2
+////////////////////
+SECOND_00_BYTE:
+cmp [eip+04], 00000000
+je FIND_TABLE_ENDE_2
+////////////////////
+FIND_TABLE_ENDE_2:
+find eip, #68#
+cmp $RESULT, 00
+je NO_HIDDEN
+mov eip, $RESULT
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Found 00 bytes between the MEM code! {RN_2}In this case you should unpack this app again! {RN_2}If you still get this message then send me a message! {RN_2}{points} {RN}{ME}"
+msg $RESULT
+log ""
+log "Found 00 bytes between the MEM code!
+log "In this case you should unpack this app again!"
+log "If you still get this message then send me a message!"
+log ""
+jmp RTR2
+////////////////////
+NO_HIDDEN:
+cmp [eip+04], 00000000
+je MEM_END_FIX
+pause
+pause
+pause
+pause
+////////////////////
+RTR2:
+rtr
+cmp eip, tmp
+je RTR
+mov API, [esp]
+call IAT_INFOS
+mov edx, API
+////////////////////
+API_CHECK_ADDR:
+// MACHEN!!!!
+mov eip, M_BLOCK
+bp M_BLOCK+18  // FOUND
+bp M_BLOCK+37  // NEW API LOCATION ADDED 
+run
+bc
+cmp eip, M_BLOCK+18
+mov eip, BAK
+je NORMAL_STOPAR
+mov SEK,  eax
+mov SEK2, ecx
+gn [ecx]
+mov AP_1, $RESULT_1
+////////////////////
+GENG:
+cmp [ecx-04], 00
+jne API_DA
+sub ecx, 04
+jmp GENG
+////////////////////
+API_DA:
+gn [ecx-04]
+mov AP_2, $RESULT_1
+cmp AP_1, AP_2
+jne REBACK
+// sub eax, 08
+mov [SEK2], 00
+mov [ecx], edx
+mov TONK, [M_BLOCK_2]
+gmemi TONK, MEMORYBASE
+mov TONK_2, $RESULT
+// sub ecx, IMAGEBASE+1000
+sub ecx, TONK_2
+mov [UIF_LOAD_SEC_2+18], ecx+08
+// add ecx, IMAGEBASE+1000
+add ecx, TONK_2
+mov [M_BLOCK_2+04], [UIF_LOAD_SEC_2+18]
+add [M_BLOCK_2+04], [UIF_LOAD_SEC_2+28]
+// add [UIF_LOAD_SEC_2+18], 08
+mov eax, ecx
+// sub eax, 04
+jmp NORMAL_STOPAR
+////////////////////
+REBACK:
+mov eax, SEK
+mov ecx, SEK2
+jmp NOT_THE_SAME_MODULE
+////////////////////
+NOT_THE_SAME_MODULE:
+add [UIF_LOAD_SEC_2+18], 08
+sub eax, 08
+jmp NORMAL_STOPAR
+////////////////////
+NORMAL_STOPAR:
+mov ebp, tmp
+eval "jmp dword ptr ds:[{eax}]"
+asm tmp, $RESULT
+mov ebp, ebx  // ebx start
+add ebp, 06
+mov eip, ebp
+////////////////////
+EIP_NOP:
+// MACHET
+find eip, #C3#
+mov RR, $RESULT
+gci RR, SIZE
+cmp $RESULT, 01
+je RET_FOUNDER
+pause
+pause
+// PROBELM!
+pause
+pause
+////////////////////
+RET_FOUNDER:
+mov A1, eip
+mov A2, RR
+sub A2, A1
+fill eip, A2, 90
+mov eip, RR
+////////////////////
+EIP_NOP2:
+cmp [eip], 68 ,01
+je NEXT_PUSH
+cmp [eip], 00 ,04
+je NEXT_PUSH
+mov [eip], 90, 01
+inc eip
+jmp EIP_NOP2
+////////////////////
+NEXT_PUSH:
+mov tmp, eip
+mov ebx, eip
+jmp RTR
+////////////////////
+ADD_4_BYTES:
+add eax, 04
+jmp API_CHECK_ADDR
+////////////////////
+API_NOT_TO_FIND:
+pause
+pause
+pause
+////////////////////
+MEM_END_FIX:
+//----------------------------
+// MACHETNEW
+// pause
+mov test, CODESECTION
+gmemi CODESECTION, MEMORYSIZE
+add test, $RESULT
+findmem #9CB8????????bb????????03c3#, test
+cmp $RESULT, 00
+je NO_CALC_DIS_APIS_FOUND
+mov test, $RESULT
+cmp test, MODULEBASE_and_MODULESIZE
+ja NO_CALC_DIS_APIS_FOUND
+gmemi test, MEMORYBASE
+mov test, $RESULT
+mov test_2, test
+gmemi test, MEMORYSIZE
+add test_2, $RESULT
+// test = start
+// test_2 = end
+alloc 3000
+mov DISAPISEC, $RESULT
+mov DISAPISEC_2, $RESULT
+add DISAPISEC_2, 100
+mov [DISAPISEC],    [UIF_LOAD_SEC_2+28] // IAT VA
+mov [DISAPISEC+04], [UIF_LOAD_SEC_2+18] 
+add [DISAPISEC+04], [UIF_LOAD_SEC_2+28] // IAT END 
+mov [DISAPISEC+08], MEMTEST             // MEM START
+mov [DISAPISEC+0C], eip                 // MEM END
+mov [DISAPISEC+20], test                // VP START
+mov [DISAPISEC+24], test_2              // VP END
+mov [DISAPISEC_2], #60B8000000008B308B78048BE89090908B55208B5D2490903BD30F84240100000F871E01000066813A609C740342EBE883C202B800000000B900000000803AB875EB8B42018B4A0603C18B08890424894C24049090#
+mov [DISAPISEC_2+55], #66817A0EF7D0742D66817A0E03C3742066817A0E33C3741366817A0F03C374109090909090909090909090334A06EB09034A06EB04F7D1EB003B4D08720A3B4D0C770590EB929090#
+mov [DISAPISEC_2+9D], #603BF70F848A0000000F8784000000390E740583C604EBE98B7D0C8B45083BC7741F771D668138FF25740340EBF083C002393075E983E8028BF08B442420EB18908B44242066C707FF2583C702893783EF028BF783450C0666817A0EF7D0742466817A0E03C3741766817A0E33C3740A66817A0F03C374079090#
+mov [DISAPISEC_2+117], #337206EB092B7206EB04F7D6EB00893061FF4510E9FDFEFFFF890F8BF7834504086183C708E95CFFFFFF9090906190909090909090909090909090#
+mov [DISAPISEC_2+02], DISAPISEC
+mov eip, DISAPISEC_2
+bp DISAPISEC_2+75   // NEW COMMAND!
+bp DISAPISEC_2+115  // NEW COMMAND!
+bp DISAPISEC_2+145  // END SUCCESS!
+run
+bc
+cmp eip, DISAPISEC_2+145
+je SUC_RUN
+pause
+pause
+pause
+// SEND TARGET TO LCF-AT
+pause
+ret
+////////////////////
+SUC_RUN:
+mov DIS_COUNTER, [DISAPISEC+10]
+mov eax, 00
+mov ecx, 00
+mov edx, 00
+mov ebx, 00
+mov ebp, 00
+mov esi, 00
+mov edi, 00
+mov eax, [DISAPISEC]     // IAT START
+mov ecx, [DISAPISEC+04]  // IAT NEW END
+mov edx, ecx
+sub edx, eax             // edx SIZE
+mov [UIF_LOAD_SEC_2+18], edx  // NEW SIZE
+mov ebp, eax
+sub ebp, IMAGEBASE       // RVA IAT START
+mov esi, [DISAPISEC+08]  // MEM START VA
+mov edi, [DISAPISEC+0C]  // MEM NEW END
+add edi, 1000             // Extra more
+mov MSD, esi
+sub MSD, IMAGEBASE       // MEM RVA
+log ""
+sub edi, esi
+eval "MEM_+_DIS_APIs_VA_{esi}_RVA_{MSD}.dmp"
+dm esi, edi, $RESULT
+eval "MEM_+_DIS_APIs_VA_{esi}_RVA_{MSD}.dmp"
+log $RESULT, ""
+eval "MEM_+_DIS_APIs_VA_{esi}_RVA_{MSD}.dmp"
+mov MEMINTO, $RESULT
+log ""
+eval "Found & Fixed >>> {DIS_COUNTER} | hex <<< DIS API's!"
+log $RESULT, ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Your target >>> {PROCESSNAME_2} <<< used possible SDK & DIS >>> {DIS_COUNTER} | hex <<< API caller's {RN_2}Add also this section on your dump {RN_2}>>> {MEMINTO} <<< {RN_2}{points} {RN}{ME}"
+msg $RESULT
+mov eip, OEP
+free DISAPISEC
+jmp AFTER_DIS_APIS
+////////////////////
+NO_CALC_DIS_APIS_FOUND:
+//----------------------------
+add tmp, 1000
+mov eax, MEMTEST
+mov ecx, tmp
+sub ecx, MEMTEST
+mov edx, MEMTEST
+sub edx, IMAGEBASE
+eval "MEM_APIs_VA_{eax}_RVA_{edx}.dmp"
+dm eax, ecx, $RESULT
+log ""
+eval "MEM_APIs_VA_{eax}_RVA_{edx}.dmp"
+log $RESULT, ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Your target >>> {PROCESSNAME_2} <<< used possible SDK API caller's {RN_2}Add also this section on your dump {RN_2}>>> MEM_APIs_VA_{eax}_RVA_{edx}.dmp <<< {RN_2}{points} {RN}{ME}"
+msg $RESULT
+////////////////////
+AFTER_DIS_APIS:
+popa
+call SET_ESP_DBOMT
+pusha
+mov eax, [UIF_LOAD_SEC_2+28]
+mov ecx, [UIF_LOAD_SEC_2+18]
+mov edx, [UIF_LOAD_SEC_2+28]
+sub edx, IMAGEBASE
+log ""
+log "NEW IAT + MEM IAT DATA"
+log "----------------------------------------"
+log eax, "IAT VA     : "
+log edx, "IAT RVA    : "
+log ecx, "IAT SIZE   : "
+log "----------------------------------------"
+log ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}NEW IAT + MEM IAT DATA {RN_2}{points} {RN_2}IATSTART  VA: {eax} {RN_2}IATSTART RVA: {edx} {RN_2}IATSIZE     : {ecx} {RN_2}{points} {RN_2}- Dump file {RN}- Add section | MEM_APIs_VA.... {RN}- Enter new RVA {RN}- Make valid PE rebild {RN}- Fix Dump {RN_2}{points} {RN}{ME}"
+msg $RESULT
+popa
+////////////////////
+CPUID_CHECKER:
+pusha
+mov eax, VP
+find eax, VM_STRING_1
+cmp $RESULT, 00
+je VP_2_CPU
+mov eax, $RESULT
+mov ecx, 00
+find eax, #555D52F7D1F7D15AC3000000000000#
+cmp $RESULT, 00
+jne VM_END_F1
+find eax, VM_END_SRING
+cmp $RESULT, 00
+jne VM_END_F1
+pause
+pause
+pause
+////////////////////
+VM_END_F1:
+mov ecx, $RESULT
+call CPUID
+////////////////////
+VP_2_CPU:
+mov eax, 00
+mov eax, VP2
+find eax, VM_STRING_1
+cmp $RESULT, 00
+je VP_3_CPU
+mov eax, $RESULT
+mov ecx, 00
+find eax, #555D52F7D1F7D15AC3000000000000#
+cmp $RESULT, 00
+jne VM_END_F2
+find eax, VM_END_SRING
+cmp $RESULT, 00
+jne VM_END_F2
+pause
+pause
+pause
+////////////////////
+VM_END_F2:
+mov ecx, $RESULT
+call CPUID
+////////////////////
+VP_3_CPU:
+mov eax, 00
+mov eax, VP3
+find eax, VM_STRING_1
+cmp $RESULT, 00
+je VP_4_CPU
+mov eax, $RESULT
+mov ecx, 00
+find eax, #555D52F7D1F7D15AC3000000000000#
+cmp $RESULT, 00
+jne VM_END_F3
+find eax, VM_END_SRING
+cmp $RESULT, 00
+jne VM_END_F3
+pause
+pause
+pause
+////////////////////
+VM_END_F3:
+mov ecx, $RESULT
+call CPUID
+////////////////////
+VP_4_CPU:
+mov eax, 00
+mov eax, VP4
+find eax, VM_STRING_1
+cmp $RESULT, 00
+je VP_5_CPU
+mov eax, $RESULT
+mov ecx, 00
+find eax, #555D52F7D1F7D15AC3000000000000#
+cmp $RESULT, 00
+jne VM_END_F4
+find eax, VM_END_SRING
+cmp $RESULT, 00
+jne VM_END_F4
+pause
+pause
+pause
+////////////////////
+VM_END_F4:
+mov ecx, $RESULT
+call CPUID
+////////////////////
+VP_5_CPU:
+log ""
+eval "Found CPUID commands in VM >>> {C1} <<< <--- Check & Fix them for other OS run support!"
+log $RESULT, ""
+log ""
+cmp C1, 00
+je NO_SDKS_FOUND
+log "Software breakpoint-list was created!"
+log ""
+popa
+jmp NO_SDKS_FOUND
+////////////////////
+CPUID:
+find eax, #0FA2#
+cmp $RESULT, 00
+je CPUID_END
+mov eax, $RESULT
+add eax, 02
+mov edi, $RESULT
+cmp edi, ecx
+ja CPUID_END
+inc C1
+log ""
+eval "Found >> {C1} << possible CPUID AD at: {edi}"
+log $RESULT, ""
+eval "bp {edi} // CPUID"
+wrta sFile7, $RESULT
+jmp CPUID
+////////////////////
+CPUID_END:
+ret
+////////////////////
+NO_SDKS_FOUND:
+cmp C1, 00
+je NO_VM_CPUID_MEM_LOGGING
+call SIGN_FIND_LOG
+////////////////////
+NO_VM_CPUID_MEM_LOGGING:
+mov eip, OEP
+call DELETE_LAST_FILES
+log ""
+log ""
+eval "{SCRIPTNAME}"
+log $RESULT, ""
+eval "{points}"
+log $RESULT, ""
+log "Thank you for using my script!"
+log ""
+log "greetz"
+log ""
+eval "{points}"
+log $RESULT, ""
+log ""
+eval "{ME}"
+log $RESULT, ""
+log ""
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Thank you for using my script! {RN_2}greetz {RN_2}{points} {RN}{ME}"
+msg $RESULT
+pause
+pause
+ret
+////////////////////
+IAT_INFOS:
+mov eax, [UIF_LOAD_SEC_2+28]  // IAT START
+mov ecx, [UIF_LOAD_SEC_2+18]  // IAT SIZE
+add ecx, [UIF_LOAD_SEC_2+28]
+ret
+////////////////////
+VARS:
+var UIF_DLL
+var LEN_SEC
+var CHECK_UIF
+alloc 1000
+mov LEN_SEC, $RESULT
+mov UIF_DLL, "C:\CHECKEN\UIF\SDK\UIF.dll"  // Enter UIF.dll path
+len UIF_DLL
+pusha
+mov eax, 00
+mov ecx, 00
+mov eax, $RESULT
+mov ecx, LEN_SEC
+mov [LEN_SEC], UIF_DLL
+add ecx, eax
+sub ecx, 07
+scmpi [ecx], "UIF.dll", 07
+popa
+je FOUND_UIF
+////////////////////
+ASK_UIF:
+ask "Enter the whole path of the UIF.dll (enter path with quotes --> " " <--)"
+cmp $RESULT, 00
+je ASK_UIF
+cmp $RESULT, -1
+je ASK_UIF
+mov CHECK_UIF, $RESULT
+fill LEN_SEC, 1000, 00
+mov [LEN_SEC], CHECK_UIF
+pusha
+mov eax, LEN_SEC
+cmp [eax+4], 00
+je POPA
+// mov eax, 00
+// mov ecx, 00
+GSTR eax
+cmp $RESULT, 00
+je POPA
+mov ecx, eax
+mov eax, $RESULT_1
+add ecx, eax
+sub ecx, 07
+scmpi [ecx], "UIF.dll", 07
+popa
+je FOUND_TEMP_PATH
+jmp ASK_UIF
+////////////////////
+POPA:
+popa
+jmp ASK_UIF
+////////////////////
+FOUND_TEMP_PATH:
+mov UIF_DLL, CHECK_UIF
+////////////////////
+FOUND_UIF:
+var C1
+var DLL_IN
+var API_IN
+var sFile8
+var WARN
+var tmp_size
+var NEW_RG
+var test
+var test_2
+var DISAPISEC
+var DISAPISEC_2
+var DIS_COUNTER
+var MSD
+var MEMINTO
+var MORE_LOOP
+var ROUND_A
+var sFile6
+var LOG
+var LOG_IN
+var BAK_CODE
+var AP_1
+var AP_2
+var TONK_2
+var TONK
+free LEN_SEC
+var YES_UIF_CODESEC
+var LOOP
+var JMPSEC
+var temp
+var temp2
+var temp3
+var call
+var sFile
+var sFile2
+var sFile3
+var PROCESSNAME_2
+var MEMSIZE
+var MEM
+var espbak
+var code
+var SIGN
+var found
+var found_in
+var VP
+var VP2
+var VP3
+var VP4
+var bak
+var out
+var call
+var stap
+var API
+var zap
+var code2
+var A
+var B
+var size
+var TABLE
+var IATBAK
+var API_F
+var IL
+var IAT_2
+var sFile4
+var sFile9
+var JMP
+var SINGLEFIX
+var ENDE
+var ENDE_2
+var NFASEC
+var NFASEC_2
+var NOT_FIXED_ADDRS
+var COUNT
+var APR
+var APR2
+var MEMYES
+var SCRIPTNAME
+var PROCESSID
+var PROCESSNAME
+var PROCESSNAME_COUNT
+var PROCESSNAME_FREE_SPACE
+var PROCESSNAME_FREE_SPACE_2
+var EIP_STORE
+var MODULEBASE
+var PE_HEADER
+var CURRENTDIR
+var PE_HEADER_SIZE
+var CODESECTION
+var CODESECTION_SIZE
+var MODULESIZE
+var MODULEBASE_and_MODULESIZE
+var PE_SIGNATURE
+var PE_SIZE
+var PE_INFO_START
+var ENTRYPOINT
+var BASE_OF_CODE
+var IMAGEBASE
+var SIZE_OF_IMAGE
+var TLS_TABLE_ADDRESS
+var TLS_TABLE_SIZE
+var IMPORT_ADDRESS_TABLE
+var IMPORT_ADDRESS_SIZE
+var SECTIONS
+var SECTION_01
+var SECTION_01_NAME
+var MAJORLINKERVERSION
+var MINORLINKERVERSION
+var PROGRAMLANGUAGE
+var IMPORT_TABLE_ADDRESS
+var IMPORT_TABLE_ADDRESS_END
+var IMPORT_TABLE_ADDRESS_CALC
+var IMPORT_TABLE_SIZE
+var IAT_BEGIN
+var IMPORT_ADDRESS_TABLE_END
+var API_IN
+var API_NAME
+var MODULE
+var IMPORT_FUNCTIONS
+var IATSTORE_SECTION
+var IATSTORE
+var TABLEBAK
+var FindFirstFileA
+var VPAPI
+var VPAPI_2
+var VALLOC
+var MEMTEST
+var MEMTEST_2
+var extra
+var OEP
+var IAT
+var STORE
+var MODULE_SEC
+var MODULE_SEC_2
+var MOD_COUNT
+var MOD_COUNT_DEC
+var GetLocalTime
+var TIMESEC
+var TIMESEC_2
+var SYSTEM_APIS_SEC
+var SYSTEM_APIS_SEC_2
+var SYSTEM_API_COUNT
+var YES_S_APIS
+var KiUserExceptionDispatcher
+// Get CPU NAME and Win Versions
+var GetUserNameA
+var GetVersionExA
+var lstrcatA
+var lstrcmpiA
+var lstrcpyA
+var RegCloseKey
+var RegOpenKeyExA
+var RegQueryValueExA
+var CPU_SEC
+var CPU_SEC_2
+var DAT_SEC
+var eip_bak
+var esp_bak
+var esp_base
+var esp_size
+var esp_in
+var CPU_NAME
+var call_1
+var CPU_NAME_LEN
+var OS
+var eax_bak
+var eax_count
+var RN
+var RN_2
+var YEAR
+var MONTH
+var DAY
+var WDAY
+var HOUR
+var MINUTE
+var SECOND
+var MILLISECOND
+var ME
+var points
+var DAYNAME
+var LoadLibraryA
+var GetProcAddress
+var UIF_SEC
+var UIF_SEC_2
+var MAKERSEC
+var MAKERSEC_2
+var VM_COUNTERS
+var VM_CHECKEND
+var Resource_Table_address
+var Resource_Table_size
+var RES_ADDR
+var MEM_2
+var NAME
+var SIZE
+var SECTION
+var ZECH
+var LENGHT
+var TEST_SEC
+var TEST_SEC_2
+var SEC_COOUNTER
+var STAP
+var INTERN
+var NONFIXED
+var REM
+var TEM
+var FAKESEC
+var FAKESEC_2
+var API
+var STOREMEM
+var STOREMEM_2
+var DATAS
+var DATAS_2
+var NEWDATA
+var NEWDATA_2
+var NOFIX
+var NOFIX
+var bakeip2
+var RECODE
+var VM_LOG_START
+var VM_LOG_END
+var ACCESSVIO
+var ACCESSVIO_2
+var VIO
+var BP_VM_COUNTERS
+var LOOP
+var ADDRESS
+var VIOLOOP
+var COUNT_COMMANDS
+var COUNT_COMMANDS_HEX
+var IATEND
+var JMPEND
+var temp
+var DLL_NAME
+var esp1
+var espsize
+var espstart
+var esp_full
+var DBOMT
+var DBOMT_SIZE
+var DBOMT_IN
+var KI_STOP
+var KI_SEC_1
+var KI_SEC_2
+var BP_SETTED
+var VM_MAKER_SEC
+var VM_MAKER_SEC_2
+var MARKER_COUNT
+var VM_FIRST
+var VM_JUMP
+var BP_MAKERSEC
+var BP_MAKERSEC_2
+var BP_VM_COUNTERS
+var BP_VM_CHECKED
+var VIO_END_CHECK
+var ALLOCSEC
+var NEW_IAT_ADDR
+var UIF_TEST_IAT
+var UIF_TEST_IAT_2
+var UIF_LOAD_SEC
+var UIF_LOAD_SEC_2
+var UIF_API
+var UIF_BASE
+var POINTERSEC
+var POINTERSEC_2
+var TABLEEND
+var IAT_NEW
+var MEM_NEW
+var MEMO
+var NEW_MEM_YES
+var SDK_IN
+var ESP_1
+var DeleteFileA
+var ZECH_B
+var TT
+var TOM
+var M_BLOCK
+var M_BLOCK_2
+var UIF_LOOP
+var RR
+var A1
+var A2
+var EX
+var SECS
+var TAN
+var VM_STRING_1
+var VM_STRING_2
+var VM_END_SRING
+var STRING_WORKS
+var SECS_ALL
+mov VM_STRING_2, #8D??????????8D??????????8D??????????8D??????????#
+mov VM_END_SRING, #000000000000000000000000000000000000#
+LC
+lclr
+mov SCRIPTNAME, "VProtect 1.x - 2.x Direct IAT Unpacker 1.0"
+mov RN, "\r\n"
+mov RN_2, "\r\n\r\n"
+mov ME, "LCF-AT"
+mov points, "******************************************************"
+mov eip_bak, eip
+/////////////////////////
+// jmp SICK  // weg später
+pusha
+mov ebp, esp
+mov esp_bak, esp
+gmemi esp, MEMORYSIZE
+mov esp_size, $RESULT
+gmemi esp, MEMORYBASE
+mov esp_base, $RESULT
+readstr [esp_base], esp_size
+mov esp_in, $RESULT
+buf esp_in
+alloc 1000
+mov CPU_SEC,   $RESULT
+mov CPU_SEC_2, $RESULT
+mov eip, CPU_SEC
+mov [CPU_SEC], #60B80004000050548D85E4F8FFFF50E8339A6AAA588D85E4F8FFFF90#
+alloc 1000
+mov DAT_SEC, $RESULT
+////////////////////
+KERNEL_LOAD:
+gpa "lstrcatA","kernel32.dll"
+mov lstrcatA, $RESULT
+cmp $RESULT, 00
+jne KERNEL
+	pusha
+	loadlib "kernel32.dll"
+	popa
+        jmp KERNEL_LOAD
+////////////////////
+KERNEL:
+gpa "lstrcmpiA","kernel32.dll"
+mov lstrcmpiA, $RESULT
+gpa "lstrcpyA","kernel32.dll"
+mov lstrcpyA,  $RESULT
+gpa "GetVersionExA","kernel32.dll"
+mov GetVersionExA, $RESULT
+cmp $RESULT, 00
+jne KERNEL_LOADED
+	pusha
+	loadlib "kernel32.dll"
+	popa
+        jmp KERNEL
+////////////////////
+KERNEL_LOADED:
+gpa "GetUserNameA","advapi32.dll"
+mov GetUserNameA, $RESULT
+cmp $RESULT, 00
+jne ADVAPI_LOADED
+	pusha
+	loadlib "advapi32.dll"
+	popa
+        jmp KERNEL_LOADED
+////////////////////
+ADVAPI_LOADED:
+gpa "RegCloseKey","advapi32.dll"
+mov RegCloseKey,  $RESULT
+gpa "RegOpenKeyExA","advapi32.dll"
+mov RegOpenKeyExA,  $RESULT
+gpa "RegQueryValueExA","advapi32.dll"
+mov RegQueryValueExA,  $RESULT
+eval "call {GetUserNameA}"
+asm CPU_SEC+0F, $RESULT
+bp eip+1B
+run
+bc
+GSTR eax
+mov CPU_NAME, $RESULT
+mov CPU_NAME_LEN, $RESULT_1
+eval "{SCRIPTNAME} {RN_2}{points} {RN_2}Get System - Operation Infos? {RN_2}{points} {RN}{ME}"
+msgyn $RESULT
+mov TAN, $RESULT
+cmp $RESULT, 01
+jne NO_OP_INFOS
+mov [CPU_SEC+1C],  #C7853CFDFFFF50000000C78564FFFFFF9C0000008D8564FFFFFF50E81528F17B0BC0752BC78564FFFFFF940000008D8564FFFFFF50E8FB27F17B0BC00BC07517C78564FFFFFF00000000E91B060000EB06#
+add CPU_SEC, 1C
+mov [CPU_SEC+51],  #898538FDFFFF83BD74FFFFFF020F851005000083BD74FFFFFF05751F83BD6CFFFFFF02751668134040008D8563FDFFFF50E8BA070000E9DD00000083BD68FFFFFF05751F83BD6CFFFFFF01751668334040008D8563FDFFFF50E892070000E9B5000000#
+mov [CPU_SEC+0B4], #83BD68FFFFFF05751F83BD6CFFFFFF00751668494040008D8563FDFFFF50E86A070000E98D00000083BD68FFFFFF04771368614040008D8563FDFFFF50E84B070000EB71#
+mov [CPU_SEC+0F8], #83BD68FFFFFF06756883BD6CFFFFFF00752C807DFE01751368774040008D8563FDFFFF50E820070000EB4668864040008D8563FDFFFF50E80D070000EB3383BD6CFFFFFF01752A807DFE017513689B4040008D8563FDFFFF50E8EB060000EB11#
+mov [CPU_SEC+158], #68A64040008D8563FDFFFF50E8D806000083BD38FDFFFF000F8475010000807DFE01755383BD68FFFFFF04751668BE4040008D8563FDFFFF50E8AB060000E97F020000#
+mov [CPU_SEC+19B], #66F745FC0002741668CF4040008D8563FDFFFF50E88D060000E96102000068DD4040008D8563FDFFFF50E877060000E94B020000807DFE03740A807DFE020F853B02000083BD68FFFFFF05757983BD6CFFFFFF00757066F745FC8000741668EB4040008D8563FDFFFF50E837060000E9D7000000#
+mov [CPU_SEC+20F], #66F745FC0200741668FF4040008D8563FDFFFF50E819060000E9B900000066817DFC0004751668134140008D8563FDFFFF50E8FB050000E99B00000068204140008D8563FDFFFF50E8E5050000E98500000083BD68FFFFFF05755083BD6CFFFFFF00754766837DFC00741368324140008D8563FDFFFF50E8B6050000EB59#
+mov [CPU_SEC+28D], #66837DFC00741368454140008D8563FDFFFF50E89C050000EB3F68564140008D8563FDFFFF50E889050000EB2C66F745FC02007413685E4140008D8563FDFFFF50E86E050000EB11687E4140008D8563FDFFFF50E85B050000E92F0100008D8544FDFFFF506A016A00688A4140006802000080E8C60500000BC07405E95C030000#
+mov [CPU_SEC+30E], #8D853CFDFFFF508D85E8FCFFFF506A006A0068BD414000FFB544FDFFFFE8A10500000BC0750983BD3CFDFFFF507605E928030000FFB544FDFFFFE8780500008D85E8FCFFFF5068C9414000E8E90400000BC0751168CF4140008D8563FDFFFF50E8CE0400008D85E8FCFFFF5068DD414000E8C30400000BC0751168E64140008D8563FDFFFF50E8A80400008D85E8FCFFFF5068EF414000E89D0400000BC0756C68F84140008D8563FDFFFF50E8820400008D854FFDFFFF50FFB568FFFFFFE8880400008D854FFDFFFF508D8563FDFFFF50E85D040000680A4040008D8563FDFFFF50E84C0400008D854FFDFFFF50FFB56CFFFFFFE8520400008D854FFDFFFF508D8563FDFFFF50E827040000680A4240008D8578FFFFFF50E81C0400000BC00F85DB00000083BD68FFFFFF040F85CE000000#
+mov [CPU_SEC+440], #8D8544FDFFFF506A016A0068194240006802000080E8710400000BC0753F685A4240008D8563FDFFFF50E8D20300008B9570FFFFFF81E2FFFF00008D854FFDFFFF5052E8D10300008D854FFDFFFF508D8563FDFFFF50E8A6030000EB6168714240008D8563FDFFFF50E8930300008D8578FFFFFF508D8563FDFFFF50E88003000068084040008D8563FDFFFF50E86F0300008B9570FFFFFF81E2FFFF00008D854FFDFFFF5052E86E0300008D854FFDFFFF508D8563FDFFFF50E843030000FFB544FDFFFFE8BC030000E93D010000#
+mov [CPU_SEC+50E], #68784240008D8563FDFFFF50E8220300008D8578FFFFFF508D8563FDFFFF50E80F03000068084040008D8563FDFFFF50E8FE0200008B9570FFFFFF81E2FFFF00008D854FFDFFFF5052E8FD0200008D854FFDFFFF508D8563FDFFFF50E8D2020000E9D700000083BD48FDFFFF010F85B000000083BD68FFFFFF04754383BD6CFFFFFF00753A687F4240008D8563FDFFFF50E8A902000080BD78FFFFFF43740D80BD78FFFFFF420F859100000068954240008D8563FDFFFF50E876020000EB7E#
+mov [CPU_SEC+5CD], #83BD68FFFFFF04753683BD6CFFFFFF0A752D689B4240008D8563FDFFFF50E85D02000080BD78FFFFFF41755268B14240008D8563FDFFFF50E837020000EB3F83BD68FFFFFF04753683BD6CFFFFFF5A752D68B54240008D8563FDFFFF50E81E020000EB1A83BD48FDFFFF00751168DA4240008D8563FDFFFF50E8020200006A0068EB4240008D8563FDFFFF506A00E8F3010000C785E4FCFFFF010000008B85E4FCFFFFC9C20400CC#
+sub CPU_SEC, 1C
+mov [CPU_SEC+56], 9090, 02
+mov [DAT_SEC+],    #000000000000000000000000000000000000004D6963726F736F66742057696E646F77732053657276657220323030332C20004D6963726F736F66742057696E646F777320585020004D6963726F736F66742057696E646F7773203230303020004D6963726F736F66742057696E646F7773204E54200057696E646F7773205669737461200057696E646F7773205365727665722032303038200057696E646F777320#
+mov [DAT_SEC+0A3], #37200057696E646F77732053657276657220323030382052322000576F726B73746174696F6E20342E302000486F6D652045646974696F6E200050726F66657373696F6E616C20004461746163656E7465722045646974696F6E2000456E74657270726973652045646974696F6E20005765622045646974696F6E20005374616E646172642045646974696F6E20004461#
+mov [DAT_SEC+134], #746163656E746572205365727665722000416476616E636564205365727665722000536572766572200053657276657220342E302C20456E74657270726973652045646974696F6E200053657276657220342E30200053595354454D5C5C43#
+mov [DAT_SEC+193], #757272656E74436F6E74726F6C5365745C5C436F6E74726F6C5C5C50726F647563744F7074696F6E730050726F64756374547970650057494E4E540020576F726B73746174696F6E20004C414E4D414E4E54002053#
+mov [DAT_SEC+1E8], #657276657220005345525645524E540020416476616E63656420536572766572200053657276696365205061636B203600534F4654574152455C5C4D6963726F736F66745C5C57696E646F7773204E545C5C43757272656E7456657273696F6E5C5C486F746669785C5C513234363030390053657276#
+mov [DAT_SEC+25E], #696365205061636B203661204275696C6420004275696C6420004275696C6420004D6963726F736F66742057696E646F777320393520004F53523220004D6963726F736F66742057696E646F77732039382000534520004D6963726F736F66742057696E646F7773204D696C6C656E6E69756D2045646974696F6E004D6963726F736F66742057696E333273004F532076657273696F6E00000000000000000000#
+mov [DAT_SEC],     #0D0000000A00000020002E004E616D653A20004D6963726F736F66742057696E646F77732053#
+mov [CPU_SEC+8F0], #558BEC5356578B45088B7D0C85C0750766C7073000EB477908C6072DF7D883C701B9CDCCCCCC8BF7EB188BD8F7E1C1EA038BC28D149203D22BDA80C330881F83C70183F80077E3C60700EB0E83EF018A068A278807882683C6013BF772EE5F5E5BC9C20800#
+mov call_1, CPU_SEC+8F0
+mov [CPU_SEC+691], #558BEC81C4E4F8FFFFC7853CFDFFFF50000000C78564FFFFFF9C000000680C4040008D8563FDFFFF50E874080000#
+eval "call {lstrcatA}"
+asm CPU_SEC+6BA, $RESULT
+inc CPU_SEC_2
+eval "jmp {CPU_SEC_2}"
+asm CPU_SEC+6BF, $RESULT
+dec CPU_SEC_2
+mov [CPU_SEC+6AF], DAT_SEC+0C
+mov eip, CPU_SEC+691
+mov [CPU_SEC+6C4], #508D8563FDFFFF50E84D08000068004040008D8563FDFFFF50E83C08000068004040008D8563FDFFFF50E82B0800009090#
+add CPU_SEC_2, 30
+eval "jmp {CPU_SEC_2}"
+asm CPU_SEC+6F3, $RESULT
+sub CPU_SEC_2, 30
+add CPU_SEC_2, 6C4
+eval "jmp {CPU_SEC_2}"
+asm CPU_SEC+1C, $RESULT
+sub CPU_SEC_2, 6C4
+eval "call {GetVersionExA}"
+asm CPU_SEC+37, $RESULT
+eval "call {GetVersionExA}"
+asm CPU_SEC+51, $RESULT
+eval "call {lstrcatA}"
+asm CPU_SEC+6CC, $RESULT
+eval "call {lstrcatA}"
+asm CPU_SEC+6DD, $RESULT
+eval "call {lstrcatA}"
+asm CPU_SEC+6EE, $RESULT
+mov [CPU_SEC+6D2], DAT_SEC
+mov [CPU_SEC+6E3], DAT_SEC
+mov [CPU_SEC+68D], #619090#
+mov [CPU_SEC+677], #83C4109090#
+add DAT_SEC, 13
+mov [CPU_SEC+93],  DAT_SEC
+sub DAT_SEC, 13
+mov [CPU_SEC+0BB], DAT_SEC+33
+mov [CPU_SEC+0E3], DAT_SEC+49
+mov [CPU_SEC+102], DAT_SEC+61
+mov [CPU_SEC+12D], DAT_SEC+77
+mov [CPU_SEC+140], DAT_SEC+86
+mov [CPU_SEC+162], DAT_SEC+9B
+mov [CPU_SEC+175], DAT_SEC+0A6
+mov [CPU_SEC+1A2], DAT_SEC+0BE
+mov [CPU_SEC+1C0], DAT_SEC+0CF
+mov [CPU_SEC+1D6], DAT_SEC+0DD
+mov [CPU_SEC+216], DAT_SEC+0EB
+mov [CPU_SEC+234], DAT_SEC+0FF
+mov [CPU_SEC+252], DAT_SEC+113
+mov [CPU_SEC+268], DAT_SEC+120
+mov [CPU_SEC+297], DAT_SEC+132
+mov [CPU_SEC+2B1], DAT_SEC+145
+mov [CPU_SEC+2C4], DAT_SEC+156
+mov [CPU_SEC+2DF], DAT_SEC+15E
+mov [CPU_SEC+2F2], DAT_SEC+17E
+mov [CPU_SEC+313], DAT_SEC+18A
+mov [CPU_SEC+33D], DAT_SEC+1BD
+mov [CPU_SEC+371], DAT_SEC+1C9
+mov [CPU_SEC+37F], DAT_SEC+1CF
+mov [CPU_SEC+397], DAT_SEC+1DD
+mov [CPU_SEC+3A5], DAT_SEC+1E6
+mov [CPU_SEC+3BD], DAT_SEC+1EF
+mov [CPU_SEC+3CB], DAT_SEC+1F8
+mov [CPU_SEC+401], DAT_SEC+0A
+mov [CPU_SEC+437], DAT_SEC+20A
+mov [CPU_SEC+468], DAT_SEC+219
+mov [CPU_SEC+47B], DAT_SEC+25A
+mov [CPU_SEC+4BA], DAT_SEC+271
+mov [CPU_SEC+4DE], DAT_SEC+08
+mov [CPU_SEC+52B], DAT_SEC+278
+mov [CPU_SEC+54F], DAT_SEC+08
+mov [CPU_SEC+5B0], DAT_SEC+27F
+mov [CPU_SEC+5D7], DAT_SEC+295
+mov [CPU_SEC+5FC], DAT_SEC+29B
+mov [CPU_SEC+616], DAT_SEC+2B1
+mov [CPU_SEC+63B], DAT_SEC+2B5
+mov [CPU_SEC+657], DAT_SEC+2DA
+mov [CPU_SEC+66A], DAT_SEC+2EB
+eval "jmp {lstrcatA}"
+asm CPU_SEC+85D , $RESULT
+eval "jmp {RegOpenKeyExA}"
+asm CPU_SEC+8E7 , $RESULT
+eval "jmp {RegCloseKey}"
+asm CPU_SEC+8E1, $RESULT
+eval "jmp {lstrcmpiA}"
+asm CPU_SEC+863, $RESULT
+eval "jmp {call_1}"
+asm CPU_SEC+875, $RESULT
+eval "jmp {lstrcpyA}"
+asm CPU_SEC+869, $RESULT
+mov [CPU_SEC+8ED], #EBEC#
+eval "jmp {RegQueryValueExA}"
+asm CPU_SEC+8DB, $RESULT
+bp CPU_SEC+677
+bp CPU_SEC+686
+run
+bc
+cmp eip, CPU_SEC+677
+je CAN_READ_DATA
+bp eip+08
+mov OS, "No OS Found!"
+jmp LAST_STEP
+////////////////////
+CAN_READ_DATA:
+mov eax_bak, eax
+////////////////////
+CAN_READ_DATA_1:
+inc eax_count
+cmp eax_count, 20
+jne CAN_READ_DATA_2
+mov eax, eax_bak
+GSTR eax
+jmp LOG_OS
+////////////////////
+CAN_READ_DATA_2:
+GSTR eax
+cmp $RESULT, CPU_NAME , CPU_NAME_LEN
+je NAME_IN
+inc eax
+jmp CAN_READ_DATA_1
+////////////////////
+NAME_IN:
+add eax, CPU_NAME_LEN
+add eax, 2
+GSTR eax
+////////////////////
+LOG_OS:
+mov OS, $RESULT
+bp eip+17
+////////////////////
+LAST_STEP:
+run
+////////////////////
+NO_OP_INFOS:
+popa
+bc
+mov eip, eip_bak
+free CPU_SEC
+free DAT_SEC
+mov [esp_base], esp_in
+log ""
+log "*****************************************************************"
+log "*"
+eval "*   {CPU_NAME}"
+log $RESULT, ""
+log "*"
+log "*"
+log "*   Operating System:"
+log "*"
+log "*"
+eval "*   {OS}"
+log $RESULT, ""
+log "*"
+log "*"
+log "*   LCF-AT"
+log "*"
+log "*****************************************************************"
+log ""
+/////////////////////////////
+/////////////////////////////
+cmp TAN, 01
+jne SICK
+gpa "GetLocalTime", "kernel32.dll"
+mov GetLocalTime, $RESULT
+alloc 1000
+mov TIMESEC, $RESULT
+mov TIMESEC_2, $RESULT
+add TIMESEC, 200
+mov [TIMESEC], #6068AAAAAA0AE82B86A9A961909090#
+mov [TIMESEC+02], TIMESEC_2
+eval "call {GetLocalTime}"
+asm TIMESEC+06, $RESULT
+mov bak, eip
+bp TIMESEC+0D
+mov eip, TIMESEC
+run
+bc
+mov eip, bak
+pusha
+mov eax, TIMESEC_2
+mov ecx, [eax]
+mov edx, cx
+itoa edx, 10.
+mov YEAR, $RESULT
+shr ecx, 08
+shr ecx, 08
+itoa cl, 10.
+mov MONTH, $RESULT
+mov eax, TIMESEC_2+4
+mov ecx, [eax]
+mov edx, cx
+cmp cx, 00
+je DAYINTO
+ja DAYINTO
+pause
+pause
+////////////////////
+DAYINTO:
+cmp cx, 07
+jb DAYINTO_2
+pause
+pause
+////////////////////
+DAYINTO_2:
+eval "DAY_{cx}"
+jmp $RESULT
+pause
+pause
+////////////////////
+DAY_1:
+mov DAYNAME, "Monday"
+jmp AFTERDAYNAME
+////////////////////
+DAY_2:
+mov DAYNAME, "Tuesday"
+jmp AFTERDAYNAME
+////////////////////
+DAY_3:
+mov DAYNAME, "Wednesday"
+jmp AFTERDAYNAME
+////////////////////
+DAY_4:
+mov DAYNAME, "Thursday"
+jmp AFTERDAYNAME
+////////////////////
+DAY_5:
+mov DAYNAME, "Friday"
+jmp AFTERDAYNAME
+////////////////////
+DAY_6:
+mov DAYNAME, "Saturday"
+jmp AFTERDAYNAME
+////////////////////
+DAY_0:
+mov DAYNAME, "Sunday"
+jmp AFTERDAYNAME
+////////////////////
+AFTERDAYNAME:
+itoa edx, 10.
+mov DAY, $RESULT
+shr ecx, 08
+shr ecx, 08
+itoa cl, 10.
+mov WDAY, $RESULT
+mov eax, TIMESEC_2+8
+mov ecx, [eax]
+mov edx, cx
+itoa edx, 10.
+mov HOUR, $RESULT
+shr ecx, 08
+shr ecx, 08
+itoa cl, 10.
+mov MINUTE, $RESULT
+mov eax, TIMESEC_2+0C
+mov ecx, [eax]
+mov edx, cx
+itoa edx, 10.
+mov SECOND, $RESULT
+shr ecx, 08
+shr ecx, 08
+itoa cl, 10.
+mov MILLISECOND, $RESULT
+popa
+free TIMESEC
+////////////////////
+SICK:
+gpa "VirtualProtect", "kernel32.dll"
+mov VPAPI, $RESULT
+find VPAPI, #C21000#
+mov VPAPI, $RESULT
+gpa "VirtualAlloc", "kernel32.dll"
+mov VALLOC, $RESULT
+find VALLOC, #C21000#
+mov VALLOC, $RESULT
+gpa "LoadLibraryA", "kernel32.dll"
+mov LoadLibraryA, $RESULT
+gpa "GetProcAddress", "kernel32.dll"
+mov GetProcAddress, $RESULT
+gpa "KiUserExceptionDispatcher", "ntdll.dll"
+mov  KiUserExceptionDispatcher, $RESULT
+ret
+////////////////////
+GETESP:
+mov esp1, esp
+gmemi esp1, MEMORYSIZE
+mov espsize, $RESULT
+gmemi esp1, MEMORYBASE
+mov espstart, $RESULT
+readstr [espstart], espsize
+mov esp_full, $RESULT
+buf esp_full
+pusha
+exec
+MOV EAX,DWORD PTR FS:[18]
+ende
+mov DBOMT, eax
+gmemi DBOMT, MEMORYSIZE
+mov DBOMT_SIZE, $RESULT
+readstr [DBOMT], DBOMT_SIZE
+mov DBOMT_IN, $RESULT
+buf DBOMT_IN
+popa
+ret
+////////////////////
+SET_ESP_DBOMT:
+mov esp, esp1
+mov [espstart], esp_full
+mov [DBOMT], DBOMT_IN
+ret
+////////////////////
+VM_MARKER:
+alloc 1000
+mov MAKERSEC, $RESULT
+mov MAKERSEC_2, $RESULT
+pusha
+mov eax, VP
+jmp FIND_MARKER
+////////////////////
+VM_2:
+mov eax, VP2
+jmp FIND_MARKER
+////////////////////
+VM_3:
+mov eax, VP3
+jmp FIND_MARKER
+////////////////////
+VM_4:
+mov eax, VP4
+jmp FIND_MARKER
+////////////////////
+FIND_MARKER:
+find eax, #8B6728#
+cmp $RESULT, 00
+je VP_NEXT_SEC
+mov eax, $RESULT
+add eax, 03
+mov [MAKERSEC], $RESULT
+cmt $RESULT, "VM"
+add MAKERSEC, 04
+jmp FIND_MARKER
+////////////////////
+VP_NEXT_SEC:
+inc VM_COUNTERS
+cmp VM_COUNTERS, 01
+je VM_2
+cmp VM_COUNTERS, 02
+je VM_3
+cmp VM_COUNTERS, 03
+je VM_4
+mov VM_CHECKEND, 01
+mov MAKERSEC, MAKERSEC_2
+popa
+ret
+////////////////////
+BP_VM_MARKER:
+pusha
+mov eax, 00
+mov ecx, 00
+mov eax, MAKERSEC
+////////////////////
+SET_VM_BPS:
+mov ecx, [eax]
+cmp ecx, 00
+je VM_BP_SET
+bp ecx
+inc MARKER_COUNT
+add eax, 04
+jmp SET_VM_BPS
+////////////////////
+VM_BP_SET:
+popa
+mov BP_SETTED, 01
+ret
+////////////////////
+SET_REGISTER:
+mov eax, 00
+mov ecx, 00
+mov edx, 00
+mov ebx, 00
+mov ebp, 00
+mov esi, 00
+mov edi, 00
+ret
+////////////////////
+SET_KI_PATCH:
+alloc 2000
+mov KI_SEC_1, $RESULT
+mov KI_SEC_2, $RESULT
+mov [KI_SEC_1], #817C240803000080741A817C24080400008074109090909090909090909090909090909090909090909090909090909090909090#
+add KI_SEC_1, 30
+pusha
+mov eax, 00
+mov ecx, 00
+mov edx, 00
+mov ebx, 00
+mov edx, KiUserExceptionDispatcher
+////////////////////
+SIZE_LOOPS:
+gci edx, SIZE
+mov ecx, $RESULT
+add ebx, $RESULT
+gci edx, COMMAND
+asm KI_SEC_1, $RESULT
+add KI_SEC_1, ecx
+add edx, ecx
+cmp ebx, 05
+jb SIZE_LOOPS
+eval "jmp {edx}"
+asm KI_SEC_1, $RESULT
+mov KI_STOP, KI_SEC_2+15
+cmt KI_STOP, "AV"
+eval "jmp {KI_SEC_2}"
+asm KiUserExceptionDispatcher, $RESULT
+popa
+ret
+////////////////////
+ALLOC_VM_MARKER:
+alloc 1000
+mov VM_MAKER_SEC, $RESULT
+mov VM_MAKER_SEC_2, $RESULT
+ret
+////////////////////
+LOG_VM_MARKER:
+cmp VM_FIRST, 01
+je LOG_VM_MARKER_2
+////////////////////
+LOG_VM_MARKER_A:
+pusha
+mov eax, VM_MAKER_SEC
+cmp [eax], 00
+jne MARKER_IN
+mov [eax], eip
+add VM_MAKER_SEC, 04
+////////////////////
+MARKER_IN:
+popa
+mov VM_FIRST, 01
+ret
+////////////////////
+LOG_VM_MARKER_2:
+pusha
+mov eax, VM_MAKER_SEC_2
+////////////////////
+LOG_VM_MARKER_2_B:
+cmp [eax], 00
+je MARKER_CHECK_END
+mov ecx, eip
+cmp [eax], ecx
+add eax, 04
+jne LOG_VM_MARKER_2_B
+jmp MARKER_CHECK_END_2
+////////////////////
+MARKER_CHECK_END:
+popa
+jmp LOG_VM_MARKER_A
+////////////////////
+MARKER_CHECK_END_2:
+popa
+ret
+////////////////////
+FIND_BP_DETECT:
+// MACHETNEW
+// pause
+cmp SDK_IN, 00
+jne START_SEARCHING_FOR
+ret
+////////////////////
+START_SEARCHING_FOR:
+var VM_STRING_1
+mov BP_VM_CHECKED, 01
+alloc 1000
+mov BP_MAKERSEC, $RESULT
+mov BP_MAKERSEC_2, $RESULT
+mov VM_STRING_1, #8B450005????????C1C0#
+pusha
+////////////////////
+CHECK_NEW_STRINGS:
+mov eax, 00
+mov ecx, 00
+mov eax, VP
+find eax, VM_STRING_1  // VM START
+cmp $RESULT, 00
+je BP_VP_NEXT_SEC
+mov eax, $RESULT
+mov STRING_WORKS, 01
+jmp BP_FIND_MARKER
+////////////////////
+BP_VM_2:
+mov eax, VP2
+find eax, VM_STRING_1 
+cmp $RESULT, 00
+je BP_VP_NEXT_SEC
+mov eax, $RESULT
+mov STRING_WORKS, 01
+jmp BP_FIND_MARKER
+////////////////////
+BP_VM_3:
+mov eax, VP3
+find eax, VM_STRING_1 
+cmp $RESULT, 00
+je BP_VP_NEXT_SEC
+mov eax, $RESULT
+mov STRING_WORKS, 01
+jmp BP_FIND_MARKER
+////////////////////
+BP_VM_4:
+mov eax, VP4
+find eax, VM_STRING_1 
+cmp $RESULT, 00
+je BP_VP_NEXT_SEC
+mov eax, $RESULT
+mov STRING_WORKS, 01
+jmp BP_FIND_MARKER
+////////////////////
+BP_FIND_MARKER:
+find eax, #8A1A#
+cmp $RESULT, 00
+je BP_VP_NEXT_SEC
+mov eax, $RESULT
+findop eax, #0F85#
+cmp $RESULT, 00
+je BP_VP_NEXT_SEC
+mov ecx, $RESULT
+gci ecx, DESTINATION
+cmp $RESULT, eax
+je JNZ_POINTER_THERE
+add eax, 03
+mov ecx, 00
+jmp BP_FIND_MARKER
+////////////////////
+JNZ_POINTER_THERE:
+gci ecx, SIZE
+add ecx, $RESULT
+mov eax, ecx
+mov [BP_MAKERSEC], ecx
+add eax, 03
+cmt ecx, "BP"
+mov ecx, 00
+add BP_MAKERSEC, 04
+jmp BP_FIND_MARKER
+////////////////////
+BP_VP_NEXT_SEC:
+inc BP_VM_COUNTERS
+cmp BP_VM_COUNTERS, 01
+je BP_VM_2
+cmp BP_VM_COUNTERS, 02
+je BP_VM_3
+cmp BP_VM_COUNTERS, 03
+je BP_VM_4
+mov BP_VM_CHECKEND, 01
+mov BP_MAKERSEC, BP_MAKERSEC_2
+cmp STRING_WORKS, 01
+je STRING_TEST_END
+cmp VM_STRING_1, VM_STRING_2
+jne TEST_OTHER_STRING
+log ""
+log "FOUND NO USED VM!"
+log ""
+jmp STRING_TEST_END
+////////////////////
+TEST_OTHER_STRING:
+mov VM_STRING_1, VM_STRING_2
+mov BP_VM_COUNTERS, 00
+// mov VM_STRING_1, 00
+jmp CHECK_NEW_STRINGS
+////////////////////
+STRING_TEST_END:
+popa
+ret
+////////////////////
+SET_BP_DETECT:
+pusha
+mov eax, 00
+mov eax, BP_MAKERSEC
+////////////////////
+SET_BP_DETECT_2:
+cmp [eax], 00
+je ALL_DT_SET
+bp [eax]
+add eax, 04
+jmp SET_BP_DETECT_2
+////////////////////
+ALL_DT_SET:
+popa
+ret
+////////////////////
+DLL_RELOAD:
+pusha
+// mov eax, MODULE_SEC
+mov eax, MODULE_SEC_2
+add eax, 4
+////////////////////
+DLL_RELOAD_2:
+cmp [eax], 00
+je RELOAD_END
+mov ecx, [eax]
+cmp ecx, IMAGEBASE
+je ADD_REDLL
+gmi ecx, NAME
+cmp $RESULT, 00
+jne GET_THE_DLL
+refresh ecx
+gmi ecx, NAME
+cmp $RESULT, 00
+jne GET_THE_DLL
+pause
+pause
+pause
+MODULE_SEC
+////////////////////
+GET_THE_DLL:
+mov DLL_NAME, $RESULT
+mov edx, [ecx+3C]
+add edx, ecx
+add ecx, [edx+104]
+lm ecx, 0, DLL_NAME
+eval "{DLL_NAME} | was restored"
+log $RESULT, ""
+jmp ADD_REDLL
+////////////////////
+ADD_REDLL:
+add eax, 08
+mov DLL_NAME, 00
+jmp DLL_RELOAD_2
+////////////////////
+RELOAD_END:
+popa
+ret
+////////////////////
+DELETE_OLD_FILES:
+mov TT, eip
+pusha
+mov eax, MODULE_SEC
+add eax, 4
+refresh eax
+////////////////////
+MODULE_NAME_CHECKS_DEL:
+cmp [eax], 00
+je END_MODULESEC_DEL
+mov ecx, [eax]
+gmi ecx, NAME
+cmp $RESULT, 00
+jne NAME_GET_DEL
+pause
+pause
+////////////////////
+NAME_GET_DEL:
+mov NAME, $RESULT
+mov edx, ecx
+add edx, [ecx+3C]
+mov edx, [edx+104]
+add edx, ecx
+gmemi edx, MEMORYSIZE
+cmp $RESULT, 00
+jne SIZE_GET_DEL
+pause
+pause
+////////////////////
+SIZE_GET_DEL:
+mov SIZE, $RESULT
+mov SECTION, edx
+cmp SECTION, CODESECTION
+je ADD_EAX_DEL
+mov bak, eip
+cmp ZECH_B, 01
+je ENTER_NAME_DEL
+alloc 1000
+mov APR, $RESULT
+mov APR2, $RESULT
+add APR, 50
+gpa "DeleteFileA","kernel32.dll"
+mov DeleteFileA, $RESULT
+mov [APR], #6068AAAAAAAA68BBBBBBBBE877BB73CCA3AAAAAAAA61#
+mov [APR+02], APR2+100
+mov [APR+07], APR2+04
+add APR, 0B
+eval "call {DeleteFileA}"
+asm APR, $RESULT
+sub APR, 0B
+mov [APR+11], APR+1A
+mov [APR+16], #90909090#
+////////////////////
+ENTER_NAME_DEL:
+len NAME
+mov LENGHT, $RESULT
+mov [APR2+04], NAME
+mov eip, APR
+bp APR+17
+mov TOM, eax
+run
+bc
+mov eax, TOM
+mov eip, bak
+mov ZECH_B, 01
+fill APR2+04, LENGHT , 00
+cmp [APR+1A], 1
+je DUMP_DLL_DEL
+eval "{NAME} - MODULE was not delete!"
+log $RESULT, ""
+log ""
+jmp ADD_EAX_DEL
+////////////////////
+DUMP_DLL_DEL:
+////////////////////
+ADD_EAX_DEL:
+mov [APR+1A], 00
+add eax, 8
+jmp MODULE_NAME_CHECKS_DEL
+////////////////////
+END_MODULESEC_DEL:
+mov eip, APR
+fill APR2+04, 40 , 00
+eval "CODE_{PROCESSNAME_2}"
+mov [APR2+04], $RESULT
+bp APR+17
+run
+bc
+mov eip, TT
+popa
+free APR2
+ret
+////////////////////
+FREE_SECTIONS:
+// free SYSTEM_APIS_SEC
+free STORE
+free INFOSEC
+// free PATCHSEC
+free FAKESEC
+free STOREMEM
+free DATAS
+free NEWDATA
+// free ACCESSVIO
+// free UIF_LOAD_SEC
+// free UIF_TEST_IAT
+// free POINTERSEC
+// free M_BLOCK
+// free MAKERSEC
+free VM_MAKER_SEC
+// free BP_MAKERSEC
+ret
+////////////////////
+DUMP_SECS:
+pusha
+mov eax, IMAGEBASE
+mov ecx, [eax+3C]
+add ecx, eax
+mov edx, 00
+mov edx, [ecx+06]
+and edx, 0ff
+add ecx, 100
+////////////////////
+SEC_LOOPS:
+cmp edx, 00
+je SEC_OUT
+dec edx
+mov edi, [ecx]    // SIZE
+mov esi, [ecx+04] // ADDR 
+add esi, eax
+add ecx, 28
+cmp esi, CODESECTION
+je SEC_LOOPS
+inc SECS
+eval "Sec_{SECS}.dmp"
+dm esi, edi, $RESULT
+jmp SEC_LOOPS
+////////////////////
+SEC_OUT:
+popa
+mov SECS_ALL, SECS
+mov SECS, 00
+ret
+////////////////////
+LOAD_SECS:
+pusha
+mov eax, IMAGEBASE
+mov ecx, [eax+3C]
+add ecx, eax
+mov edx, 00
+mov edx, [ecx+06]
+and edx, 0ff
+add ecx, 100
+////////////////////
+SEC_LOOPS_2:
+cmp edx, 00
+je SEC_OUT_2
+dec edx
+mov edi, [ecx]    // SIZE
+mov esi, [ecx+04] // ADDR 
+add esi, eax
+add ecx, 28
+cmp esi, CODESECTION
+je SEC_LOOPS_2
+inc SECS
+eval "Sec_{SECS}.dmp"
+lm esi, edi, $RESULT
+jmp SEC_LOOPS_2
+////////////////////
+SEC_OUT_2:
+popa
+mov SECS, 00
+ret
+////////////////////
+DELETE_LAST_FILES:
+alloc 1000
+mov tmp, $RESULT
+mov edi, SECS_ALL
+pusha
+////////////////////
+DEL_NOW:
+fill tmp, 900, 00
+cmp edi, 00
+je DELETE_ENDE
+eval "Sec_{edi}.dmp"
+mov [tmp], $RESULT
+mov eax, tmp
+mov ecx, DeleteFileA
+exec
+push eax
+call ecx
+ende
+dec edi
+jmp DEL_NOW
+////////////////////
+DELETE_ENDE:
+eval "{PROCESSNAME_2}_Fixing_IAT.txt"
+mov [tmp], $RESULT
+call DEL_OTHERS
+eval "{PROCESSNAME_2}_Last_IAT_ADDR.txt"
+mov [tmp], $RESULT
+call DEL_OTHERS
+eval "{PROCESSNAME_2}_Not_Fixed_ADDR.txt"
+mov [tmp], $RESULT
+call DEL_OTHERS
+eval "{PROCESSNAME_2}_Last_Table_ADDR.txt"
+mov [tmp], $RESULT
+call DEL_OTHERS
+cmp SDK_IN, 01
+je NO_DEL_SDK_LOG
+eval "{PROCESSNAME_2}_Possible_SDK_ADDR_BP_LIST.txt"
+mov [tmp], $RESULT
+call DEL_OTHERS
+////////////////////
+NO_DEL_SDK_LOG:
+cmp WARN, 01
+je NO_WARN_DEL
+eval "{PROCESSNAME_2}_Waring_Not_Fixed_ADDR.txt"
+mov [tmp], $RESULT
+call DEL_OTHERS
+////////////////////
+NO_WARN_DEL:
+cmp C1, 00
+jne NO_CPUID_LOG
+eval "{PROCESSNAME_2}_Possible_CPUID_BP_LIST.txt"
+mov [tmp], $RESULT
+call DEL_OTHERS
+////////////////////
+NO_CPUID_LOG:
+popa
+free tmp
+ret
+////////////////////
+DEL_OTHERS:
+mov eax, tmp
+mov ecx, DeleteFileA
+exec
+push eax
+call ecx
+ende
+fill tmp, 900, 00
+ret
+////////////////////
+SIGN_FIND_LOG:
+pusha
+call SET_REGISTER
+mov eax, VP
+////////////////////
+S_1:
+find eax, #8B7730#
+cmp $RESULT, 00
+je S_2
+mov ecx, $RESULT
+mov edx, $RESULT
+mov eax, $RESULT
+add eax, 03
+find ecx, #0F85#
+cmp $RESULT, 00
+je S_1
+mov edi, $RESULT
+gci edi, DESTINATION
+mov esi, $RESULT
+cmp [esi], 1A8A, 02
+jne S_1
+sub eax, 03
+////////////////////
+S_LOOP_1:
+preop eax
+mov eax, $RESULT
+cmp [eax], 458B ,02
+je S_FOUND_1
+jmp S_LOOP_1
+////////////////////
+S_FOUND_1:
+cmp [eax+02], 00, 01
+jne S_LOOP_1
+gci eax, SIZE
+cmp $RESULT, 03
+jne S_LOOP_1
+call LOG_FOR_CPUID_PATCH
+jmp S_1
+////////////////////
+S_2:
+mov eax, VP2
+////////////////////
+OVER_2:
+find eax, #8B7730#
+cmp $RESULT, 00
+je S_3
+mov ecx, $RESULT
+mov edx, $RESULT
+mov eax, $RESULT
+add eax, 03
+find ecx, #0F85#
+cmp $RESULT, 00
+je OVER_2
+mov edi, $RESULT
+gci edi, DESTINATION
+mov esi, $RESULT
+cmp [esi], 1A8A, 02
+jne OVER_2
+sub eax, 03
+////////////////////
+S_LOOP_2:
+preop eax
+mov eax, $RESULT
+cmp [eax], 458B ,02
+je S_FOUND_2
+jmp S_LOOP_2
+////////////////////
+S_FOUND_2:
+cmp [eax+02], 00, 01
+jne S_LOOP_2
+gci eax, SIZE
+cmp $RESULT, 03
+jne S_LOOP_2
+call LOG_FOR_CPUID_PATCH
+jmp OVER_2
+////////////////////
+S_3:
+mov eax, VP3
+////////////////////
+OVER_3:
+find eax, #8B7730#
+cmp $RESULT, 00
+je S_4
+mov ecx, $RESULT
+mov edx, $RESULT
+mov eax, $RESULT
+add eax, 03
+find ecx, #0F85#
+cmp $RESULT, 00
+je OVER_3
+mov edi, $RESULT
+gci edi, DESTINATION
+mov esi, $RESULT
+cmp [esi], 1A8A, 02
+jne OVER_3
+sub eax, 03
+////////////////////
+S_LOOP_3:
+preop eax
+mov eax, $RESULT
+cmp [eax], 458B ,02
+je S_FOUND_3
+jmp S_LOOP_3
+////////////////////
+S_FOUND_3:
+cmp [eax+02], 00, 01
+jne S_LOOP_3
+gci eax, SIZE
+cmp $RESULT, 03
+jne S_LOOP_3
+call LOG_FOR_CPUID_PATCH
+jmp OVER_3
+////////////////////
+S_4:
+mov eax, VP4
+////////////////////
+OVER_4:
+find eax, #8B7730#
+cmp $RESULT, 00
+je SM_5
+mov ecx, $RESULT
+mov edx, $RESULT
+mov eax, $RESULT
+add eax, 03
+find ecx, #0F85#
+cmp $RESULT, 00
+je OVER_4
+mov edi, $RESULT
+gci edi, DESTINATION
+mov esi, $RESULT
+cmp [esi], 1A8A, 02
+jne OVER_4
+sub eax, 03
+////////////////////
+S_LOOP_4:
+preop eax
+mov eax, $RESULT
+cmp [eax], 458B ,02
+je S_FOUND_4
+jmp S_LOOP_4
+////////////////////
+S_FOUND_4:
+cmp [eax+02], 00, 01
+jne S_LOOP_4
+gci eax, SIZE
+cmp $RESULT, 03
+jne S_LOOP_4
+call LOG_FOR_CPUID_PATCH
+jmp OVER_4
+////////////////////
+SM_5:
+
+popa
+ret
+////////////////////
+LOG_FOR_CPUID_PATCH:
+log ""
+eval "bp {eax} // Check and Patch only if SDK + CPUID used!"
+wrta sFile9, $RESULT
+eval "bp {eax} // Check and Patch only if SDK + CPUID used!"
+log $RESULT, ""
+mov eax, ecx
+add eax, 03
+ret

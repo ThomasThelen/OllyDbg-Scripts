@@ -1,0 +1,61 @@
+                                                           /////////////////////////////////////////////////////////////////////// 
+                                                           // Enigma Protector V1.55 - V2.05 OEP Finder + IAT Repair By Ronar22 /
+                                                           /////////////////////////////////////////////////////////////////////
+
+Var X
+Var Y
+GPA "VirtualAlloc", "Kernel32.dll"
+BP $RESULT
+RUN
+RUN
+FINDMEM #8D047F8B55FC8B4DF0894C820447FF4DD0#
+BPHWS $RESULT,"x"
+Bp $RESULT
+Mov X,$RESULT
+FINDMEM #89431083C31C4E75B7#
+Cmp $RESULT,0
+Je Old
+ASM $RESULT,"MOV DWORD PTR DS:[EBX+14],EAX"
+Jmp Os
+Old:
+FINDMEM #894C820483C304668B3B83C3026685FF#
+FILL $RESULT,4,90
+Os:
+GPA "VirtualAlloc", "Kernel32.dll"
+BC $RESULT
+RUN
+ADD eip,17
+FINDMEM #????000000000000000000008C000000250000000000000000200000000000008D0000002A0000000000000000202000FCFFFFFF0000000000000000000000000000000000000000??00000000000000000000008C0000002500000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000#
+Cmp $RESULT,0
+Je NoVm
+BPHWS $RESULT,"r"
+Run
+Call Check
+Done:
+FINDMEM #E904000000????????E904000000????????FFE0E904000000#
+Bp $RESULT+12
+BPHWC
+Run
+STO
+RET
+NoVm:
+FINDMEM #8BC6E8????????8B45FCFFE0#
+Mov Y,$RESULT+A
+BPHWS $RESULT+A
+GPA "VirtualQuery", "Kernel32.dll"
+BP $RESULT+2
+Run
+Nex:
+Call Check
+Run
+Cmp eip,Y
+Jne Nex
+Jmp Done
+Check:
+Cmp eip,X
+Je As
+Ret
+As:
+Add eip,17
+Run
+Ret 

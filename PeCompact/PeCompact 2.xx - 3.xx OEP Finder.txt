@@ -1,0 +1,54 @@
+// ---------------------------------------------------------------------------------------------------------
+//      PECompact 2.x / 3.x OEP Finder (Using ESP Trick)
+//      Simple OEP finder for PECompact, tested with versions:
+//       - 2.08
+//       - 3.02.2 trial
+//
+//      Usage:  Simply load the script and let it run, if the OEP
+//              is found, the script will prompt with a messagebox.
+//
+//              Enable The Following Exception Options
+//               - Ingore memory access violations in KERNEL32
+//               - INT3 breaks
+//               - Memory access violation
+//
+//      Author: atom0s
+//      Date:   06.11.2010
+//
+// ---------------------------------------------------------------------------------------------------------
+// This script was made using OllyScript v1.78.3
+// ---------------------------------------------------------------------------------------------------------
+
+
+        BC      // Clear Loaded Breakpoints
+        BPMC    // Clear Memory Breakpoints
+        BPHWC   // Clear Hardware Breakpoints
+        DBH     // Hide Debugger [Minimal]
+
+        MOV temp1, esp
+ESPCheck:
+        STO
+        CMP temp1, esp
+        JE ESPCheck
+
+        BPHWS esp, "w"
+        ERUN
+        BPHWC
+
+        FINDMEM #8BC65A5E5F595B5DFFE0#, eip
+        CMP $RESULT, 0
+        JE Failed
+
+        MOV temp2, $RESULT
+        ADD temp2, 08
+        BP temp2
+        ERUN
+        STI
+        MOV temp3, eip
+
+        EVAL "OEP Found!: 0x{temp3}"
+        MSG $RESULT
+        CMT temp3, "<==== OEP !!!!!!!!!!!!!!!!!!!!!!"
+
+Failed:
+        ret
