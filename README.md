@@ -1,9 +1,16 @@
-# OllyDbg-Scripts
-A collection of ollydbg scripts focused on unpacking and IAT reconstruction for the most common packers. 
+![alt text](https://github.com/ThomasThelen/OllyDbg-Scripts/raw/master/ollydbg-scripts.png)
 
-## Contributing
-Before committing, please make sure that the script doesn't already exist under a different name and follow the current naming pattern as closely as possible.
+[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active)  [![license](https://img.shields.io/github/license/mashape/apistatus.svg)]()  
 
-## Sources
+OllyDbg is a classic debegger that I'll always have nostalgia for. There are a numbber of reasons why, the community being the highest. Over the years, scripts for unpacking, cracking, and mapping have been developed for most of the packers-including commercial. 
+
+This repository contains a number of useful scripts that I've collected over the years.
+
+### Repository Structure
+
+Each folder is a type of packer. Within each folder, you'll find curated unpacking scripts for it.
+
+### Sources
 [Tuts 4 You](https://tuts4you.com)
+
 [Open RCE](http://www.openrce.org)
